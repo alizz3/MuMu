@@ -19,7 +19,7 @@ const cfg = () => {
 export function authUrl(state, services, loginHint) {
   const c = cfg()
   const scopes = ['openid', 'email', ...new Set(services.flatMap((s) => SERVICE_SCOPES[s] || []))]
-  const p = new URLSearchParams({ client_id: c.id, redirect_uri: c.redirect, response_type: 'code', scope: scopes.join(' '), access_type: 'offline', prompt: 'consent select_account', include_granted_scopes: 'false', state })
+  const p = new URLSearchParams({ client_id: c.id, redirect_uri: c.redirect, response_type: 'code', scope: scopes.join(' '), access_type: 'offline', prompt: 'consent select_account', include_granted_scopes: 'true', state })
   if (loginHint) p.set('login_hint', loginHint)
   return `https://accounts.google.com/o/oauth2/v2/auth?${p}`
 }
@@ -79,4 +79,10 @@ export function localParts(date) {
   const f = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
   const p = Object.fromEntries(f.formatToParts(date).map((x) => [x.type, x.value]))
   return { day: `${p.year}-${p.month}-${p.day}`, time: `${p.hour === '24' ? '00' : p.hour}:${p.minute}` }
+}
+
+// Qué servicios quedaron realmente autorizados, según los scopes que Google devolvió
+export function servicesFromScopes(granted) {
+  const g = new Set(granted)
+  return Object.entries(SERVICE_SCOPES).filter(([, scopes]) => scopes.every((x) => g.has(x))).map(([k]) => k)
 }
