@@ -31,7 +31,7 @@ onMounted(() => {
   if (c) {
     ui.route = 'ajustes'
     history.replaceState(null, '', location.pathname + '#/ajustes')
-    setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada 💗' : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
+    setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada 💗' : c === 'parcial' ? q.get('msg') : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
   }
   setTimeout(tick, 2500)
   setInterval(tick, 60 * 1000)

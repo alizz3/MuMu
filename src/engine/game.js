@@ -26,7 +26,7 @@ export function toast(text, kind = 'info', action = null) {
   if (ui.toasts.some((t) => t.text === text)) return // no repetir el mismo aviso
   const id = Math.random().toString(36).slice(2)
   ui.toasts.push({ id, text, kind, action })
-  setTimeout(() => { const i = ui.toasts.findIndex((t) => t.id === id); if (i >= 0) ui.toasts.splice(i, 1) }, action ? 7000 : 3200)
+  setTimeout(() => { const i = ui.toasts.findIndex((t) => t.id === id); if (i >= 0) ui.toasts.splice(i, 1) }, action ? 7000 : Math.max(3200, text.length * 70))
 }
 
 // ----- Rachas flexibles -----
