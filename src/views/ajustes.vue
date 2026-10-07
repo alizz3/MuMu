@@ -25,6 +25,8 @@ const SERVICES = [
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos y tareas asignadas.'],
 ]
+const formRef = ref(null)
+function morePerms(a) { g.label = a.label; g.services = [...a.services]; formRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast('Marca los permisos que quieras sumar y dale Conectar con la misma cuenta') }
 const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filter((x) => x !== s) : [...g.services, s])
 // Se piden las cuentas cuando ya cargaron tus datos, para que la sincronización no las borre de la vista
 const loadingAcc = ref(false)
@@ -75,9 +77,10 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <div v-for="a in state.integrations.google" :key="a.id" class="item">
           <span class="ico" :class="{ lav: a.label === 'universidad' }"><Icon name="mail" :size="17" /></span>
           <div class="grow"><div class="small b">{{ a.label }} · {{ a.email }}</div><div class="row wrap" style="gap:4px;margin-top:4px"><span v-for="sv in a.services" :key="sv" class="badge green">✓ {{ SVC_LABEL[sv] || sv }}</span></div></div>
-          <button class="btn sm ghost" @click="API.disconnectGoogle(a.id).catch(err)">Desconectar</button>
+          <div class="stack" style="gap:4px"><button class="btn sm lav" @click="morePerms(a)">+ Permisos</button>
+          <button class="btn sm ghost" @click="API.disconnectGoogle(a.id).catch(err)">Desconectar</button></div>
         </div>
-        <div class="card tight soft stack" style="margin-top:10px">
+        <div ref="formRef" class="card tight soft stack" style="margin-top:10px">
           <div class="field"><span>Etiqueta</span><div class="chips"><Chip v-for="l in ['personal', 'universidad', 'trabajo']" :key="l" :active="g.label === l" @click="g.label = l">{{ l }}</Chip></div></div>
           <div class="field"><span>Permisos que vas a otorgar (puedes quitarlos cuando quieras)</span>
             <label v-for="s in SERVICES" :key="s[0]" class="row small" style="align-items:flex-start;padding:4px 0"><input type="checkbox" :checked="g.services.includes(s[0])" @change="toggleSvc(s[0])" style="margin-top:3px" /><span><b>{{ s[1] }}</b><br /><span class="tiny muted">{{ s[2] }}</span></span></label>
