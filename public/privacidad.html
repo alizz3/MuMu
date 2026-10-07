@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacidad · MuMu</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root { --bg: #FFF8F6; --fg: #4A3F4C; --muted: #8E8090; --accent: #C2577A; --card: #fff; --line: #F1E3EA; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1E1822; --fg: #F6EAF0; --muted: #A796A8; --accent: #FFB3CB; --card: #2A222E; --line: #3E3344; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 Poppins, system-ui, sans-serif; padding: 32px 16px; }
+  main { max-width: 680px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px; }
+  h1 { margin-top: 0; font-size: 26px; } h2 { font-size: 18px; margin-top: 28px; color: var(--accent); }
+  p, li { color: var(--fg); } small { color: var(--muted); } a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Política de privacidad de MuMu 🐮</h1>
+  <small>Última actualización: 7 de octubre de 2026</small>
+
+  <p>MuMu es una aplicación de organización personal creada y usada por Aliz Mejía. No es un servicio público: solo las cuentas autorizadas por su dueña pueden usar el servidor.</p>
+
+  <h2>Qué datos se usan</h2>
+  <ul>
+    <li><b>Cuenta de Google (inicio de sesión):</b> nombre, correo y foto, para identificarte.</li>
+    <li><b>Gmail (solo lectura, opcional):</b> remitente, asunto, fragmento y fecha de correos recientes, para detectar los importantes. No se envían, borran ni modifican correos.</li>
+    <li><b>Google Calendar (opcional):</b> tus eventos, para calcular tiempo libre. Solo se crean eventos si das ese permiso aparte.</li>
+    <li><b>Google Classroom (solo lectura, opcional):</b> cursos y tareas asignadas.</li>
+    <li><b>Tu Aula / Moodle (opcional):</b> actividades, fechas y avisos de tus cursos. La contraseña no se guarda; solo un token cifrado.</li>
+    <li><b>Datos que escribes:</b> tareas, hábitos, notas, registros de sueño y demás contenido de la app.</li>
+  </ul>
+
+  <h2>Dónde se guardan</h2>
+  <p>En una base de datos privada de Firebase (Google Cloud) a la que solo accede tu cuenta. Los tokens de Google y de Tu Aula se guardan cifrados (AES-256) en una zona que el navegador no puede leer.</p>
+
+  <h2>Con quién se comparten</h2>
+  <p>Con nadie. Los datos no se venden ni se usan para publicidad. Si activas el asistente con IA, el resumen de tu día se envía a la API de Anthropic solo para generar la respuesta.</p>
+
+  <h2>Uso de datos de Google</h2>
+  <p>El uso de la información recibida de las APIs de Google se ajusta a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Política de Datos de Usuario de los Servicios de API de Google</a>, incluidos los requisitos de Uso Limitado.</p>
+
+  <h2>Cómo borrar tus datos</h2>
+  <p>Desde Configuración puedes desconectar cada cuenta (eso revoca el acceso en Google) y borrar los datos de ejemplo. También puedes quitar el acceso en <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.</p>
+
+  <h2>Contacto</h2>
+  <p>dev.doblezz@gmail.com</p>
+</main>
+</body>
+</html>
