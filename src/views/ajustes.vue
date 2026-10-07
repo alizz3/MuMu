@@ -25,8 +25,15 @@ const SERVICES = [
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos y tareas asignadas.'],
 ]
-const formRef = ref(null)
-function morePerms(a) { g.label = a.label; g.services = [...a.services]; formRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast('Marca los permisos que quieras sumar y dale Conectar con la misma cuenta') }
+const adding = ref(false)
+const sel = ref(null)
+const extra = ref([])
+const openAdd = () => { g.label = 'personal'; g.services = ['gmail', 'calendar']; adding.value = true }
+const has = (a) => SERVICES.filter((s) => a.services.includes(s[0]))
+const missing = (a) => SERVICES.filter((s) => !a.services.includes(s[0]))
+const toggleExtra = (k) => (extra.value = extra.value.includes(k) ? extra.value.filter((x) => x !== k) : [...extra.value, k])
+watch(sel, () => { extra.value = [] })
+async function disconnect(a) { if (await ask(`¿Desconectar ${a.email}? Se revocan todos los permisos en Google.`)) { await API.disconnectGoogle(a.id).catch(err); sel.value = null } }
 const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filter((x) => x !== s) : [...g.services, s])
 // Se piden las cuentas cuando ya cargaron tus datos, para que la sincronización no las borre de la vista
 const loadingAcc = ref(false)
@@ -70,23 +77,54 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
       </div>
 
       <div class="card">
-        <h3>Cuentas de Google conectadas</h3>
-        <div class="row between"><p class="tiny muted">Puedes conectar varias (personal, universidad…). Se usa OAuth oficial de Google: nunca vemos ni guardamos tu contraseña.</p>
-          <button v-if="backendOk" class="btn sm ghost" :disabled="loadingAcc" @click="loadAccounts"><Icon name="refresh" :size="14" />{{ loadingAcc ? '…' : 'Actualizar' }}</button></div>
-        <p v-if="backendOk && !state.integrations.google.length && !loadingAcc" class="small muted" style="margin-top:8px">Aún no hay cuentas conectadas.</p>
-        <div v-for="a in state.integrations.google" :key="a.id" class="item">
-          <span class="ico" :class="{ lav: a.label === 'universidad' }"><Icon name="mail" :size="17" /></span>
-          <div class="grow"><div class="small b">{{ a.label }} · {{ a.email }}</div><div class="row wrap" style="gap:4px;margin-top:4px"><span v-for="sv in a.services" :key="sv" class="badge green">✓ {{ SVC_LABEL[sv] || sv }}</span></div></div>
-          <div class="stack" style="gap:4px"><button class="btn sm lav" @click="morePerms(a)">+ Permisos</button>
-          <button class="btn sm ghost" @click="API.disconnectGoogle(a.id).catch(err)">Desconectar</button></div>
+        <div class="row between">
+          <h3>Apps conectadas</h3>
+          <button v-if="backendOk" class="iconbtn" :disabled="loadingAcc" aria-label="Actualizar cuentas" @click="loadAccounts"><Icon name="refresh" :size="17" /></button>
         </div>
-        <div ref="formRef" class="card tight soft stack" style="margin-top:10px">
-          <div class="field"><span>Etiqueta</span><div class="chips"><Chip v-for="l in ['personal', 'universidad', 'trabajo']" :key="l" :active="g.label === l" @click="g.label = l">{{ l }}</Chip></div></div>
-          <div class="field"><span>Permisos que vas a otorgar (puedes quitarlos cuando quieras)</span>
-            <label v-for="s in SERVICES" :key="s[0]" class="row small" style="align-items:flex-start;padding:4px 0"><input type="checkbox" :checked="g.services.includes(s[0])" @change="toggleSvc(s[0])" style="margin-top:3px" /><span><b>{{ s[1] }}</b><br /><span class="tiny muted">{{ s[2] }}</span></span></label>
+        <button class="btn primary block" style="margin-top:10px" :disabled="!backendOk" @click="openAdd"><Icon name="plus" :size="16" />Agregar cuenta de Google</button>
+        <p v-if="!backendOk" class="tiny muted" style="margin-top:6px">Necesita el servidor desplegado y haber iniciado sesión.</p>
+        <p v-else-if="!state.integrations.google.length && !loadingAcc" class="small muted" style="margin-top:10px">Aún no hay cuentas conectadas.</p>
+        <div class="list" style="margin-top:6px">
+          <button v-for="a in state.integrations.google" :key="a.id" class="item" style="all:unset;display:flex;gap:12px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line);cursor:pointer" @click="sel = a">
+            <span class="ico" :class="{ lav: a.label === 'universidad' }"><Icon name="mail" :size="17" /></span>
+            <div class="grow" style="min-width:0"><div class="small b">{{ a.email }}</div><div class="tiny muted">{{ a.label }} · {{ a.services.length }} de {{ SERVICES.length }} permisos</div></div>
+            <Icon name="chev" :size="16" />
+          </button>
+        </div>
+        <p class="tiny muted" style="margin-top:10px">Se usa el inicio de sesión oficial de Google: nunca vemos ni guardamos tu contraseña.</p>
+      </div>
+
+      <!-- Agregar cuenta -->
+      <div v-if="adding" class="scrim" @click.self="adding = false">
+        <div class="sheet stack" role="dialog" aria-modal="true" aria-label="Agregar cuenta de Google">
+          <div class="grab"></div>
+          <div class="row between"><h2>Agregar cuenta</h2><button class="iconbtn" aria-label="Cerrar" @click="adding = false"><Icon name="x" /></button></div>
+          <div class="field"><span>¿Qué cuenta es?</span><div class="chips"><Chip v-for="l in ['personal', 'universidad', 'trabajo']" :key="l" :active="g.label === l" @click="g.label = l">{{ l }}</Chip></div></div>
+          <div class="field"><span>Permisos (puedes cambiarlos después)</span>
+            <label v-for="s in SERVICES" :key="s[0]" class="row small" style="align-items:flex-start;padding:5px 0"><input type="checkbox" :checked="g.services.includes(s[0])" @change="toggleSvc(s[0])" style="margin-top:3px" /><span><b>{{ s[1] }}</b><br /><span class="tiny muted">{{ s[2] }}</span></span></label>
           </div>
-          <button class="btn primary" :disabled="!backendOk || !g.services.length" @click="API.connectGoogle(g.label, g.services).catch(err)">Conectar cuenta de Google</button>
-          <p v-if="!backendOk" class="tiny muted">Necesita el servidor desplegado y haber iniciado sesión.</p>
+          <button class="btn primary" :disabled="!g.services.length" @click="API.connectGoogle(g.label, g.services).catch(err)">Continuar con Google</button>
+        </div>
+      </div>
+
+      <!-- Detalle de una cuenta -->
+      <div v-if="sel" class="scrim" @click.self="sel = null">
+        <div class="sheet stack" role="dialog" aria-modal="true" :aria-label="`Cuenta ${sel.email}`">
+          <div class="grab"></div>
+          <div class="row"><span class="ico" :class="{ lav: sel.label === 'universidad' }"><Icon name="mail" /></span>
+            <div class="grow" style="min-width:0"><div class="b">{{ sel.email }}</div><div class="tiny muted">{{ sel.label }}{{ sel.connectedAt ? ' · conectada el ' + new Date(sel.connectedAt).toLocaleDateString('es-CO') : '' }}</div></div>
+            <button class="iconbtn" aria-label="Cerrar" @click="sel = null"><Icon name="x" /></button></div>
+          <div v-if="has(sel).length">
+            <div class="tiny b muted">TIENE PERMISO</div>
+            <div v-for="s in has(sel)" :key="s[0]" class="item"><span class="badge green">✓</span><div class="grow small"><b>{{ s[1] }}</b><div class="tiny muted">{{ s[2] }}</div></div></div>
+          </div>
+          <div v-if="missing(sel).length">
+            <div class="tiny b muted">LE FALTA</div>
+            <label v-for="s in missing(sel)" :key="s[0]" class="item" style="cursor:pointer"><input type="checkbox" :checked="extra.includes(s[0])" @change="toggleExtra(s[0])" /><div class="grow small"><b>{{ s[1] }}</b><div class="tiny muted">{{ s[2] }}</div></div></label>
+            <button class="btn primary block" style="margin-top:10px" :disabled="!extra.length" @click="API.connectGoogle(sel.label, [...sel.services, ...extra], sel.email).catch(err)">Dar {{ extra.length || '' }} permiso{{ extra.length === 1 ? '' : 's' }} más</button>
+          </div>
+          <p v-else class="small muted">Esta cuenta ya tiene todos los permisos 💗</p>
+          <button class="btn ghost" @click="disconnect(sel)"><Icon name="trash" :size="15" />Desconectar y quitar todos los permisos</button>
         </div>
       </div>
     </template>
