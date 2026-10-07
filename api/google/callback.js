@@ -21,6 +21,13 @@ export default handler(async (req, res) => {
     id, label: st.label, email, services: servicesFromScopes(granted), scopes: granted, connectedAt: Date.now(),
     tokens: encrypt({ access_token: tok.access_token, refresh_token: tok.refresh_token, expiry: Date.now() + tok.expires_in * 1000 }),
   })
+  const got = servicesFromScopes(granted)
+  const denied = st.services.filter((x) => !got.includes(x))
+  if (denied.length) {
+    const names = { gmail: 'Gmail', calendar: 'Calendar', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
+    const msg = `Google no entregó: ${denied.map((d) => names[d] || d).join(', ')}. En la pantalla de Google marca esas casillas (o "Seleccionar todo"). Si ya lo hiciste, puede que tu universidad bloquee ese permiso.`
+    return res.redirect(302, `${app}/?connected=parcial&msg=${encodeURIComponent(msg)}#/ajustes`)
+  }
   res.redirect(302, `${app}/?connected=google#/ajustes`)
   } catch (e) {
     // Volver a la app con un mensaje claro en vez de una página de error
