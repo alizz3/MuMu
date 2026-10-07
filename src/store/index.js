@@ -29,6 +29,7 @@ export const ui = reactive({
   backend: false, // hay backend /api disponible
   celebrate: null,
   confirm: null,
+  synced: false, // ya se cargaron los datos de Firestore
 })
 
 setInterval(() => { ui.now = new Date() }, 30 * 1000)

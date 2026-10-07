@@ -19,6 +19,7 @@ export async function initSync() {
     ui.user = user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null
     uid = user?.uid || null
     ready = false
+    ui.synced = false
     if (!uid) return
     const keys = Object.keys(state)
     const snaps = await Promise.all(keys.map((k) => getDoc(doc(fb.db, 'users', uid, 'data', k))))
@@ -27,6 +28,7 @@ export async function initSync() {
       snaps.forEach((s, i) => { if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items) } })
     }
     ready = true
+    ui.synced = true
     markVisit()
     processInbox()
     autoSync()
