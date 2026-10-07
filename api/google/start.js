@@ -11,5 +11,6 @@ export default handler(async (req, res) => {
   const services = Array.isArray(b.services) ? b.services.filter((s) => SERVICE_SCOPES[s]) : []
   if (!services.length) throw new HttpError(400, 'Elige al menos un permiso')
   const state = sign({ uid: user.uid, label, services, n: randomId(), exp: Date.now() + 10 * 60_000 })
-  res.json({ url: authUrl(state, services) })
+  const hint = typeof b.email === 'string' && /^[^@\s]+@[^@\s]+$/.test(b.email) ? b.email : undefined
+  res.json({ url: authUrl(state, services, hint) })
 }, { methods: ['POST'], limit: 10 })

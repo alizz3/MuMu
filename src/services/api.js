@@ -17,8 +17,8 @@ async function call(path, { method = 'GET', body } = {}) {
 
 export const canUseBackend = () => ui.backend && !!ui.user
 
-export async function connectGoogle(label, services) {
-  const { url } = await call('google/start', { method: 'POST', body: { label, services } })
+export async function connectGoogle(label, services, email) {
+  const { url } = await call('google/start', { method: 'POST', body: { label, services, email } })
   window.location.href = url
 }
 export async function refreshAccounts() {
