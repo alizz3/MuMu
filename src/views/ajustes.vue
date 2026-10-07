@@ -9,7 +9,13 @@ import { Icon, Pet, Chip } from '../components/ui'
 
 const tab = ref('cuentas')
 const backendOk = computed(() => API.canUseBackend())
-const err = (e) => toast(e.message || String(e))
+const FB_ERR = {
+  'auth/unauthorized-domain': 'Este dominio no está autorizado en Firebase. Agrégalo en Authentication → Settings → Dominios autorizados.',
+  'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.',
+  'auth/popup-blocked': 'El navegador bloqueó la ventana de Google. Permite ventanas emergentes para este sitio.',
+  'auth/operation-not-allowed': 'El inicio con Google no está activado en Firebase (Authentication → Sign-in method).',
+}
+const err = (e) => toast(FB_ERR[e?.code] || e?.message || String(e))
 
 // Google
 const g = reactive({ label: 'personal', services: ['gmail', 'calendar'] })
