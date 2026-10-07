@@ -5,7 +5,7 @@ import { go, back } from './store/actions'
 import { NAV, BOTTOM, titleOf } from './config/nav'
 import { Icon, Pet } from './components/ui'
 import { tick } from './engine/notify'
-import { petState, level } from './engine/game'
+import { petState, level, toast } from './engine/game'
 import Sheets from './components/Sheets.vue'
 import Assistant from './components/Assistant.vue'
 
@@ -27,7 +27,12 @@ onMounted(() => {
   fromHash()
   window.addEventListener('hashchange', fromHash)
   const q = new URLSearchParams(location.search)
-  if (q.get('connected')) { ui.route = 'ajustes'; history.replaceState(null, '', location.pathname + '#/ajustes') }
+  const c = q.get('connected')
+  if (c) {
+    ui.route = 'ajustes'
+    history.replaceState(null, '', location.pathname + '#/ajustes')
+    setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada 💗' : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
+  }
   setTimeout(tick, 2500)
   setInterval(tick, 60 * 1000)
 })
