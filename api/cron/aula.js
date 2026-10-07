@@ -1,12 +1,12 @@
 // Revisión periódica (Vercel Cron). Solo entrega lo NUEVO o CAMBIADO al buzón de la app,
 // que lo convierte en tareas la próxima vez que la abras.
 import { handler, HttpError } from '../_lib/http.js'
-import { db, pushInbox } from '../_lib/firebase.js'
+import { initDb, pushInbox } from '../_lib/firebase.js'
 import { runAulaSync } from '../_lib/aula.js'
 
 export default handler(async (req, res) => {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) throw new HttpError(401, 'No autorizado')
-  const docs = await db().collectionGroup('aula').get()
+  const docs = await (await initDb()).collectionGroup('aula').get()
   let users = 0, changes = 0
   for (const d of docs.docs) {
     const uid = d.ref.parent.parent.id
