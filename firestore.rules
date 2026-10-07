@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Tus datos: solo tú (sesión de Firebase) puedes leerlos y escribirlos
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Tokens cifrados de Google y Tu Aula: el navegador NUNCA puede leerlos (solo el servidor con Admin SDK)
+    match /secrets/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
