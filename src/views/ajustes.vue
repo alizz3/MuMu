@@ -26,7 +26,11 @@ const SERVICES = [
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos y tareas asignadas.'],
 ]
 const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filter((x) => x !== s) : [...g.services, s])
-watch(backendOk, (ok) => { if (ok) API.refreshAccounts().catch(() => {}) }, { immediate: true })
+// Se piden las cuentas cuando ya cargaron tus datos, para que la sincronización no las borre de la vista
+const loadingAcc = ref(false)
+async function loadAccounts() { loadingAcc.value = true; try { await API.refreshAccounts() } catch (e) { err(e) } finally { loadingAcc.value = false } }
+watch(() => backendOk.value && ui.synced, (ok) => { if (ok) loadAccounts() }, { immediate: true })
+const SVC_LABEL = { gmail: 'Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
 
 // Tu Aula
 const aula = reactive({ site: state.integrations.aula.site || '', method: 'webservice', username: '', password: '', icalUrl: '' })
@@ -65,10 +69,12 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
 
       <div class="card">
         <h3>Cuentas de Google conectadas</h3>
-        <p class="tiny muted">Puedes conectar varias (personal, universidad…). Se usa OAuth oficial de Google: nunca vemos ni guardamos tu contraseña.</p>
+        <div class="row between"><p class="tiny muted">Puedes conectar varias (personal, universidad…). Se usa OAuth oficial de Google: nunca vemos ni guardamos tu contraseña.</p>
+          <button v-if="backendOk" class="btn sm ghost" :disabled="loadingAcc" @click="loadAccounts"><Icon name="refresh" :size="14" />{{ loadingAcc ? '…' : 'Actualizar' }}</button></div>
+        <p v-if="backendOk && !state.integrations.google.length && !loadingAcc" class="small muted" style="margin-top:8px">Aún no hay cuentas conectadas.</p>
         <div v-for="a in state.integrations.google" :key="a.id" class="item">
           <span class="ico" :class="{ lav: a.label === 'universidad' }"><Icon name="mail" :size="17" /></span>
-          <div class="grow"><div class="small b">{{ a.label }} · {{ a.email }}</div><div class="tiny muted">{{ a.services.join(' · ') }}</div></div>
+          <div class="grow"><div class="small b">{{ a.label }} · {{ a.email }}</div><div class="row wrap" style="gap:4px;margin-top:4px"><span v-for="sv in a.services" :key="sv" class="badge green">✓ {{ SVC_LABEL[sv] || sv }}</span></div></div>
           <button class="btn sm ghost" @click="API.disconnectGoogle(a.id).catch(err)">Desconectar</button>
         </div>
         <div class="card tight soft stack" style="margin-top:10px">
