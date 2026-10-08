@@ -145,6 +145,18 @@ async function remove() {
 
 // ---------- detalle de tarea ----------
 const task = computed(() => (m.value?.type === 'task' && m.value.id ? state.tasks.find((t) => t.id === m.value.id) : null))
+// Enlace a la plataforma: el de la tarea, o el de la actividad de origen, o al menos la plataforma
+const taskLink = computed(() => {
+  const t = task.value; if (!t) return null
+  const a = state.aula.find((x) => x.taskId === t.id)
+  const src = t.source || a?.source
+  const url = t.url || a?.url
+  if (url) return { url, src }
+  const crAcc = state.integrations.google.find((g) => g.services.includes('classroom'))?.email
+  if (src === 'classroom') return { url: `https://classroom.google.com/${crAcc ? '?authuser=' + encodeURIComponent(crAcc) : ''}`, src, generic: true }
+  if (src === 'aula') return { url: `${(state.integrations.aula.site || 'https://tuaulavirtual.ut.edu.co').replace(/\/$/, '')}/calendar/view.php?view=upcoming`, src, generic: true }
+  return null
+})
 const chain = computed(() => {
   const t = task.value; if (!t) return []
   const out = []
@@ -239,7 +251,7 @@ const prettyVal = (f, v) => {
           <input class="input" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="%" style="width:80px" :value="task.weight ?? ''" @change="setGrade(task, 'weight', $event.target.value, 100)" aria-label="Porcentaje que vale" />
           <span class="small muted">%</span>
         </div>
-        <a v-if="task.url" class="btn sm lav" style="margin-top:10px" :href="task.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />Abrir en {{ task.source === 'classroom' ? 'Classroom' : task.source === 'gmail' ? 'Gmail' : 'Tu Aula' }}</a>
+        <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ taskLink.generic ? 'Ir a' : 'Abrir en' }} {{ taskLink.src === 'classroom' ? 'Classroom' : taskLink.src === 'gmail' ? 'Gmail' : 'Tu Aula' }}</a>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>
