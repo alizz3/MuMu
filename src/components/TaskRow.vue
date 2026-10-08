@@ -24,7 +24,7 @@ const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filte
     <button class="grow" style="all:unset;cursor:pointer;min-width:0;flex:1" @click="ui.modal = { type: 'task', id: t.id }">
       <div class="title-line" :class="{ 'done-txt': done }">{{ t.title }}</div>
       <div class="row wrap tiny muted" style="gap:6px;margin-top:3px">
-        <span v-if="t.due && !done" :style="{ color: d < 0 ? 'var(--danger)' : d <= 1 ? 'var(--pink-700)' : '' }">{{ d < 0 ? 'Atrasada · ' : '' }}{{ relDay(t.due) }}{{ t.dueTime ? ' ' + fmt12s(t.dueTime) : '' }}</span>
+        <span v-if="t.due && !done" :style="{ color: d < 0 ? 'var(--danger)' : d <= 1 ? 'var(--pink-700)' : '' }">{{ d < 0 ? 'Atrasada · ' : '' }}{{ relDay(t.due) }}{{ /^\d{2}:\d{2}$/.test(t.dueTime || '') ? ' ' + fmt12s(t.dueTime) : '' }}</span>
         <span v-if="!compact">· {{ fmtDur(t.estimate) }}</span>
         <span v-if="subj">· {{ subj.short }}</span>
         <span v-else-if="proj">· {{ proj.name }}</span>
