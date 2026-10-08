@@ -6,7 +6,7 @@ import { initDb } from '../../_lib/firebase.js'
 
 export default handler(async (req, res) => {
   const app = (process.env.APP_URL || '').replace(/\/$/, '')
-  if (req.query.error) return res.redirect(302, `${app}/?connected=cancelado#/ajustes`)
+  if (req.query.error) return res.redirect(302, `${app}/ajustes?connected=cancelado`)
   try {
   await initDb()
   const st = verify(req.query.state)
@@ -29,13 +29,13 @@ export default handler(async (req, res) => {
     const names = { gmail: 'Gmail', calendar: 'Calendar', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
     console.error(`[api] callback: faltan ${denied.map((d) => d + ':' + missingScopes(d, granted).join('+')).join(', ')}`)
     const msg = `Google no entregó: ${denied.map((d) => `${names[d] || d} (${missingScopes(d, granted).join(', ')})`).join('; ')}. En la pantalla de Google marca esas casillas (o "Seleccionar todo"). Si ya lo hiciste, puede que tu universidad bloquee ese permiso.`
-    return res.redirect(302, `${app}/?connected=parcial&msg=${encodeURIComponent(msg)}#/ajustes`)
+    return res.redirect(302, `${app}/ajustes?connected=parcial&msg=${encodeURIComponent(msg)}`)
   }
-  res.redirect(302, `${app}/?connected=google#/ajustes`)
+  res.redirect(302, `${app}/ajustes?connected=google`)
   } catch (e) {
     // Volver a la app con un mensaje claro en vez de una página de error
     console.error(`[api] callback google: ${String(e.message).slice(0, 160)}`)
     const msg = e.expose ? e.message : 'No se pudo guardar la cuenta. Intenta de nuevo.'
-    res.redirect(302, `${app}/?connected=error&msg=${encodeURIComponent(msg)}#/ajustes`)
+    res.redirect(302, `${app}/ajustes?connected=error&msg=${encodeURIComponent(msg)}`)
   }
 }, { methods: ['GET'], limit: 20 })

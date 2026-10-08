@@ -8,10 +8,16 @@ import { planTask } from '../engine/planner'
 export function go(route, params = {}) {
   if (ui.route !== route || JSON.stringify(params) !== JSON.stringify(ui.params)) ui.history.push({ route: ui.route, params: ui.params })
   ui.route = route; ui.params = params; ui.drawer = false
-  try { history.replaceState(null, '', `#/${route}${params.id ? '/' + params.id : ''}`) } catch { /* vista previa */ }
+  setUrl(true)
   window.scrollTo?.({ top: 0, behavior: 'smooth' })
 }
-export function back() { const h = ui.history.pop(); if (h) { ui.route = h.route; ui.params = h.params } else ui.route = 'home' }
+export function back() { const h = ui.history.pop(); if (h) { ui.route = h.route; ui.params = h.params } else ui.route = 'home'; setUrl(false) }
+// Cada vista tiene su propia dirección: mumu…/agenda, mumu…/universidad
+export const pathOf = (route, params = {}) => (route === 'home' ? '/' : `/${route}${params.id ? '/' + params.id : ''}`)
+export function setUrl(push) {
+  const p = pathOf(ui.route, ui.params)
+  try { if (location.pathname !== p) history[push ? 'pushState' : 'replaceState'](null, '', p + location.search.replace(/[?&]connected=[^&]*(&msg=[^&]*)?/, '')) } catch { /* vista previa */ }
+}
 
 // ---------- Tareas ----------
 export function addTask(data) {

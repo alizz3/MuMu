@@ -26,4 +26,4 @@ export function initAnalytics() {
   else if (!c) ui.cookieBanner = true
 }
 export function consent(yes) { set(yes ? 'si' : 'no'); ui.cookieBanner = false; if (yes) load() }
-export function trackView(route) { if (loaded && window.gtag) window.gtag('event', 'page_view', { page_title: route, page_location: `${location.origin}/#/${route}` }) }
+export function trackView(route) { if (loaded && window.gtag) window.gtag('event', 'page_view', { page_title: route, page_location: `${location.origin}${route === 'home' ? '/' : '/' + route}` }) }
