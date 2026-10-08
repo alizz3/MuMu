@@ -1,7 +1,7 @@
 // GET: lee eventos (solo lectura) para calcular tu tiempo libre. POST: crea un bloque si diste ese permiso.
-import { handler, body, str, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
-import { accessToken, gget, localParts, TZ } from '../_lib/google.js'
+import { handler, body, str, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
+import { accessToken, gget, localParts, TZ } from '../../_lib/google.js'
 
 export default handler(async (req, res) => {
   const { uid } = await requireUser(req)

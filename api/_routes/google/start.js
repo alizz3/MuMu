@@ -1,8 +1,8 @@
 // Inicia OAuth de Google para conectar una cuenta (personal, universidad…) con los permisos elegidos.
-import { handler, body, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
-import { sign, randomId } from '../_lib/crypto.js'
-import { authUrl, SERVICE_SCOPES } from '../_lib/google.js'
+import { handler, body, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
+import { sign, randomId } from '../../_lib/crypto.js'
+import { authUrl, SERVICE_SCOPES } from '../../_lib/google.js'
 
 export default handler(async (req, res) => {
   const user = await requireUser(req)

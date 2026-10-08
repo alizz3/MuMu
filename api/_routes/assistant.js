@@ -1,7 +1,7 @@
 // Conversación libre con la vaquita usando la API de Claude. La clave vive solo en el servidor.
 // El motor de recomendaciones de la app funciona sin esto; esto es para preguntas abiertas.
-import { handler, body, str, HttpError } from './_lib/http.js'
-import { requireUser } from './_lib/firebase.js'
+import { handler, body, str, HttpError } from '../_lib/http.js'
+import { requireUser } from '../_lib/firebase.js'
 
 const SYSTEM = `Eres la vaquita asistente de una app personal de organización. Hablas en español de Colombia, cálido, tierno pero no infantil, breve (máximo 5 frases).
 Filosofía: progreso sobre perfección, cero culpa, volver a empezar, dividir lo grande en pasos de 5 minutos.

@@ -1,7 +1,7 @@
 // Puente MuMu ↔ MuMu Finanzas: pide SOLO un resumen (no movimientos) a la app de finanzas,
 // servidor a servidor, con una clave compartida. Contrato en docs/INTEGRACION-FINANZAS.md
-import { handler, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
+import { handler, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
 
 export default handler(async (req, res) => {
   const user = await requireUser(req)

@@ -15,7 +15,7 @@ src/
   services/    firebase.js (login opcional) · sync.js (Firestore) · api.js (cliente del backend)
   components/  art.js (vaquita, Leo, Negra en SVG) · Sheets.vue (formularios) · Assistant.vue · TaskRow.vue · ui.js
   views/       una vista por sección (home, agenda, tareas, enfoque, universidad, cerebro, experimentos, casa, …)
-api/           funciones serverless de Vercel (Google OAuth, Gmail, Calendar, Classroom, Tu Aula, IA, finanzas, cron)
+api/router.js  una sola función de Vercel que reparte a api/_routes/* (Google, Gmail, Calendar, Classroom, Tu Aula, IA, finanzas, cron)
 firestore.rules
 ```
 

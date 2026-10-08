@@ -1,7 +1,7 @@
 // Lee (solo lectura) los correos recientes y los clasifica: importante / revisar / informativo.
-import { handler, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
-import { accessToken, gget, localParts } from '../_lib/google.js'
+import { handler, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
+import { accessToken, gget, localParts } from '../../_lib/google.js'
 
 const KEY = /(entrega|plazo|parcial|examen|quiz|urgente|importante|fecha l[ií]mite|vence|pago|factura|reuni[oó]n|entrevista|cita|matr[ií]cula|nota|calificaci[oó]n|propuesta|cliente)/i
 const INFO = /(no-?reply|newsletter|noticias|bolet[ií]n|promo|notifications?@)/i
