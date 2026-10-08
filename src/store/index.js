@@ -29,7 +29,10 @@ export const ui = reactive({
   backend: false, // hay backend /api disponible
   celebrate: null,
   confirm: null,
-  synced: false, // ya se cargaron los datos de Firestore
+  synced: false,
+  authReady: false, // ya se sabe si hay sesión
+  demo: false, // explorando con datos de ejemplo sin sesión
+  blocked: false, // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
 })
 
 setInterval(() => { ui.now = new Date() }, 30 * 1000)

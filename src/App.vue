@@ -8,6 +8,8 @@ import { tick } from './engine/notify'
 import { petState, level, toast } from './engine/game'
 import Sheets from './components/Sheets.vue'
 import Assistant from './components/Assistant.vue'
+import Welcome from './components/Welcome.vue'
+import { hasFirebase } from './services/firebase'
 
 const views = import.meta.glob('./views/*.vue')
 const cache = {}
@@ -49,6 +51,8 @@ const sysDark = ref(window.matchMedia?.('(prefers-color-scheme: dark)').matches)
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => { sysDark.value = e.matches })
 const isDark = computed(() => state.settings.theme === 'dark' || (state.settings.theme === 'auto' && sysDark.value))
 const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dark' }
+// Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
+const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 const fmtLeft = computed(() => {
   const f = ui.focus; if (!f) return ''
   const el = f.elapsed + (f.paused ? 0 : ui.now - f.startedAt)
@@ -58,7 +62,9 @@ const fmtLeft = computed(() => {
 </script>
 
 <template>
-  <div class="shell">
+  <div v-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true"><Pet pose="happy" :size="120" /></div>
+  <Welcome v-else-if="gate === 'welcome'" />
+  <div v-else class="shell">
     <aside class="side" aria-label="Navegación principal">
       <div class="brand"><Pet :size="34" :bob="false" pose="happy" label="" />{{ state.settings.appName }}</div>
       <div class="card tight soft" style="margin: 0 4px 6px">
@@ -77,6 +83,7 @@ const fmtLeft = computed(() => {
       <header class="top">
         <button v-if="ui.route === 'home'" class="iconbtn" aria-label="Ver todas las secciones" @click="go('mas')"><Icon name="menu" /></button>
         <button v-else class="iconbtn" aria-label="Volver" @click="back"><Icon name="back" /></button>
+        <span v-if="ui.demo" class="badge demo" style="position:absolute;left:50%;top:calc(100% - 4px);transform:translateX(-50%)">demo · <button class="link" style="padding:0;font-size:11px" @click="ui.demo = false">salir</button></span>
         <h1>{{ title }}<span v-if="ui.route === 'home'" aria-hidden="true">{{ '🌸' }}</span></h1>
         <button class="iconbtn" :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="toggleTheme"><Icon :name="isDark ? 'sun' : 'moon'" /></button>
         <button class="iconbtn" aria-label="Buscar y crear" @click="ui.modal = { type: 'search' }"><Icon name="search" /></button>
