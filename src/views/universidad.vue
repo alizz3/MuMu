@@ -24,9 +24,12 @@ const sync = ref(false)
 const aulaInt = computed(() => state.integrations.aula)
 async function doSync() {
   sync.value = true
-  try { await syncAula(); if (state.integrations.google.some((a) => a.services.includes('classroom'))) await syncClassroom() } catch (e) { toast(e.message) } finally { sync.value = false }
+  try { await syncAula(); if (classroomOn.value) await syncClassroom() } catch (e) { toast(e.message) } finally { sync.value = false }
 }
 const reviewed = computed(() => daily().reviewed)
+const classroomOn = computed(() => state.integrations.google.some((a) => a.services.includes('classroom')))
+const syncCr = ref(false)
+async function doClassroom() { syncCr.value = true; try { await syncClassroom(); state.aula = state.aula.filter((a) => !a.demo); daily().reviewed = true } catch (e) { toast(e.message) } finally { syncCr.value = false } }
 const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 </script>
 
@@ -82,6 +85,13 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
           <button v-else class="btn sm lav" @click="A.go('ajustes')">Conectar</button>
         </div>
         <p class="tiny muted" style="margin-top:8px">Cuando está conectada, el servidor revisa cada pocas horas: lo nuevo se vuelve tarea, si cambia una fecha se actualiza y si se acerca la entrega sube la prioridad.</p>
+      </div>
+      <div class="card row">
+        <span class="ico"><Icon name="cap" /></span>
+        <div class="grow"><div class="b small">Google Classroom</div>
+          <div class="tiny muted">{{ classroomOn ? `Conectado · última revisión ${state.integrations.classroom?.lastSync ? new Date(state.integrations.classroom.lastSync).toLocaleString('es-CO') : 'nunca'}` : 'Conéctalo dándole el permiso de Classroom a tu cuenta de la U' }}</div></div>
+        <button v-if="classroomOn && canUseBackend()" class="btn sm primary" :disabled="syncCr" @click="doClassroom"><Icon name="refresh" :size="14" />{{ syncCr ? 'Revisando…' : 'Revisar ahora' }}</button>
+        <button v-else class="btn sm lav" @click="A.go('ajustes')">Conectar</button>
       </div>
       <p v-if="aula.some((a) => a.demo)" class="notice">🧪 Estas actividades son de ejemplo para que veas cómo funciona. Desaparecen al conectar Tu Aula o en Configuración → “Empezar en limpio”.</p>
       <div class="card"><div class="list">
