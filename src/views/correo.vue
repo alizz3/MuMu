@@ -7,6 +7,7 @@ import { syncGmail, canUseBackend, canOrganize, gmailAction } from '../services/
 import { toast, ask } from '../engine/game'
 import { inScope } from '../engine/modoU'
 import { Icon, Chip, Empty } from '../components/ui'
+import Contact from '../components/Contact.vue'
 
 const cat = ref('importante')
 const acc = ref('todas')
@@ -80,7 +81,7 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
         <span class="tiny muted">{{ relDay(e.date) }}</span>
       </div>
       <div class="b small" style="margin-top:6px">{{ e.subject }}</div>
-      <div class="tiny muted">De: {{ e.from }} <span v-if="e.demo" class="badge demo">ejemplo</span></div>
+      <div class="tiny muted row wrap" style="gap:2px 6px">De: {{ e.fromEmail ? String(e.from).replace(/<[^>]*>/, '').replace(/"/g, '').trim() || e.fromEmail : e.from }} <Contact v-if="e.fromEmail" :value="e.fromEmail" kind="email" :label="e.fromEmail" :as="state.integrations.google.find((g) => g.id === e.accountId)?.email || ''" /> <span v-if="e.demo" class="badge demo">ejemplo</span></div>
       <p class="small" style="margin-top:6px">{{ e.snippet }}</p>
       <p v-if="e.note" class="tiny" style="margin-top:6px">📝 {{ e.note }}</p>
       <div class="row wrap" style="gap:6px;margin-top:10px">

@@ -11,6 +11,7 @@ import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
+import Contact from '../components/Contact.vue'
 import { resumen, f1, tono, PASA } from '../engine/notas'
 
 const tab = ref('cursos')
@@ -55,7 +56,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="row"><Ring :value="selS.p" :size="56" :color="selS.color" /><div class="grow"><h2>{{ selS.name }}</h2><div class="small muted">{{ selS.institution }}{{ selS.teacher ? ' · ' + selS.teacher : '' }}</div></div>
           <button class="iconbtn" aria-label="Editar materia" @click="ui.modal = { type: 'subject', id: selS.id }"><Icon name="edit" :size="18" /></button></div>
         <a v-if="selS.url" class="btn sm lav" style="margin-top:8px" :href="selS.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />Abrir el curso</a>
-        <div v-if="selS.teacherEmail || selS.teacherPhone" class="small" style="margin-top:8px"><span class="sel">✉️ {{ selS.teacherEmail }}</span><span v-if="selS.teacherPhone"> · 📱 {{ selS.teacherPhone }}</span></div>
+        <div v-if="selS.teacherEmail || selS.teacherPhone" class="small row wrap" style="margin-top:8px;gap:4px 14px"><Contact v-if="selS.teacherEmail" :value="selS.teacherEmail" kind="email" as="azmejiaf@ut.edu.co" /><Contact v-if="selS.teacherPhone" :value="selS.teacherPhone" kind="phone" /></div>
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
