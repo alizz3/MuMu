@@ -220,7 +220,7 @@ export function applyAcademicChanges(items, source = 'aula') {
       created++
     } else if (it.url && ex.url !== it.url) {
       ex.url = it.url
-      const t = state.tasks.find((x) => x.id === ex.taskId); if (t) t.url = it.url
+      const t = state.tasks.find((x) => x.id === ex.taskId); if (t && !t.urlManual) t.url = it.url
     }
     if (ex && ex.hash !== it.hash) {
       const oldDue = ex.due
