@@ -259,7 +259,6 @@ const prettyVal = (f, v) => {
           <span class="small muted">%</span>
         </div>
         <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ task.urlManual && task.url ? 'Abrir enlace' : (taskLink.generic ? 'Ir a ' : 'Abrir en ') + (taskLink.src === 'classroom' ? 'Classroom' : taskLink.src === 'gmail' ? 'Gmail' : 'Tu Aula') }}</a>
-        <button v-if="task" class="link tiny" style="margin:10px 0 0 8px" @click="editMode = true">✏️ {{ task.url ? 'Cambiar enlace' : 'Poner enlace' }}</button>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>
