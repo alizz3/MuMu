@@ -62,8 +62,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     <div v-if="!selS" class="card stack" style="gap:10px">
       <Links :target="state.settings" field="semesterLinks" title="📚 Mi semestre" hint="Pega aquí la carpeta de Drive del semestre: MuMu encuentra sola la carpeta de cada materia." />
       <template v-if="semesterFolder()">
-        <button class="btn sm ghost" style="align-self:flex-start" @click="showSem = !showSem">{{ showSem ? 'Ocultar Drive' : '📁 Ver Drive del semestre' }}</button>
-        <DriveBrowser v-if="showSem" :root="semesterFolder()" :height="380" />
+        <DriveBrowser :root="semesterFolder()" :height="380" title="📁 Drive del semestre" />
       </template>
     </div>
     <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['profes', 'Profes'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
@@ -78,7 +77,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
-      <div v-if="subjectFolder(subjOf(selS.id))" class="card"><h3 style="margin-bottom:8px">📁 Drive de la materia</h3><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" /></div>
+      <div v-if="subjectFolder(subjOf(selS.id))" class="card"><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" title="📁 Drive de la materia" /></div>
       <div class="card"><Links :target="subjOf(selS.id)" title="🔗 Enlaces de la materia" /></div>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3>🎯 Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>

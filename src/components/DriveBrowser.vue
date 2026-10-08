@@ -4,7 +4,10 @@ import { listDrive, driveAccount } from '../services/api'
 import { Icon } from './ui'
 
 // Explorador de Drive dentro de MuMu: carpetas, archivos y vista previa sin salir de la app
-const props = defineProps({ root: { type: String, required: true }, height: { type: Number, default: 0 } })
+const props = defineProps({ root: { type: String, required: true }, height: { type: Number, default: 0 }, title: { type: String, default: '' } })
+// Con título se ve plegado: solo el encabezado; al tocarlo se abre y al tocarlo otra vez se cierra
+const open = ref(!props.title)
+const rootName = ref('')
 const path = ref([])            // [{ id, name }]
 const items = ref([])
 const loading = ref(false)
@@ -20,11 +23,11 @@ async function load() {
   try {
     const r = await listDrive(here.value)
     items.value = r.items
-    if (!path.value.length) path.value = [{ id: r.folder.id, name: r.folder.name }]
+    if (!path.value.length) { path.value = [{ id: r.folder.id, name: r.folder.name }]; rootName.value = r.folder.name }
   } catch (e) { error.value = e.message } finally { loading.value = false }
 }
 watch(() => [props.root, acc.value?.id], () => { path.value = []; load() }, { immediate: true })
-function open(f) {
+function openItem(f) {
   if (f.folder) { path.value = [...path.value, { id: f.id, name: f.name }]; load() }
   else preview.value = f
 }
@@ -45,6 +48,11 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
 
 <template>
   <div class="drv">
+    <button v-if="title" type="button" class="drv-head" :aria-expanded="open" @click="open = !open">
+      <span class="grow" style="min-width:0"><b>{{ title }}</b><span v-if="rootName" class="drv-sub">{{ rootName }}</span></span>
+      <Icon name="chev" :size="18" :style="{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }" />
+    </button>
+    <template v-if="open">
     <!-- Sin permiso de Drive: vista simple de Google (necesita tener la sesión de esa cuenta abierta en el navegador) -->
     <template v-if="!acc">
       <iframe class="embed" :src="`https://drive.google.com/embeddedfolderview?id=${root}#list`" title="Carpeta de Drive" loading="lazy"></iframe>
@@ -59,13 +67,14 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
       <p v-if="error" class="notice">{{ error }}</p>
       <div v-else-if="loading" class="row small muted" style="padding:14px 4px;gap:8px"><span class="spin" style="width:18px;height:18px;border-width:2px"></span>Cargando Drive…</div>
       <div v-else class="files" :style="height ? { maxHeight: height + 'px' } : {}">
-        <button v-for="f in items" :key="f.id" class="file" @click="open(f)">
+        <button v-for="f in items" :key="f.id" class="file" @click="openItem(f)">
           <span class="ic" aria-hidden="true">{{ ICON(f.mime) }}</span>
           <span class="nm">{{ f.name }}</span>
           <span class="meta">{{ f.folder ? '' : fsize(f.size) }} {{ fdate(f.modified) }}</span>
         </button>
         <p v-if="!items.length" class="tiny muted" style="padding:10px 4px">Carpeta vacía</p>
       </div>
+    </template>
     </template>
 
     <!-- Vista previa del archivo -->
@@ -83,6 +92,8 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
 </template>
 
 <style scoped>
+.drv-head { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.drv-sub { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 .drv { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .embed { width: 100%; height: 320px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
 .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; min-width: 0; }
