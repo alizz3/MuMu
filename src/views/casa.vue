@@ -40,6 +40,7 @@ const svg = computed(() => (roomId.value === 'dormitorio' ? scene(state.game.pla
 const NAMES = { leo: 'Leo', negra: 'Negra' }
 const ACTIONS = [['comida', '🍗', 'Comer'], ['baño', '🛁', 'Bañar'], ['juego', '🎾', 'Jugar']]
 let fxTimer = null
+const wrap = ref(null)
 function show(kind, what, text) {
   fx.value = { pet: kind, kind: what }
   bubble.value = { pet: kind, text }
@@ -48,6 +49,14 @@ function show(kind, what, text) {
 }
 function doCare(kind, what) {
   if (pet.value[kind] === 'sleep' && what !== 'cariño') return toast(`${NAMES[kind]} está dormid${kind === 'leo' ? 'o' : 'a'} 😴 Déjal${kind === 'leo' ? 'o' : 'a'} descansar`)
+  // Cada cuidado pasa en su cuarto: comer en la cocina, bañarse en el baño, jugar en el patio
+  const where = { comida: 'cocina', baño: 'bano', juego: 'patio' }[what]
+  if (where && where !== roomId.value) {
+    const r = ROOMS.find((x) => x.id === where)
+    if (unlocked(r)) goRoom(where)
+    else toast(`Desbloquea ${r.id === 'bano' ? 'el' : 'la'} ${r.name.toLowerCase()} para hacerlo allá ${r.emoji}`)
+  }
+  wrap.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
   careAction(state.game, kind, what)
   const s = SOUNDS[kind]
   show(kind, what, what === 'comida' ? (kind === 'leo' ? '¡Ñam ñam! 🐟' : '¡Ñam! 🦴') : what === 'baño' ? 'Blub blub… ✨' : s[Math.floor(Math.random() * s.length)])
@@ -91,7 +100,7 @@ const lockedPreview = computed(() => !unlocked(cur.value))
       <Chip v-for="r in ROOMS" :key="r.id" :active="roomId === r.id" role="tab" :aria-selected="roomId === r.id" @click="goRoom(r.id)">{{ r.emoji }} {{ r.name }}{{ unlocked(r) ? '' : ' 🔒' }}</Chip>
     </div>
 
-    <div class="room-wrap" @pointerdown="onDown" @pointerup="onUp" @touchstart.passive="onDown" @touchend="onUp">
+    <div ref="wrap" class="room-wrap" @pointerdown="onDown" @pointerup="onUp" @touchstart.passive="onDown" @touchend="onUp">
       <svg class="room" :class="{ locked: lockedPreview }" viewBox="0 0 400 260" role="img" :aria-label="`${cur.name} de la casita con la vaquita, Leo y Negra`" v-html="svg" @click="onSceneClick"></svg>
       <button class="nav l" aria-label="Cuarto anterior" @click.stop="step(-1)"><Icon name="back" :size="18" /></button>
       <button class="nav r" aria-label="Cuarto siguiente" @click.stop="step(1)"><Icon name="chev" :size="18" /></button>
