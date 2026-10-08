@@ -6,6 +6,11 @@ import { daysUntil } from '../engine/time'
 import { Chip, Empty, Icon } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
+import { gtAccounts, syncGTasks } from '../services/api'
+import { toast } from '../engine/game'
+const gtOn = computed(() => gtAccounts().length > 0)
+const gtBusy = ref(false)
+async function gtSync() { gtBusy.value = true; try { await syncGTasks() } catch (e) { toast(e.message) } finally { gtBusy.value = false } }
 
 // Vistas tipo base de datos: mismo set de tareas, diferentes filtros y agrupaciones
 const filter = ref('abiertas')
@@ -43,6 +48,7 @@ const groups = computed(() => {
   <div class="stack">
     <div class="row">
       <input class="input grow" v-model="q" placeholder="Buscar tareas…" aria-label="Buscar tareas" />
+      <button v-if="gtOn" class="iconbtn" :aria-label="gtBusy ? 'Sincronizando con Google Tasks' : 'Sincronizar con Google Tasks'" title="Sincronizar con Google Tasks" :disabled="gtBusy" @click="gtSync"><Icon name="refresh" /></button>
       <button class="iconbtn add" aria-label="Nueva tarea" @click="ui.modal = { type: 'task' }"><Icon name="plus" /></button>
     </div>
     <div class="chips"><Chip v-for="f in ['abiertas', 'hoy', 'semana', 'pospuestas', 'completadas', 'todas']" :key="f" :active="filter === f" @click="filter = f">{{ f }}</Chip></div>

@@ -20,14 +20,19 @@ export function setUrl(push) {
 }
 
 // ---------- Tareas ----------
-export function addTask(data) {
+export function addTask(data, { quiet = false } = {}) {
   const t = { id: uid('t'), status: 'pendiente', priority: 'media', tags: [], subtasks: [], notes: '', postponed: 0, createdAt: dayKey(), source: 'manual', estimate: 30, category: 'personal', due: null, ...data }
   state.tasks.unshift(t)
-  toast('Tarea creada 📝')
+  if (!quiet) toast('Tarea creada 📝')
   return t
 }
 export function updateTask(id, patch) { const t = state.tasks.find((x) => x.id === id); if (t) Object.assign(t, patch); return t }
-export function deleteTask(id) { state.tasks = state.tasks.filter((t) => t.id !== id) }
+export function deleteTask(id) {
+  const t = state.tasks.find((x) => x.id === id)
+  // Si estaba en Google Tasks, también se borra allá (y no vuelve a aparecer)
+  if (t?.gtask) state.integrations.gtDeleted = [...(state.integrations.gtDeleted || []), { ...t.gtask }]
+  state.tasks = state.tasks.filter((x) => x.id !== id)
+}
 
 export function completeTask(id) {
   const t = state.tasks.find((x) => x.id === id)
@@ -204,6 +209,10 @@ export function setEmailStatus(eid, status) { const e = state.emails.find((x) =>
 export function aulaToTask(aid) {
   const a = state.aula.find((x) => x.id === aid)
   if (!a || a.taskId) return
+  // Si ya la tienes desde Google Tasks (mismo nombre), se une en vez de duplicarla
+  const nt = (x) => normTxt(x).replace(/\b(vence|entrega|tarea|pendiente|is due)\b/g, '').replace(/\s+/g, ' ').trim()
+  const twin = state.tasks.find((x) => x.source === 'gtasks' && x.status !== 'cancelada' && nt(x.title) && (nt(x.title) === nt(a.title) || (Math.min(nt(x.title).length, nt(a.title).length) > 10 && (nt(x.title).includes(nt(a.title)) || nt(a.title).includes(nt(x.title))))))
+  if (twin) { a.taskId = twin.id; Object.assign(twin, { subjectId: twin.subjectId || a.courseId, category: 'universidad', url: twin.url || a.url || null, due: twin.due || a.due, dueTime: twin.dueTime || a.dueTime || null }); return twin }
   const s = state.subjects.find((x) => x.id === a.courseId)
   const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, dueTime: a.dueTime || null, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
   a.taskId = t.id
@@ -291,6 +300,11 @@ export function ignoreCourse(subjectId) {
 }
 export function unignoreCourse(name) { state.integrations.ignoredCourses = (state.integrations.ignoredCourses || []).filter((c) => c.name !== name) }
 // Ya no está en el SENA (ADSO): se quita la materia, sus clases y lo pendiente
+// Busca la materia por nombre sin modificar nada ("2. Elementos de Programación…" → Programación Orientada a Objetos)
+export function subjectByName(name) {
+  const c = canon(name); if (!c) return null
+  return state.subjects.find((s) => canon(s.name) === c) || state.subjects.find((s) => { const k = canon(s.name); return k && (c.includes(k) || k.includes(c)) }) || null
+}
 export function cleanTitles() {
   const re = /\s+(est[aá] pendiente|pendiente|debe entregarse|is due)\s*$/i
   state.tasks.forEach((t) => { if (['aula', 'classroom'].includes(t.source) && re.test(t.title)) t.title = t.title.replace(re, '') })

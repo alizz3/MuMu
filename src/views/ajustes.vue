@@ -29,9 +29,12 @@ const SERVICES = [
   ['calendar', 'Google Calendar (solo lectura)', 'Ver tus eventos para calcular tiempo libre.'],
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos, tareas, anuncios y materiales.'],
+  ['tasks', 'Google Tasks', 'Traer tus listas de tareas, crear tareas nuevas y marcarlas hechas.'],
 ]
 const adding = ref(false)
 const cals = ref([]), calBusy = ref(false), calLink = ref('')
+const gtBusyUi = ref(false)
+async function gtNow() { gtBusyUi.value = true; try { await API.syncGTasks() } catch (e) { err(e) } finally { gtBusyUi.value = false } }
 async function loadCals(a) { calBusy.value = true; try { cals.value = await API.listCalendars(a.id) } catch (e) { err(e) } finally { calBusy.value = false } }
 function toggleCal(a, id, on) { const cur = API.calendarsOf(a.id); API.setCalendars(a.id, on ? [...cur, id] : cur.filter((x) => x !== id)) }
 function addCalLink(a) {
@@ -52,7 +55,7 @@ const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filte
 const loadingAcc = ref(false)
 async function loadAccounts() { loadingAcc.value = true; try { await API.refreshAccounts() } catch (e) { err(e) } finally { loadingAcc.value = false } }
 watch(() => backendOk.value && ui.synced, (ok) => { if (ok) loadAccounts() }, { immediate: true })
-const SVC_LABEL = { gmail: 'Gmail', 'gmail-organize': 'Organizar Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
+const SVC_LABEL = { gmail: 'Gmail', 'gmail-organize': 'Organizar Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom', tasks: 'Google Tasks' }
 
 // Tu Aula
 const aula = reactive({ site: state.integrations.aula.site || BRAND.aulaSite, method: 'webservice', username: '', password: '', icalUrl: '' })
@@ -137,6 +140,15 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
             <button class="btn primary block" style="margin-top:10px" :disabled="!extra.length" @click="API.connectGoogle(sel.label, [...sel.services, ...extra], sel.email).catch(err)">Dar {{ extra.length || '' }} permiso{{ extra.length === 1 ? '' : 's' }} más</button>
           </div>
           <p v-else class="small muted">Esta cuenta ya tiene todos los permisos 💗</p>
+          <div v-if="sel.services.includes('tasks')" class="card tight soft stack" style="gap:8px">
+            <b class="small">✅ Google Tasks</b>
+            <label class="field"><span>Esta cuenta es para</span>
+              <select class="input" v-model="API.gtConf(sel).role"><option value="universidad">Tareas de la universidad</option><option value="personal">Tareas personales</option></select></label>
+            <label v-if="API.gtConf(sel).lists.length" class="field"><span>Lista para tareas nuevas {{ API.gtConf(sel).role === 'universidad' ? 'sin materia' : '' }}</span>
+              <select class="input" v-model="API.gtConf(sel).defaultList"><option value="@default">Mis tareas (la principal)</option><option v-for="l in API.gtConf(sel).lists" :key="l.id" :value="l.id">{{ l.title }}</option></select></label>
+            <p class="tiny muted">{{ API.gtConf(sel).role === 'universidad' ? 'Las tareas de cada materia se crean en la lista que tenga su nombre (ej. "2. Elementos de Programación…").' : 'Las tareas personales que crees en MuMu se crean aquí.' }} Lo que marques hecho en un lado queda hecho en el otro.</p>
+            <button class="btn sm lav" :disabled="gtBusyUi" @click="gtNow">{{ gtBusyUi ? 'Sincronizando…' : 'Sincronizar ahora' }}</button>
+          </div>
           <div v-if="sel.services.includes('calendar')" class="card tight soft stack" style="gap:8px">
             <div class="row between"><b class="small">🗓️ Calendarios que MuMu lee</b><button class="btn sm ghost" :disabled="calBusy" @click="loadCals(sel)">{{ calBusy ? '…' : 'Ver mis calendarios' }}</button></div>
             <label v-for="c in cals" :key="c.id" class="row small" style="gap:8px"><input type="checkbox" :checked="API.calendarsOf(sel.id).includes(c.primary ? 'primary' : c.id)" @change="toggleCal(sel, c.primary ? 'primary' : c.id, $event.target.checked)" /><i :style="{ background: c.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }"></i>{{ c.name }}{{ c.primary ? ' (principal)' : '' }}</label>
