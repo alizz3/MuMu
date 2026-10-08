@@ -82,7 +82,10 @@ export function localParts(date) {
 }
 
 // Qué servicios quedaron realmente autorizados, según los scopes que Google devolvió
+// Para Classroom basta con cursos + tareas; anuncios y materiales son un extra.
+const REQUIRED = { classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly'] }
 export function servicesFromScopes(granted) {
   const g = new Set(granted)
-  return Object.entries(SERVICE_SCOPES).filter(([, scopes]) => scopes.every((x) => g.has(x))).map(([k]) => k)
+  return Object.entries(SERVICE_SCOPES).filter(([k, scopes]) => (REQUIRED[k] || scopes).every((x) => g.has(x))).map(([k]) => k)
 }
+export const missingScopes = (service, granted) => (REQUIRED[service] || SERVICE_SCOPES[service] || []).filter((x) => !granted.includes(x)).map((x) => x.split('/').pop())
