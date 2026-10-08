@@ -181,7 +181,7 @@ textarea.input { min-height: 80px; resize: vertical; }
 .days button.on b { color: var(--pink-700); }
 .days button i { width: 5px; height: 5px; border-radius: 50%; background: var(--pink-500); }
 .tl { position: relative; display: flex; flex-direction: column; gap: 8px; }
-.tl-row { display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: stretch; }
+.tl-row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; align-items: stretch; }
 .tl-time { font-size: 11.5px; color: var(--muted); padding-top: 12px; text-align: right; }
 .tl-card { border-radius: 16px; padding: 10px 12px; background: var(--lav-50); border-left: 4px solid var(--lav-300); display: flex; gap: 10px; align-items: center; }
 .tl-card.free { background: transparent; border: 1.5px dashed var(--mint); color: var(--mint-700); }
@@ -234,6 +234,15 @@ textarea.input { min-height: 80px; resize: vertical; }
 .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--pink-100); border-top-color: var(--pink-700); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s } }
-.tl-mark { grid-column: 2; margin-top: -4px; }
 .tl-card.dim { opacity: .62; }
 .tl-card.dim .b { text-decoration: none; }
+.tl-card { min-width: 0; }
+.tl-card.click { cursor: pointer; }
+.tl-card.click:hover { filter: brightness(1.04); }
+.tl-txt { min-width: 0; }
+.tl-txt .tiny { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.tl-badge { margin-top: 4px; display: inline-block; }
+.wk-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+.badge.dim { opacity: .55; }
+a.btn, a.btn:hover { text-decoration: none; }

@@ -35,7 +35,7 @@ export default handler(async (req, res) => {
       const allDay = !e.start?.dateTime
       const s = allDay ? { day: e.start.date, time: '00:00' } : localParts(new Date(e.start.dateTime))
       const f = allDay ? { day: e.start.date, time: '23:59' } : localParts(new Date(e.end.dateTime))
-      events.push({ id: `gc_${e.id}`, calendar: cal, calendarName: j.summary, title: e.summary || '(sin título)', date: s.day, start: s.time, end: f.day === s.day ? f.time : '23:59', allDay, url: e.htmlLink, type: /clase|class/i.test(e.summary || '') ? 'clase' : allDay ? 'recordatorio' : 'evento' })
+      events.push({ id: `gc_${e.id}`, calendar: cal, calendarName: j.summary, title: e.summary || '(sin título)', date: s.day, start: s.time, end: f.day === s.day ? f.time : '23:59', allDay, url: e.htmlLink, location: (e.location || '').slice(0, 200), description: String(e.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600), type: /clase|class/i.test(e.summary || '') ? 'clase' : allDay ? 'recordatorio' : 'evento' })
     }
   }
   res.json({ events, warnings })
