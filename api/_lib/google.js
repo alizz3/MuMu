@@ -1,4 +1,4 @@
-// OAuth de Google con scopes mínimos + helpers para las APIs oficiales (Gmail, Calendar, Classroom, Tasks).
+// OAuth de Google con scopes mínimos + helpers para las APIs oficiales (Gmail, Calendar, Classroom, Tasks, Drive).
 import { HttpError } from './http.js'
 import { encrypt, decrypt } from './crypto.js'
 import { secrets } from './firebase.js'
@@ -10,6 +10,7 @@ export const SERVICE_SCOPES = {
   calendar: ['https://www.googleapis.com/auth/calendar.readonly'],
   'calendar-write': ['https://www.googleapis.com/auth/calendar.events'],
   tasks: ['https://www.googleapis.com/auth/tasks'],
+  drive: ['https://www.googleapis.com/auth/drive.readonly'],
   classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly', 'https://www.googleapis.com/auth/classroom.announcements.readonly', 'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly'],
 }
 

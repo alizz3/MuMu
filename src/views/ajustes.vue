@@ -29,6 +29,7 @@ const SERVICES = [
   ['calendar', 'Google Calendar (solo lectura)', 'Ver tus eventos para calcular tiempo libre.'],
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos, tareas, anuncios y materiales.'],
+  ['drive', 'Google Drive (solo lectura)', 'Ver las carpetas y archivos de tus materias dentro de MuMu. No puede borrar ni cambiar nada.'],
   ['tasks', 'Google Tasks', 'Traer tus listas de tareas, crear tareas nuevas y marcarlas hechas.'],
 ]
 const adding = ref(false)
@@ -55,7 +56,7 @@ const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filte
 const loadingAcc = ref(false)
 async function loadAccounts() { loadingAcc.value = true; try { await API.refreshAccounts() } catch (e) { err(e) } finally { loadingAcc.value = false } }
 watch(() => backendOk.value && ui.synced, (ok) => { if (ok) loadAccounts() }, { immediate: true })
-const SVC_LABEL = { gmail: 'Gmail', 'gmail-organize': 'Organizar Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom', tasks: 'Google Tasks' }
+const SVC_LABEL = { gmail: 'Gmail', 'gmail-organize': 'Organizar Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom', tasks: 'Google Tasks', drive: 'Google Drive' }
 
 // Tu Aula
 const aula = reactive({ site: state.integrations.aula.site || BRAND.aulaSite, method: 'webservice', username: '', password: '', icalUrl: '' })
