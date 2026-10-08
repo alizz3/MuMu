@@ -23,7 +23,7 @@ const SERVICES = [
   ['gmail', 'Gmail (solo lectura)', 'Leer correos para detectar los importantes. No puede enviar ni borrar.'],
   ['calendar', 'Google Calendar (solo lectura)', 'Ver tus eventos para calcular tiempo libre.'],
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
-  ['classroom', 'Classroom (solo lectura)', 'Ver cursos y tareas asignadas.'],
+  ['classroom', 'Classroom (solo lectura)', 'Ver cursos, tareas, anuncios y materiales.'],
 ]
 const adding = ref(false)
 const sel = ref(null)

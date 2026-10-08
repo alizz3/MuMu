@@ -21,6 +21,17 @@ export default handler(async (req, res) => {
       const d = w.dueDate ? `${w.dueDate.year}-${String(w.dueDate.month).padStart(2, '0')}-${String(w.dueDate.day).padStart(2, '0')}` : null
       items.push({ externalId: `cr_${w.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: w.workType === 'MULTIPLE_CHOICE_QUESTION' || w.workType === 'SHORT_ANSWER_QUESTION' ? 'quiz' : 'assign', title: w.title, due: d, url: w.alternateLink, hash: hash(`${w.title}|${d}|${w.updateTime}`) })
     }
+    // Anuncios y materiales de las últimas 3 semanas (como avisos, no como tareas)
+    const since = Date.now() - 21 * 864e5
+    const { announcements = [] } = await gget(token, `${base}/courses/${c.id}/announcements?pageSize=20`).catch(() => ({}))
+    for (const a of announcements) if (new Date(a.updateTime || a.creationTime) > since) {
+      const txt = (a.text || 'Nuevo anuncio').replace(/\s+/g, ' ')
+      items.push({ externalId: `cra_${a.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: 'forum', title: txt.length > 90 ? txt.slice(0, 87) + '…' : txt, due: null, url: a.alternateLink, hash: hash(`${a.text}|${a.updateTime}`) })
+    }
+    const { courseWorkMaterial = [] } = await gget(token, `${base}/courses/${c.id}/courseWorkMaterials?pageSize=20`).catch(() => ({}))
+    for (const m of courseWorkMaterial) if (new Date(m.updateTime || m.creationTime) > since) {
+      items.push({ externalId: `crm_${m.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: 'material', title: m.title || 'Material nuevo', due: null, url: m.alternateLink, hash: hash(`${m.title}|${m.updateTime}`) })
+    }
   }
   res.json({ items })
 }, { methods: ['GET'], limit: 20 })
