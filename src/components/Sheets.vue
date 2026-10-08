@@ -1,4 +1,10 @@
 <script setup>
+function setGrade(t, k, v, max) {
+  const n = String(v).replace(',', '.').trim()
+  if (n === '') { t[k] = null; return }
+  const x = Math.min(max, Math.max(0, +n)); if (isNaN(x)) return
+  t[k] = Math.round(x * 10) / 10
+}
 import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
@@ -226,6 +232,13 @@ const prettyVal = (f, v) => {
           <span v-for="(c, i) in chain" :key="i" class="badge">{{ c }}</span>
         </div>
         <p v-if="task.notes" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
+        <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft row wrap" style="gap:8px;margin-top:10px">
+          <b class="small">🎯 Nota</b>
+          <input class="input" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="0.0 – 5.0" style="width:110px" :value="task.grade ?? ''" @change="setGrade(task, 'grade', $event.target.value, 5)" aria-label="Nota de la tarea" />
+          <span class="small muted">vale</span>
+          <input class="input" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="%" style="width:80px" :value="task.weight ?? ''" @change="setGrade(task, 'weight', $event.target.value, 100)" aria-label="Porcentaje que vale" />
+          <span class="small muted">%</span>
+        </div>
         <a v-if="task.url" class="btn sm lav" style="margin-top:10px" :href="task.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />Abrir en {{ task.source === 'classroom' ? 'Classroom' : task.source === 'gmail' ? 'Gmail' : 'Tu Aula' }}</a>
 
         <div class="card tight soft" style="margin-top:14px">

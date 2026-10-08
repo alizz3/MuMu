@@ -11,13 +11,14 @@ import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
+import { resumen, f1, tono, PASA } from '../engine/notas'
 
 const tab = ref('cursos')
 const sel = ref(null)
 const inst = ref('todas')
 const subjects = computed(() => state.subjects.filter((s) => inst.value === 'todas' || s.institution === inst.value).map((s) => {
   const ts = state.tasks.filter((t) => t.subjectId === s.id && t.status !== 'cancelada')
-  return { ...s, ts, open: ts.filter(isOpen), p: ts.length ? Math.round(ts.filter((t) => t.status === 'completada').length / ts.length * 100) : 0 }
+  return { ...s, ts, nota: resumen(ts), open: ts.filter(isOpen), p: ts.length ? Math.round(ts.filter((t) => t.status === 'completada').length / ts.length * 100) : 0 }
 }))
 const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId)).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
@@ -57,6 +58,13 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
+      <div v-if="selS.nota" class="card soft stack" style="gap:4px">
+        <div class="row between"><h3>🎯 Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>
+        <p class="small muted" v-if="selS.nota.evaluado != null">Llevas {{ f1(selS.nota.acumulado) }} de 5.0 con el {{ Math.round(selS.nota.evaluado) }}% calificado.
+          <template v-if="selS.nota.resto > 0"> <span v-if="selS.nota.necesita <= 0">Ya pasaste la materia 🎉</span><span v-else-if="selS.nota.necesita <= 5">Para pasar con {{ PASA.toFixed(1) }} necesitas sacar en promedio <b>{{ f1(selS.nota.necesita) }}</b> en el {{ Math.round(selS.nota.resto) }}% que falta.</span><span v-else>Con lo que falta ya no alcanza el 3.0 😢, habla con el profe.</span></template></p>
+        <p class="small muted" v-else>Promedio de {{ selS.nota.n }} nota{{ selS.nota.n === 1 ? '' : 's' }}. Ponle el “vale %” a cada tarea para saber cuánto te falta.</p>
+        <div v-for="t in selS.ts.filter((x) => x.grade != null)" :key="t.id" class="row small between" style="padding:2px 0"><span class="grow">{{ t.title }}</span><span class="muted">{{ t.weight ? t.weight + '%' : '' }}</span><b style="width:36px;text-align:right">{{ f1(t.grade) }}</b></div>
+      </div>
       <div class="card"><div class="row between"><h3>Tareas</h3><button class="link" @click="ui.modal = { type: 'task', prefill: { subjectId: selS.id, category: 'universidad', goalId: 'g1' } }">+ Tarea</button></div>
         <div class="list"><TaskRow v-for="t in selS.ts" :key="t.id" :task="t" /></div></div>
       <div class="card"><h3>Actividades detectadas</h3>
@@ -79,6 +87,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
         <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
+        <span v-if="s.nota" class="badge" :class="tono(s.nota.promedio)" :title="`Nota: ${f1(s.nota.promedio)}`">🎯 {{ f1(s.nota.promedio) }}</span>
         <Ring :value="s.p" :size="46" :color="s.color" />
       </button>
       <p v-if="ignoredNames.length" class="tiny muted" style="text-align:center">🙈 Ignorando: <span v-for="n in ignoredNames" :key="n">{{ n }} <button class="link tiny" @click="A.unignoreCourse(n)">volver a traer</button> </span></p>

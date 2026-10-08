@@ -33,6 +33,7 @@ const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filte
         <span v-if="t.demo" class="badge demo">ejemplo</span>
       </div>
     </button>
+    <span v-if="t.grade != null" class="badge" :class="t.grade >= 4 ? 'green' : t.grade >= 3 ? '' : 'pink'">🎯 {{ (+t.grade).toFixed(1) }}</span>
     <span v-if="!done && prio === 'alta'" class="badge red">alta</span>
     <span v-if="t.status === 'en progreso'" class="badge">en curso</span>
   </div>
