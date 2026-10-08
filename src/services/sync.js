@@ -3,7 +3,8 @@
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { markVisit, applyAcademicChanges, dropSena, cleanTitles } from '../store/actions'
-import { syncAula, syncClassroom } from './api'
+import { syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
+import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
 
@@ -87,4 +88,20 @@ function autoSync() {
   if (a?.status === 'conectado' && old(a.lastSync)) syncAula().catch(() => {})
   const cr = state.integrations.classroom
   if (state.integrations.google.some((g) => g.services.includes('classroom')) && old(cr?.lastSync)) syncClassroom().catch(() => {})
+  startGTasks()
+}
+// Google Tasks: se revisa al abrir y cada 20 minutos con la app abierta; lo que hagas en MuMu se manda a los pocos segundos
+let gtStarted = false
+function startGTasks() {
+  if (gtStarted) return
+  gtStarted = true
+  const run = () => { if (gtAccounts().length && document.visibilityState !== 'hidden') syncGTasks({ quiet: true }).catch(() => {}) }
+  setTimeout(run, 3000)
+  setInterval(run, 20 * 60e3)
+  document.addEventListener('visibilitychange', () => { const l = state.integrations.gtasksLast; if (document.visibilityState === 'visible' && (!l || Date.now() - new Date(l).getTime() > 5 * 60e3)) run() })
+  let timer = null
+  watch(() => state.tasks.map((t) => `${t.id}:${t.status}:${t.gtask ? 1 : 0}`).join('|'), () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => { if (gtAccounts().length) pushNewGTasks().catch(() => {}) }, 4000)
+  })
 }
