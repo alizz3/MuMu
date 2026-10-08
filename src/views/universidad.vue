@@ -81,7 +81,6 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
           <button class="link tiny" style="align-self:flex-start" @click="ignore(s)">🙈 No es una materia mía (ignorar sus tareas)</button>
         </div>
       </div>
-      <p v-if="ignoredNames.length" class="tiny muted">🙈 Ignorando: <span v-for="n in ignoredNames" :key="n">{{ n }} <button class="link tiny" @click="A.unignoreCourse(n)">volver a traer</button> </span></p>
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
         <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
@@ -93,6 +92,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <span class="btn sm lav">Elegir archivo</span>
         <input type="file" accept=".csv,text/csv" class="sr" @change="onCSV" />
       </label>
+      <p v-if="ignoredNames.length" class="tiny muted" style="text-align:center">🙈 Ignorando: <span v-for="n in ignoredNames" :key="n">{{ n }} <button class="link tiny" @click="A.unignoreCourse(n)">volver a traer</button> </span></p>
       <div class="card pink now-card" style="min-height:130px">
         <h3>Recordatorio 🎓</h3>
         <p class="small" style="max-width:62%;margin-top:4px">Revisa tu Aula antes de tu próxima clase.</p>
