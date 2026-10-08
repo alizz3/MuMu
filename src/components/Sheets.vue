@@ -9,7 +9,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { planTask, remaining } from '../engine/planner'
-import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s } from '../engine/time'
+import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { toast, ask } from '../engine/game'
 
@@ -155,6 +155,13 @@ async function remove() {
 // ---------- detalle de tarea ----------
 const task = computed(() => (m.value?.type === 'task' && m.value.id ? state.tasks.find((t) => t.id === m.value.id) : null))
 // Enlace a la plataforma: el de la tarea, o el de la actividad de origen, o al menos la plataforma
+function dueText(t) {
+  if (!t.due) return 'Sin fecha límite'
+  const d = parseDay(t.due), n = daysUntil(t.due)
+  const hora = /^\d{2}:\d{2}$/.test(t.dueTime || '') ? ` a las ${fmt12s(t.dueTime)}` : ''
+  const cuando = n === 0 ? 'hoy' : n === 1 ? 'mañana' : n === -1 ? 'ayer' : n < 0 ? `hace ${-n} días` : `en ${n} días`
+  return `${n < 0 ? 'Venció' : 'Vence'} el ${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}${hora} (${cuando})`
+}
 const taskLink = computed(() => {
   const t = task.value; if (!t) return null
   if (t.urlManual && t.url) return { url: t.url, src: t.source }
@@ -245,15 +252,16 @@ const prettyVal = (f, v) => {
           </div>
         </div>
         <h2 style="margin:8px 0 4px">{{ task.title }}</h2>
-        <div class="row wrap small muted" style="gap:6px">
-          <span v-if="task.due">📅 vence {{ relDay(task.due) }}{{ /^\d{2}:\d{2}$/.test(task.dueTime || '') ? ' · ' + fmt12s(task.dueTime) : '' }}</span><span>· ⏱ {{ fmtDur(task.estimate) }} (faltan ~{{ fmtDur(remaining(task)) }})</span>
-          <span v-if="task.postponed">· pospuesta {{ task.postponed }}×</span>
+        <div class="stack small muted" style="gap:2px">
+          <span>📅 {{ dueText(task) }}</span>
+          <span v-if="task.estimate">⏱ {{ task.spent ? `Llevas ${fmtDur(task.spent)} de unas ${fmtDur(task.estimate)}` : `Te puede tomar unas ${fmtDur(task.estimate)}` }}</span>
+          <span v-if="task.postponed">↪️ La has pospuesto {{ task.postponed }} {{ task.postponed === 1 ? 'vez' : 'veces' }}</span>
           <span v-if="task.demo" class="badge demo">ejemplo</span>
         </div>
         <div v-if="chain.length" class="row wrap" style="gap:6px;margin-top:10px">
           <span v-for="(c, i) in chain" :key="i" class="badge">{{ c }}</span>
         </div>
-        <p v-if="task.notes" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
+        <p v-if="task.notes && !/^Materia: [^\n]*$/.test(task.notes)" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
         <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft row wrap" style="gap:8px;margin-top:10px">
           <b class="small">🎯 Nota</b>
           <input class="input" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="0.0 – 5.0" style="width:110px" :value="task.grade ?? ''" @change="setGrade(task, 'grade', $event.target.value, 5)" aria-label="Nota de la tarea" />

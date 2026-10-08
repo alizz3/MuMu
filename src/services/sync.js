@@ -2,7 +2,7 @@
 // Una colección por documento mantiene pocas escrituras y cabe de sobra para uso personal.
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
-import { markVisit, applyAcademicChanges, dropSena } from '../store/actions'
+import { markVisit, applyAcademicChanges, dropSena, cleanTitles } from '../store/actions'
 import { syncAula, syncClassroom } from './api'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
@@ -52,6 +52,7 @@ export async function initSync() {
     ui.synced = true
     markVisit()
     dropSena()
+    cleanTitles()
     processInbox()
     autoSync()
     if (!anyRemote) push(fb, doc, setDoc)
