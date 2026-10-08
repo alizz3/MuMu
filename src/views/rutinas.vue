@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { daily, award } from '../engine/game'
+import { daily, award, awardOnce, markRewarded } from '../engine/game'
 import { rankedTasks } from '../engine/planner'
 import { dayKey, keyPlus, hm, toHM, fmt12, fmtDur } from '../engine/time'
 import { Icon, Pet } from '../components/ui'
@@ -13,8 +13,9 @@ const logs = computed(() => (state.routineLogs[k] = state.routineLogs[k] || {}))
 const isDone = (r, i) => (logs.value[r.id] || []).includes(i)
 function toggle(r, i) {
   const arr = (logs.value[r.id] = logs.value[r.id] || [])
-  const j = arr.indexOf(i); if (j >= 0) arr.splice(j, 1); else arr.push(i)
-  if (arr.length === r.steps.length) award(8, 12, `Rutina ${r.name} completa`)
+  const j = arr.indexOf(i)
+  if (j >= 0) { if (arr.length === r.steps.length) markRewarded(`rutina:${r.id}:${k}`); arr.splice(j, 1) } else arr.push(i)
+  if (arr.length === r.steps.length) awardOnce(`rutina:${r.id}:${k}`, 8, 12, `Rutina ${r.name} completa`)
 }
 const newStep = ref('')
 function addStep(r) { if (newStep.value.trim()) { r.steps.push({ t: newStep.value.trim(), min: 10 }); newStep.value = '' } }
