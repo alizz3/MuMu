@@ -8,4 +8,5 @@ export const BRAND = {
   petName: 'Vaquita',
   // URL de la app de finanzas cuando exista (se puede cambiar en Configuración)
   financeAppUrl: '',
+  aulaSite: 'https://tuaulavirtual.ut.edu.co',
 }

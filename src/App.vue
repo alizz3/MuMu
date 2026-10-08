@@ -10,6 +10,8 @@ import Sheets from './components/Sheets.vue'
 import Assistant from './components/Assistant.vue'
 import Welcome from './components/Welcome.vue'
 import { hasFirebase } from './services/firebase'
+import { consent, trackView } from './services/analytics'
+import { watch } from 'vue'
 
 const views = import.meta.glob('./views/*.vue')
 const cache = {}
@@ -53,6 +55,7 @@ const isDark = computed(() => state.settings.theme === 'dark' || (state.settings
 const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dark' }
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
+watch(() => ui.route, (r) => trackView(r))
 const fmtLeft = computed(() => {
   const f = ui.focus; if (!f) return ''
   const el = f.elapsed + (f.paused ? 0 : ui.now - f.startedAt)
@@ -117,7 +120,7 @@ const fmtLeft = computed(() => {
     <div class="toasts" aria-live="polite">
       <div v-for="t in ui.toasts" :key="t.id" class="toast" :class="t.kind">
         <span class="grow">{{ t.text }}</span>
-        <button v-if="t.action" class="btn sm lav" @click="go(t.action.go)">{{ t.action.label }}</button>
+        <button v-if="t.action" class="btn sm lav" @click="t.action.fn ? t.action.fn() : go(t.action.go)">{{ t.action.label }}</button>
       </div>
     </div>
 
@@ -145,5 +148,9 @@ const fmtLeft = computed(() => {
         </div>
       </div>
     </div>
+  </div>
+  <div v-if="ui.cookieBanner" class="card" role="dialog" aria-label="Cookies" style="position:fixed;z-index:90;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;box-shadow:var(--shadow-lg)">
+    <p class="small">🍪 MuMu usa cookies de analítica (Google Analytics) solo si las aceptas, para saber cuánta gente visita la página. Tus datos personales no se comparten. <a href="/privacidad.html">Privacidad</a></p>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn sm ghost" @click="consent(false)">Rechazar</button><button class="btn sm primary" @click="consent(true)">Aceptar</button></div>
   </div>
 </template>

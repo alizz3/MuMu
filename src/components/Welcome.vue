@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { state, ui } from '../store'
 import { signIn, signOut } from '../services/firebase'
+import { installApp } from '../services/pwa'
 import { Icon, Pet } from './ui'
 
 const busy = ref(false)
@@ -57,6 +58,8 @@ const FEATURES = [
           <button class="btn ghost" @click="demo">Ver demo con datos de ejemplo</button>
         </div>
         <p v-if="error" class="notice" style="margin-top:12px">{{ error }}</p>
+        <button v-if="ui.installPrompt" class="link" style="margin-top:6px" @click="installApp">📲 Instalar MuMu en este dispositivo</button>
+        <p v-else-if="ui.isIOS && !ui.installed" class="tiny muted" style="margin-top:6px">📲 En iPhone: toca Compartir → "Agregar a inicio" para tenerla como app.</p>
       </section>
 
       <section class="w-grid">
@@ -77,7 +80,7 @@ const FEATURES = [
 
       <footer class="w-foot">
         <span>Hecho con 💗 por Aliz Mejía · Vue · Firebase · Vercel</span>
-        <span class="row" style="gap:14px"><a href="https://github.com/alizz3/MuMu" target="_blank" rel="noopener">GitHub</a><a href="/privacidad.html">Privacidad</a></span>
+        <span class="row" style="gap:14px"><a href="https://github.com/alizz3/MuMu" target="_blank" rel="noopener">GitHub</a><a href="/privacidad.html">Privacidad</a><a href="/terminos.html">Términos</a></span>
       </footer>
     </template>
   </div>
