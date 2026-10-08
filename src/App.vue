@@ -1,12 +1,12 @@
 <script setup>
 import { computed, ref, onMounted, watchEffect, defineAsyncComponent } from 'vue'
 import { state, ui } from './store'
-import { go, back, setUrl } from './store/actions'
+import { go, back, setUrl, importProject } from './store/actions'
 import { h } from 'vue'
 import { NAV, BOTTOM, titleOf } from './config/nav'
 import { Icon, Pet } from './components/ui'
 import { tick } from './engine/notify'
-import { petState, level, toast } from './engine/game'
+import { petState, level, toast, ask } from './engine/game'
 import Sheets from './components/Sheets.vue'
 import Assistant from './components/Assistant.vue'
 import Welcome from './components/Welcome.vue'
@@ -82,6 +82,23 @@ const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dar
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
+// …/proyectos#importar=<datos>: espera a que carguen tus datos y pregunta antes de agregar el proyecto
+const pendingImport = (location.hash.match(/^#importar=([\w-]+)/) || [])[1]
+if (pendingImport) {
+  let done = false
+  watch(() => gate.value === 'app' && (ui.synced || !ui.backend || ui.demo), async (ready) => {
+    if (!ready || done) return
+    done = true
+    history.replaceState(null, '', location.pathname)
+    try {
+      const data = JSON.parse(decodeURIComponent(escape(atob(pendingImport.replace(/-/g, '+').replace(/_/g, '/')))))
+      if (!(await ask(`¿Agregar el proyecto "${data.project?.name}" con ${data.tasks?.length || 0} tareas?`))) return
+      const p = importProject(data)
+      go('proyectos', { id: p.id })
+      toast(`Proyecto ${p.name} agregado 📁`)
+    } catch (e) { toast('Ese enlace de proyecto no se pudo leer') }
+  }, { immediate: true })
+}
 // Solo se precarga cuando ya estás dentro (los visitantes de la bienvenida no lo necesitan)
 watch(gate, (g) => { if (g === 'app') prefetch() }, { immediate: true })
 // El acompañante de enfoque vive aquí para seguir aunque cambies de sección

@@ -356,6 +356,22 @@ export function saveGod(entry, k = dayKey()) {
 import { DECOR } from '../engine/decor'
 import { ROOMS } from '../engine/rooms'
 // Cuartos de la casita: cada uno tiene sus cosas puestas; el dormitorio usa state.game.placed
+// Enlace para importar un proyecto con sus tareas (…/proyectos#importar=<base64>). Los datos viajan en el enlace,
+// no en el código; se valida todo antes de guardarlo.
+export function importProject(data) {
+  const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+  const p = data?.project
+  if (!p || !s(p.name)) throw new Error('Enlace de proyecto inválido')
+  const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']
+  const proj = { id: uid('p'), name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', goalId: null, due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: (Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
+  state.projects.unshift(proj)
+  const CATS = ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas']
+  ;(Array.isArray(data.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => {
+    if (!s(t?.title)) return
+    addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), projectId: proj.id, category: CATS.includes(t.category) ? t.category : 'trabajo', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true })
+  })
+  return proj
+}
 export function roomOf(roomId) {
   const g = state.game
   g.rooms ||= {}

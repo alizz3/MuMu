@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { state, ui } from '../store'
 import { go } from '../store/actions'
-import { ask } from '../engine/game'
+import { ask, toast } from '../engine/game'
 import { MONTHS, WEEKDAYS_LONG, fmt12s, toHM } from '../engine/time'
 import { Empty, Icon } from '../components/ui'
 
@@ -43,9 +43,18 @@ const remove = (n) => { state.notifications = state.notifications.filter((x) => 
 async function clearAll() { if (await ask('¿Borrar todas las notificaciones?')) state.notifications = [] }
 
 // Al tocarla te lleva justo a lo que dice (la tarea, la actividad, el correo…)
+// Materia de la notificación (también para las viejas, buscando la actividad de origen)
+const aulaOf = (n) => (n.key?.startsWith('aula:') ? state.aula.find((x) => `aula:${x.id}` === n.key) : null)
+const subjectOf = (n) => n.subject || state.subjects.find((s) => s.id === aulaOf(n)?.courseId)?.name || null
 function openN(n) {
   n.read = true
   let target = n.open
+  // Si la tarea ya no existe (el profe la quitó de Tu Aula), se avisa en vez de llevarte a cualquier lado
+  if (n.key?.startsWith('aula:')) {
+    const t = target?.type === 'task' ? state.tasks.find((x) => x.id === target.id) : state.tasks.find((x) => x.id === aulaOf(n)?.taskId)
+    if (!t) { const sj = subjectOf(n); return toast(`Esa actividad ya no está${sj ? ` en ${sj}` : ''}: parece que la quitaron de Tu Aula 🤷‍♀️`) }
+    target = { type: 'task', id: t.id }
+  }
   if (!target && n.key?.startsWith('aula:')) { const a = state.aula.find((x) => `aula:${x.id}` === n.key); if (a?.taskId) target = { type: 'task', id: a.taskId } }
   if (!target && n.key?.startsWith('intent:')) target = { type: 'task', id: n.key.slice(7) }
   if (target?.type === 'task' && !state.tasks.some((t) => t.id === target.id)) target = null
@@ -82,7 +91,7 @@ const offset = (n) => (drag.value.id === n.id ? drag.value.dx : 0)
             <span class="nt-bg" :style="{ opacity: Math.min(1, offset(n) / 110) }"><Icon name="trash" :size="16" /> Borrar</span>
             <div class="nt" role="button" tabindex="0" :style="{ transform: `translateX(${offset(n)}px)` }" @pointerdown="down(n, $event)" @pointermove="move" @pointerup="up(n)" @pointercancel="up(n)" @click="click(n)" @keyup.enter="openN(n)">
               <span class="ico" :class="{ lav: n.read }"><Icon :name="iconOf(n)" :size="17" /></span>
-              <div class="grow" style="min-width:0"><div class="small" :class="{ b: !n.read }" style="overflow-wrap:anywhere">{{ n.text }}</div><div class="tiny muted">{{ ago(n.at) }}</div></div>
+              <div class="grow" style="min-width:0"><div class="small" :class="{ b: !n.read }" style="overflow-wrap:anywhere">{{ n.text }}</div><div class="tiny muted">{{ ago(n.at) }}<span v-if="subjectOf(n)"> · 📚 {{ subjectOf(n) }}</span></div></div>
               <span v-if="!n.read" class="dot-unread" aria-label="Sin leer"></span>
               <button class="x" :aria-label="`Borrar notificación: ${n.text}`" @click.stop="remove(n)"><Icon name="x" :size="14" /></button>
             </div>
