@@ -280,6 +280,18 @@ export function ignoreCourse(subjectId) {
   state.subjects = state.subjects.filter((x) => x.id !== s.id)
 }
 export function unignoreCourse(name) { state.integrations.ignoredCourses = (state.integrations.ignoredCourses || []).filter((c) => c.name !== name) }
+// Ya no está en el SENA (ADSO): se quita la materia, sus clases y lo pendiente
+export function dropSena() {
+  const ids = new Set(state.subjects.filter((s) => s.institution === 'SENA' || /\badso\b/i.test(s.name)).map((s) => s.id))
+  if (ids.size) {
+    state.tasks = state.tasks.filter((t) => !(ids.has(t.subjectId) && t.status !== 'completada'))
+    state.tasks.forEach((t) => { if (ids.has(t.subjectId)) t.subjectId = null })
+    state.events = (state.events || []).filter((e) => !ids.has(e.subjectId))
+    state.subjects = state.subjects.filter((s) => !ids.has(s.id))
+  }
+  const g = state.goals?.find((x) => x.id === 'g1')
+  if (g && /SENA/.test(g.description || '')) g.description = 'Ingeniería de Sistemas en la Universidad del Tolima.'
+}
 // Las que se pueden unir solas (mismo nombre con otra forma de escribirlo)
 export function tidySubjects() {
   let n = 0
