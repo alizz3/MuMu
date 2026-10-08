@@ -178,10 +178,13 @@ export function gtConf(a) {
   return (state.integrations.gtasks[a.id] ||= { role: isUniAcc(a) ? 'universidad' : 'personal', lists: [], defaultList: '@default' })
 }
 const sameTitle = (a, b) => { const x = normT(a), y = normT(b); return !!x && !!y && (x === y || (Math.min(x.length, y.length) > 10 && (x.includes(y) || y.includes(x)))) }
-const accFor = (t) => { const accs = gtAccounts(); const want = t.category === 'universidad' || t.subjectId ? 'universidad' : 'personal'; return accs.find((a) => gtConf(a).role === want) || null }
+const accFor = (t) => { const accs = gtAccounts()
+  if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const hit = p && accs.find((a) => (gtConf(a).lists || []).some((l) => normT(l.title) === normT(p.name))); if (hit) return hit }
+  const want = t.category === 'universidad' || t.subjectId ? 'universidad' : 'personal'; return accs.find((a) => gtConf(a).role === want) || null }
 function listFor(a, t) {
   const c = gtConf(a)
   if (t.subjectId) { const s = state.subjects.find((x) => x.id === t.subjectId); const l = s && c.lists.find((l) => subjectByName(l.title)?.id === s.id); if (l) return l.id }
+  if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const l = p && c.lists.find((l) => normT(l.title) === normT(p.name)); if (l) return l.id }
   return c.defaultList || '@default'
 }
 let gtBusy = false
@@ -199,13 +202,15 @@ export async function syncGTasks({ quiet = false } = {}) {
       const gone = new Set((state.integrations.gtDeleted || []).map((x) => x.id))
       for (const l of lists) {
         const subj = conf.role === 'universidad' ? subjectByName(l.title) : null
+        // Una lista con el mismo nombre de un proyecto (ej. "Colaxis") se une con ese proyecto
+        const proj = state.projects.find((p) => normT(p.name) && normT(p.name) === normT(l.title)) || null
         for (const g of l.tasks) {
           if (g.parent || gone.has(g.id)) continue
           seen.add(g.id)
           let t = state.tasks.find((x) => x.gtask?.id === g.id)
           if (!t) {
             // Si ya existe (por ejemplo vino de Classroom o Tu Aula), se une en vez de duplicar
-            t = state.tasks.find((x) => !x.gtask && x.status !== 'cancelada' && sameTitle(x.title, g.title) && (!subj || !x.subjectId || x.subjectId === subj.id))
+            t = state.tasks.find((x) => !x.gtask && x.status !== 'cancelada' && sameTitle(x.title, g.title) && (!subj || !x.subjectId || x.subjectId === subj.id) && (!proj || !x.projectId || x.projectId === proj.id))
             if (t) {
               // Al unirlas, si está hecha en cualquiera de los dos lados, queda hecha en ambos
               t.gtask = { acc: a.id, list: l.id, id: g.id, done: g.done }
@@ -213,10 +218,11 @@ export async function syncGTasks({ quiet = false } = {}) {
               unidas++
             }
             else if (!g.done) {
-              t = addTask({ title: g.title, notes: g.notes, due: g.due, url: g.url, source: 'gtasks', category: conf.role === 'universidad' ? 'universidad' : 'personal', subjectId: subj?.id || null, goalId: subj ? 'g1' : null, estimate: 30, gtask: { acc: a.id, list: l.id, id: g.id, done: false } }, { quiet: true })
+              t = addTask({ title: g.title, notes: g.notes, due: g.due, url: g.url, source: 'gtasks', category: proj ? 'trabajo' : conf.role === 'universidad' ? 'universidad' : 'personal', projectId: proj?.id || null, subjectId: subj?.id || null, goalId: subj ? 'g1' : null, estimate: 30, gtask: { acc: a.id, list: l.id, id: g.id, done: false } }, { quiet: true })
               nuevas++
             } else continue
           }
+          if (proj && !t.projectId) { t.projectId = proj.id; if (t.category === 'personal') t.category = 'trabajo' }
           const mumuDone = t.status === 'completada'
           if (g.done !== t.gtask.done) {
             // Cambió en Google: manda Google
