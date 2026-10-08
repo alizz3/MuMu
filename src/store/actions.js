@@ -2,7 +2,7 @@
 // tarea → objetivo → recompensa → vaquita → analítica → experimentos.
 import { state, ui } from './index'
 import { dayKey, uid, keyPlus, daysUntil, nowMin, toHM } from '../engine/time'
-import { award, toast, daily } from '../engine/game'
+import { award, awardOnce, markRewarded, toast, daily } from '../engine/game'
 import { planTask } from '../engine/planner'
 
 export function go(route, params = {}) {
@@ -39,16 +39,16 @@ export function completeTask(id) {
   if (!t || t.status === 'completada') return
   t.status = 'completada'; t.completedAt = dayKey()
   const coins = 5 + Math.round((t.estimate || 30) / 10) + (t.priority === 'alta' ? 5 : 0)
-  award(coins, coins * 2, `Completaste "${t.title}"`)
+  awardOnce(`task:${t.id}`, coins, coins * 2, `Completaste "${t.title}"`)
   const p = state.projects.find((x) => x.id === t.projectId)
   if (p && projectProgress(p) === 100 && p.status !== 'completado') {
     p.status = 'completado'
-    award(40, 80, `Proyecto completado: ${p.name}`)
+    awardOnce(`project:${p.id}`, 40, 80, `Proyecto completado: ${p.name}`)
     ui.celebrate = { title: '¡Proyecto completado!', text: `${p.name} ✨ Ganaste una decoración sorpresa.`, pose: 'celebrate' }
     giftDecor()
   }
 }
-export function reopenTask(id) { const t = state.tasks.find((x) => x.id === id); if (t) { t.status = 'pendiente'; t.completedAt = null } }
+export function reopenTask(id) { const t = state.tasks.find((x) => x.id === id); if (t) { if (t.status === 'completada') markRewarded(`task:${t.id}`); t.status = 'pendiente'; t.completedAt = null } }
 
 export function postponeTask(id, days = 1) {
   const t = state.tasks.find((x) => x.id === id)
@@ -62,8 +62,9 @@ export function toggleSubtask(taskId, subId) {
   const t = state.tasks.find((x) => x.id === taskId)
   const s = t?.subtasks.find((x) => x.id === subId)
   if (!s) return
+  if (s.done) markRewarded(`sub:${taskId}:${subId}`)
   s.done = !s.done
-  if (s.done) { daily().subtaskDone = true; award(2, 4, 'Un pasito más') }
+  if (s.done) { daily().subtaskDone = true; awardOnce(`sub:${taskId}:${subId}`, 2, 4, 'Un pasito más') }
 }
 export function addSubtask(taskId, title) { const t = state.tasks.find((x) => x.id === taskId); t?.subtasks.push({ id: uid('st'), title, done: false }) }
 
@@ -101,10 +102,10 @@ export function goalProgress(g) {
 // ---------- Hábitos ----------
 export function toggleHabit(hid, k = dayKey(), note) {
   const log = (state.habitLogs[hid] = state.habitLogs[hid] || {})
-  if (log[k]?.done) { delete log[k]; return }
+  if (log[k]?.done) { markRewarded(`habit:${hid}:${k}`); delete log[k]; return }
   log[k] = { done: true, note: note || '', at: toHM(nowMin()) }
   const h = state.habits.find((x) => x.id === hid)
-  award(4, 8, `${h?.emoji || '✔️'} ${h?.name || 'Hábito'}`)
+  awardOnce(`habit:${hid}:${k}`, 4, 8, `${h?.emoji || '✔️'} ${h?.name || 'Hábito'}`)
 }
 
 // ---------- Enfoque ----------
@@ -138,7 +139,7 @@ export function logSleep(entry) {
   const date = entry.date || dayKey()
   state.sleep = state.sleep.filter((s) => s.date !== date)
   state.sleep.unshift({ id: uid('sl'), date, ...entry, minutes })
-  award(3, 6, 'Registraste tu sueño 🌙')
+  awardOnce(`sleep:${date}`, 3, 6, 'Registraste tu sueño 🌙')
 }
 export function logScreen(entry) {
   const date = entry.date || dayKey()
@@ -155,7 +156,7 @@ export function resolveIntention(id, result, endedIn) {
   const i = state.intentions.find((x) => x.id === id)
   if (!i) return
   i.result = result; i.endedIn = endedIn || null
-  if (result === 'logrado') award(3, 5, 'Usaste el celular con intención 💗')
+  if (result === 'logrado') awardOnce(`intent:${id}`, 3, 5, 'Usaste el celular con intención 💗')
   else toast('Gracias por ser honesta. Esto nos ayuda a entender el patrón 🤍')
 }
 
@@ -339,7 +340,12 @@ function ensureSubject(name, externalId, source) {
 }
 
 // ---------- Vida, Dios ----------
-export function addLife(m) { state.life.unshift({ id: uid('l'), date: dayKey(), ...m }); award(4, 6, 'Un momento que importa 🤍') }
+export function addLife(m) {
+  state.life.unshift({ id: uid('l'), date: dayKey(), ...m })
+  // Hasta 3 momentos premiados por día
+  const n = state.life.filter((l) => l.date === dayKey()).length
+  if (n <= 3) awardOnce(`life:${dayKey()}:${n}`, 4, 6, 'Un momento que importa 🤍'); else toast('Guardado 🤍')
+}
 export function saveGod(entry, k = dayKey()) {
   const first = !state.god.entries[k]
   state.god.entries[k] = { ...(state.god.entries[k] || {}), ...entry }

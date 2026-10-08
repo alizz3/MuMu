@@ -15,6 +15,22 @@ export function award(coins, xp, reason) {
   }
 }
 
+// Premio una sola vez por la misma cosa: marcar, desmarcar y volver a marcar no vuelve a sumar
+export function awardOnce(key, coins, xp, reason) {
+  const g = state.game
+  g.rewarded ||= {}
+  if (g.rewarded[key]) return false
+  g.rewarded[key] = new Date().toISOString().slice(0, 10)
+  // Se guardan solo los últimos ~1500 premios para no crecer sin fin
+  const keys = Object.keys(g.rewarded)
+  if (keys.length > 1500) keys.sort((a, b) => (g.rewarded[a] < g.rewarded[b] ? -1 : 1)).slice(0, keys.length - 1500).forEach((k) => delete g.rewarded[k])
+  award(coins, xp, reason)
+  return true
+}
+
+// Si algo ya estaba hecho (y premiado) y lo desmarcas, queda anotado para no volver a premiarlo
+export function markRewarded(key) { state.game.rewarded ||= {}; state.game.rewarded[key] ||= new Date().toISOString().slice(0, 10) }
+
 export function level() {
   const xp = state.game.xp
   let n = 1, need = 100, acc = 0
