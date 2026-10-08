@@ -12,6 +12,7 @@ import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
 import Contact from '../components/Contact.vue'
+import Links from '../components/Links.vue'
 import { resumen, f1, tono, PASA } from '../engine/notas'
 
 const tab = ref('cursos')
@@ -48,6 +49,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 <template>
   <div class="stack">
     <AulaStatus />
+    <div v-if="!selS" class="card"><Links :target="state.settings" field="semesterLinks" title="📚 Mi semestre" hint="Pega aquí la carpeta de Drive del semestre u otros enlaces generales de la U." /></div>
     <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['profes', 'Profes'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
 
     <!-- Materia seleccionada -->
@@ -60,6 +62,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
+      <div class="card"><Links :target="subjOf(selS.id)" title="🔗 Enlaces de la materia" /></div>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3>🎯 Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>
         <p class="small muted" v-if="selS.nota.evaluado != null">Llevas {{ f1(selS.nota.acumulado) }} de 5.0 con el {{ Math.round(selS.nota.evaluado) }}% calificado.
