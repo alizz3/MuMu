@@ -234,3 +234,6 @@ textarea.input { min-height: 80px; resize: vertical; }
 .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--pink-100); border-top-color: var(--pink-700); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s } }
+.tl-mark { grid-column: 2; margin-top: -4px; }
+.tl-card.dim { opacity: .62; }
+.tl-card.dim .b { text-decoration: none; }

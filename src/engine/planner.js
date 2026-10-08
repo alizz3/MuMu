@@ -11,7 +11,7 @@ export function itemsOn(k) {
   const wd = parseDay(k).getDay()
   const out = []
   for (const e of state.events) {
-    if (e.date === k || (e.recurring && e.recurring.includes(wd) && e.date <= k && !(e.skip || []).includes(k))) out.push({ ...e, kind: 'event' })
+    if (e.date === k || (e.recurring && e.recurring.includes(wd) && e.date <= k && !(e.skip || []).includes(k))) out.push({ ...e, kind: 'event', mark: state.eventMarks?.[`${e.id}|${k}`] || null })
   }
   for (const s of state.subjects) {
     for (const sl of s.schedule || []) if (sl.weekday === wd) out.push({ id: `${s.id}_${k}_${sl.start}`, title: `Clase: ${s.short || s.name}`, start: sl.start, end: sl.end, type: 'clase', subjectId: s.id, color: s.color, kind: 'class', source: s.institution })
@@ -27,7 +27,7 @@ export function freeBlocks(k, fromMin = null) {
   const start = Math.max(hm(state.profile.wake), fromMin ?? 0)
   let end = hm(state.profile.sleep)
   if (end <= hm(state.profile.wake)) end = 24 * 60 - 1
-  const busy = itemsOn(k).filter((i) => !i.done && !i.allDay).map((i) => [hm(i.start), hm(i.end)]).sort((a, b) => a[0] - b[0])
+  const busy = itemsOn(k).filter((i) => !i.done && !i.allDay && !['otro', 'recordatorio'].includes(i.mark?.status)).map((i) => [hm(i.start), hm(i.end)]).sort((a, b) => a[0] - b[0])
   const blocks = []
   let cur = start
   for (const [s, e] of busy) {
