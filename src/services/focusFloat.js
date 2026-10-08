@@ -68,8 +68,9 @@ export async function openFloat() {
     .t{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}.n{font-size:12px;font-weight:600;margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
     .m{font-size:11px;opacity:.85;line-height:1.3}button{font:inherit;font-size:11px;border:0;border-radius:10px;padding:5px 9px;margin:6px 4px 0 0;cursor:pointer;background:${dark ? '#3A3150' : '#EEE6F7'};color:inherit}
     button.p{background:#A84268;color:#fff}</style>`
-  pip.document.body.innerHTML = `<svg viewBox="0 0 200 200" width="80" height="80" aria-hidden="true">${cow('study', state.game.accessory)}</svg><div><div class="t" id="t"></div><div class="n" id="n"></div><div class="m" id="m"></div><div><button id="pa"></button><button class="p" id="fi">Terminé</button></div></div>`
+  pip.document.body.innerHTML = `<svg viewBox="0 0 200 200" width="80" height="80" aria-hidden="true">${cow('study', state.game.accessory)}</svg><div><div class="t" id="t"></div><div class="n" id="n"></div><div class="m" id="m"></div><div><button id="pa"></button><button id="m5">+5</button><button class="p" id="fi">Terminé</button></div></div>`
   pip.document.getElementById('pa').onclick = () => togglePause()
+  pip.document.getElementById('m5').onclick = () => { if (ui.focus) ui.focus.minutes += 5 }
   pip.document.getElementById('fi').onclick = () => { endFocus('logrado'); stop() }
   pip.addEventListener('pagehide', () => { pip = null })
   renderPip(left())

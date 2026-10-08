@@ -29,7 +29,8 @@ const note = ref('')
 watch(finished, (v) => { if (v) ending.value = true })
 
 function pause() { const x = ui.focus; if (x.paused) { x.startedAt = Date.now(); x.paused = false } else { x.elapsed += Date.now() - x.startedAt; x.paused = true } }
-function more(min) { ui.focus.minutes += min; ending.value = false }
+function more(min) { ui.focus.minutes += min; ending.value = false; toast(`+${min} min ⏱️`) }
+function restart() { Object.assign(ui.focus, { startedAt: Date.now(), elapsed: 0, paused: false }); ending.value = false; toast('Reiniciado, desde cero 🌱') }
 function finish(outcome) { A.endFocus(outcome, feeling.value, note.value); ending.value = false; note.value = ''; feeling.value = 3 }
 
 // sesión normal
@@ -79,6 +80,11 @@ const today = computed(() => state.focus.filter((x) => x.date === dayKey()).redu
         <div class="row" style="justify-content:center;gap:8px;margin-top:14px">
           <button class="btn lav" @click="pause"><Icon :name="f.paused ? 'play' : 'pause'" :size="16" />{{ f.paused ? 'Seguir' : 'Pausa' }}</button>
           <button class="btn primary" @click="ending = true"><Icon name="check" :size="16" />Terminar</button>
+        </div>
+        <div class="row" style="justify-content:center;gap:8px;margin-top:8px">
+          <button class="btn sm ghost" @click="more(1)">+1 min</button>
+          <button class="btn sm ghost" @click="more(5)">+5 min</button>
+          <button class="btn sm ghost" @click="restart"><Icon name="refresh" :size="14" />Reiniciar</button>
         </div>
         <p v-if="ui.focusMsg" class="small" style="margin-top:10px">🐮 {{ ui.focusMsg }}</p>
         <button class="btn ghost sm" style="margin-top:10px" @click="floatOrNotify"><Icon name="link" :size="14" />{{ canFloat() ? 'Seguir en una ventanita flotante' : 'Avisarme si cambio de pestaña' }}</button>
