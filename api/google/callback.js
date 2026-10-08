@@ -1,7 +1,7 @@
 // Google redirige aquí después de que autorizas. Guardamos los tokens CIFRADOS y volvemos a la app.
 import { handler, HttpError } from '../_lib/http.js'
 import { verify, encrypt, randomId } from '../_lib/crypto.js'
-import { exchangeCode, userEmail, accountsRef, servicesFromScopes } from '../_lib/google.js'
+import { exchangeCode, userEmail, accountsRef, servicesFromScopes, missingScopes } from '../_lib/google.js'
 import { initDb } from '../_lib/firebase.js'
 
 export default handler(async (req, res) => {
@@ -13,9 +13,11 @@ export default handler(async (req, res) => {
   const tok = await exchangeCode(String(req.query.code || ''))
   if (!tok.refresh_token) throw new HttpError(400, 'Google no entregó acceso permanente. Quita el acceso de la app en tu cuenta de Google e intenta de nuevo.')
   const email = await userEmail(tok.access_token)
-  const granted = String(tok.scope || '').split(' ')
   const ref = accountsRef(st.uid)
   const existing = await ref.where('email', '==', email).limit(1).get()
+  // Con autorización incremental el token nuevo cubre lo anterior + lo nuevo: se suman los scopes
+  const prev = existing.empty ? [] : existing.docs[0].data().scopes || []
+  const granted = [...new Set([...prev, ...String(tok.scope || '').split(' ').filter(Boolean)])]
   const id = existing.empty ? randomId(6) : existing.docs[0].id
   await ref.doc(id).set({
     id, label: st.label, email, services: servicesFromScopes(granted), scopes: granted, connectedAt: Date.now(),
@@ -25,7 +27,8 @@ export default handler(async (req, res) => {
   const denied = st.services.filter((x) => !got.includes(x))
   if (denied.length) {
     const names = { gmail: 'Gmail', calendar: 'Calendar', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
-    const msg = `Google no entregó: ${denied.map((d) => names[d] || d).join(', ')}. En la pantalla de Google marca esas casillas (o "Seleccionar todo"). Si ya lo hiciste, puede que tu universidad bloquee ese permiso.`
+    console.error(`[api] callback: faltan ${denied.map((d) => d + ':' + missingScopes(d, granted).join('+')).join(', ')}`)
+    const msg = `Google no entregó: ${denied.map((d) => `${names[d] || d} (${missingScopes(d, granted).join(', ')})`).join('; ')}. En la pantalla de Google marca esas casillas (o "Seleccionar todo"). Si ya lo hiciste, puede que tu universidad bloquee ese permiso.`
     return res.redirect(302, `${app}/?connected=parcial&msg=${encodeURIComponent(msg)}#/ajustes`)
   }
   res.redirect(302, `${app}/?connected=google#/ajustes`)
