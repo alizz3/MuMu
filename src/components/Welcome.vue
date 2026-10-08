@@ -4,6 +4,7 @@ import { state, ui } from '../store'
 import { signIn, signOut } from '../services/firebase'
 import { installApp } from '../services/pwa'
 import { Icon, Pet } from './ui'
+import Contact from './Contact.vue'
 
 const busy = ref(false)
 const error = ref('')
@@ -36,7 +37,7 @@ const FEATURES = [
       <div class="w-pets"><Pet kind="negra" pose="sit" :size="90" /><Pet pose="hug" :size="150" /><Pet kind="leo" pose="sleep" :size="90" /></div>
       <h1 class="w-title">Esta es la casita de {{ state.settings.ownerName }} 🐮</h1>
       <p class="w-sub">Aquí solo entra ella. Gracias por pasar a saludar 💗</p>
-      <p class="small muted">¿Te gustaría una app así para ti o tu negocio? Escríbele a <b class="sel">dev.doblezz@gmail.com</b></p>
+      <p class="small muted">¿Te gustaría una app así para ti o tu negocio? Escríbele a <b><Contact value="dev.doblezz@gmail.com" kind="email" label="dev.doblezz@gmail.com" /></b></p>
       <div class="row" style="justify-content:center;gap:8px;margin-top:14px">
         <button class="btn ghost" @click="leave">Salir</button>
         <button class="btn lav" @click="leave().then(demo)">Ver la demo</button>

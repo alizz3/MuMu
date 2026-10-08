@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { state, ui } from '../store'
 import { toast } from '../engine/game'
 import { Icon, Empty } from './ui'
+import Contact from './Contact.vue'
 
 const profes = computed(() => state.subjects.filter((s) => s.teacher || s.teacherEmail || s.teacherPhone))
 const UT = 'azmejiaf@ut.edu.co'
@@ -39,9 +40,9 @@ const wa = (s) => `https://wa.me/${phone(s.teacherPhone)}?text=${encodeURICompon
         <div class="grow"><div class="b small">{{ s.teacher || 'Profe sin nombre' }}</div><div class="tiny muted">{{ s.name }}</div></div>
         <button class="iconbtn" :aria-label="`Editar datos de ${s.teacher || s.name}`" @click="ui.modal = { type: 'subject', id: s.id }"><Icon name="edit" :size="16" /></button>
       </div>
-      <div class="row wrap" style="gap:6px">
-        <button v-if="s.teacherEmail" class="btn sm ghost" @click="copy(s.teacherEmail, 'Correo')">✉️ {{ s.teacherEmail }}</button>
-        <button v-if="s.teacherPhone" class="btn sm ghost" @click="copy(s.teacherPhone, 'Número')">📱 {{ s.teacherPhone }}</button>
+      <div class="row wrap" style="gap:4px 14px">
+        <Contact v-if="s.teacherEmail" class="small" :value="s.teacherEmail" kind="email" :as="UT" />
+        <Contact v-if="s.teacherPhone" class="small" :value="s.teacherPhone" kind="phone" />
       </div>
       <div class="chips"><button v-for="p in PLANTILLAS" :key="p.k" class="chip" :class="{ on: open === s.id && draft.k === p.k }" @click="pick(s, p)">{{ p.l }}</button></div>
 
