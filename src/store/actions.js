@@ -199,7 +199,7 @@ export function aulaToTask(aid) {
   const a = state.aula.find((x) => x.id === aid)
   if (!a || a.taskId) return
   const s = state.subjects.find((x) => x.id === a.courseId)
-  const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
+  const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, dueTime: a.dueTime || null, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
   a.taskId = t.id
   return t
 }
@@ -214,13 +214,17 @@ export function applyAcademicChanges(items, source = 'aula') {
     const ex = state.aula.find((a) => a.externalId === it.externalId && a.source === source)
     if (!ex) {
       const subj = state.subjects.find((s) => s.externalId === it.courseExternalId || (s.externalIds || []).includes(it.courseExternalId)) || matchSubject(it.courseName, it.courseExternalId) || ensureSubject(it.courseName, it.courseExternalId, source)
-      const a = { id: uid('a'), source, externalId: it.externalId, courseId: subj.id, type: it.type, title: it.title, due: it.due, url: it.url, hash: it.hash, firstSeen: dayKey(), changed: false }
+      const a = { id: uid('a'), source, externalId: it.externalId, courseId: subj.id, type: it.type, title: it.title, due: it.due, dueTime: it.dueTime || null, url: it.url, hash: it.hash, firstSeen: dayKey(), changed: false }
       state.aula.unshift(a)
       if (['assign', 'quiz'].includes(it.type)) aulaToTask(a.id)
       created++
     } else if (it.url && ex.url !== it.url) {
       ex.url = it.url
       const t = state.tasks.find((x) => x.id === ex.taskId); if (t && !t.urlManual) t.url = it.url
+    }
+    if (ex && (it.dueTime || null) !== (ex.dueTime || null)) {
+      ex.dueTime = it.dueTime || null
+      const t = state.tasks.find((x) => x.id === ex.taskId); if (t && !t.dueTimeManual) t.dueTime = ex.dueTime
     }
     if (ex && ex.hash !== it.hash) {
       const oldDue = ex.due

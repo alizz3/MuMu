@@ -1,5 +1,5 @@
 // Lectura de Classroom compartida entre "Revisar ahora" y las revisiones automáticas (cron).
-import { accessToken, gget } from './google.js'
+import { accessToken, gget, localParts } from './google.js'
 import { hash } from './crypto.js'
 
 export async function fetchClassroom(uid, accountId) {
@@ -14,8 +14,10 @@ export async function fetchClassroom(uid, accountId) {
     const turnedIn = new Set((subs.studentSubmissions || []).filter((s) => ['TURNED_IN', 'RETURNED'].includes(s.state)).map((s) => s.courseWorkId))
     for (const w of courseWork) {
       if (turnedIn.has(w.id)) continue
-      const d = w.dueDate ? `${w.dueDate.year}-${String(w.dueDate.month).padStart(2, '0')}-${String(w.dueDate.day).padStart(2, '0')}` : null
-      items.push({ externalId: `cr_${w.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: w.workType === 'MULTIPLE_CHOICE_QUESTION' || w.workType === 'SHORT_ANSWER_QUESTION' ? 'quiz' : 'assign', title: w.title, due: d, url: w.alternateLink, hash: hash(`${w.title}|${d}|${w.updateTime}`) })
+      // Classroom guarda fecha y hora en UTC: se pasan a hora de Colombia (23:59 de aquí es 04:59 del día siguiente allá)
+      let d = w.dueDate ? `${w.dueDate.year}-${String(w.dueDate.month).padStart(2, '0')}-${String(w.dueDate.day).padStart(2, '0')}` : null, dt = null
+      if (w.dueDate && w.dueTime && w.dueTime.hours != null) { const lp = localParts(new Date(Date.UTC(w.dueDate.year, w.dueDate.month - 1, w.dueDate.day, w.dueTime.hours || 0, w.dueTime.minutes || 0))); d = lp.day; dt = lp.time }
+      items.push({ externalId: `cr_${w.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: w.workType === 'MULTIPLE_CHOICE_QUESTION' || w.workType === 'SHORT_ANSWER_QUESTION' ? 'quiz' : 'assign', title: w.title, due: d, dueTime: dt, url: w.alternateLink, hash: hash(`${w.title}|${d}|${w.updateTime}`) })
     }
     // Anuncios y materiales de las últimas 3 semanas (como avisos, no como tareas)
     const since = Date.now() - 21 * 864e5
