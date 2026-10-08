@@ -1,7 +1,7 @@
 // Sincronización con Firestore: users/{uid}/data/{coleccion} = { items, updatedAt }.
 // Una colección por documento mantiene pocas escrituras y cabe de sobra para uso personal.
-import { state, ui, onPersist } from '../store'
-import { getFirebase } from './firebase'
+import { state, ui, onPersist, resetToSeed } from '../store'
+import { getFirebase, idToken } from './firebase'
 import { markVisit, applyAcademicChanges } from '../store/actions'
 import { syncAula } from './api'
 import { toast } from '../engine/game'
@@ -13,14 +13,26 @@ export async function initSync() {
   markVisit()
   if (location.protocol.startsWith('http')) fetch('/api/health').then((r) => r.ok && r.json()).then((j) => { ui.backend = !!j?.ok }).catch(() => { ui.backend = false })
   const fb = await getFirebase()
-  if (!fb) return
+  if (!fb) { ui.authReady = true; return }
   const { doc, getDoc, setDoc } = fb.fs
   fb.authMod.onAuthStateChanged(fb.auth, async (user) => {
     ui.user = user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null
+    // Al cerrar sesión se borra la copia local para que nadie más vea tus datos en este equipo
+    if (!user && uid) { ready = false; resetToSeed() }
     uid = user?.uid || null
     ready = false
     ui.synced = false
-    if (!uid) return
+    if (!uid) { ui.authReady = true; return }
+    // Solo la dueña: si el servidor dice que esta cuenta no tiene acceso, se muestra la pantalla de "casita de Alizz"
+    if (location.protocol.startsWith('http')) {
+      try {
+        const r = await fetch('/api/me', { headers: { Authorization: `Bearer ${await idToken()}` } })
+        if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
+      } catch { /* sin servidor: se permite (modo local) */ }
+    }
+    ui.blocked = false
+    ui.demo = false
+    ui.authReady = true
     const keys = Object.keys(state)
     const snaps = await Promise.all(keys.map((k) => getDoc(doc(fb.db, 'users', uid, 'data', k))))
     const anyRemote = snaps.some((s) => s.exists())
