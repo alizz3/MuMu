@@ -35,6 +35,21 @@ const month = computed(() => {
 })
 const listDays = computed(() => Array.from({ length: 14 }, (_, i) => { const k = dayKey(addDays(new Date(), i)); return { k, items: itemsOn(k), due: dueOn(k) } }).filter((x) => x.items.length || x.due.length))
 const shift = (n) => { sel.value = dayKey(addDays(selD.value, view.value === 'mes' ? n * 30 : n * 7)) }
+// Marcar un evento: voy yo, va alguien más (ej. "mi prima"), es solo un recordatorio, o ya pasó.
+// Lo que no te toca a ti no te quita tiempo libre.
+const MARKS = [['yo', '🙋 Voy yo'], ['otro', '👥 Va alguien más'], ['recordatorio', '📌 Solo es recordatorio'], ['hecho', '✅ Ya pasó']]
+const markFor = ref(null)
+const who = ref('')
+const markKey = (i) => `${i.id}|${sel.value}`
+function openMark(i) { markFor.value = markFor.value === i.id ? null : i.id; who.value = i.mark?.who || '' }
+function setMark(i, status) {
+  state.eventMarks ||= {}
+  if (i.mark?.status === status && status !== 'otro') delete state.eventMarks[markKey(i)]
+  else state.eventMarks[markKey(i)] = { status, who: status === 'otro' ? who.value.trim() : '', at: dayKey() }
+  if (status !== 'otro') markFor.value = null
+}
+function saveWho(i) { state.eventMarks[markKey(i)] = { status: 'otro', who: who.value.trim(), at: dayKey() }; markFor.value = null }
+const markText = (m) => m && (m.status === 'otro' ? `👥 ${m.who ? 'Va ' + m.who : 'Va alguien más'}` : (MARKS.find((x) => x[0] === m.status) || [])[1])
 const delEv = async (i) => { if (i.kind === 'event' && !i.readonly && (await ask(`¿Quitar "${i.title}" de la agenda?`))) A.deleteEvent(i.id) }
 const doneBlock = (i) => { const t = state.tasks.find((x) => x.id === i.taskId); const b = t?.blocks.find((x) => x.start === i.start && x.date === sel.value); if (b) b.done = !b.done }
 const googleOn = computed(() => state.integrations.google.some((a) => a.services.includes('calendar')))
@@ -74,11 +89,20 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
             <div class="grow small"><b>Tienes {{ fmtDur(i.minutes) }} libres</b><div class="tiny" v-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
             <button v-if="suggestion && i.minutes >= 20" class="btn sm lav" @click="useFree(i)">Usar</button>
           </div>
-          <div v-else class="tl-card" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="delEv(i)">
+          <div v-else class="tl-card" :class="{ dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="delEv(i)">
             <span class="ico" :class="(TYPES[i.type] || [])[0]" style="width:32px;height:32px"><Icon :name="(TYPES[i.type] || ['', 'calendar'])[1]" :size="16" /></span>
             <div class="grow"><div class="small b" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div></div>
+            <button v-if="i.kind === 'event'" class="iconbtn" style="width:32px;height:32px" :aria-label="`Marcar ${i.title}`" title="¿Quién va?" @click.stop="openMark(i)">⋯</button>
             <button v-if="i.kind === 'block'" class="check" :class="{ on: i.done }" aria-label="Bloque hecho" @click.stop="doneBlock(i)"><Icon v-if="i.done" name="check" :size="14" :stroke="3" /></button>
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
+          </div>
+          <div v-if="!i.free && (i.mark || markFor === i.id)" class="tl-mark">
+            <span v-if="i.mark && markFor !== i.id" class="badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }">{{ markText(i.mark) }}</span>
+            <div v-if="markFor === i.id" class="card tight stack" style="gap:8px">
+              <div class="chips"><button v-for="m in MARKS" :key="m[0]" class="chip" :class="{ on: i.mark?.status === m[0] }" @click="setMark(i, m[0])">{{ m[1] }}</button></div>
+              <div v-if="i.mark?.status === 'otro'" class="row"><input class="input" v-model="who" placeholder="¿Quién? ej. mi prima" aria-label="Quién va" @keyup.enter="saveWho(i)" /><button class="btn sm primary" @click="saveWho(i)">Listo</button></div>
+              <p class="tiny muted">Si va alguien más o es solo un recordatorio, no te quita tiempo libre.</p>
+            </div>
           </div>
         </div>
         <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar 🌙</p></div>
