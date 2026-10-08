@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { daily } from '../engine/game'
@@ -13,6 +13,8 @@ import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
 import Contact from '../components/Contact.vue'
 import Links from '../components/Links.vue'
+import DriveBrowser from '../components/DriveBrowser.vue'
+import { semesterFolder, subjectFolder, driveAccount, linkSubjectFolders } from '../services/api'
 import { resumen, f1, tono, PASA } from '../engine/notas'
 
 const tab = ref('cursos')
@@ -42,6 +44,14 @@ const into = ref({})
 function merge(s) { const t = into.value[s.id]; if (!t) return; const name = subjOf(t)?.name; A.mergeSubject(s.id, t); toast(`Unida con ${name} ✨ Lo que llegue de ese curso irá allí`) }
 const ignoredNames = computed(() => [...new Set((state.integrations.ignoredCourses || []).map((c) => c.name))])
 async function ignore(s) { if (await ask(`¿Ignorar "${s.name}"? Se borran sus tareas de MuMu y no vuelven a llegar. En Tu Aula sigue todo igual.`)) { A.ignoreCourse(s.id); toast('Listo, ese curso ya no te manda tareas 🙈') } }
+const showSem = ref(false)
+// Une sola cada materia con su carpeta dentro de la del semestre (una vez por visita)
+let linkedOnce = false
+watch(() => [semesterFolder(), driveAccount()?.id], async ([f, a]) => {
+  if (!f || !a || linkedOnce) return
+  linkedOnce = true
+  try { const n = await linkSubjectFolders(); if (n) toast(`Encontré la carpeta de ${n} materia${n === 1 ? '' : 's'} en tu Drive 📁`) } catch { /* sin permiso aún */ }
+}, { immediate: true })
 const tidied = A.tidySubjects(); if (tidied) toast(`Uní ${tidied} materia${tidied === 1 ? '' : 's'} repetida${tidied === 1 ? '' : 's'} 🧩`)
 const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 </script>
@@ -49,7 +59,13 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 <template>
   <div class="stack">
     <AulaStatus />
-    <div v-if="!selS" class="card"><Links :target="state.settings" field="semesterLinks" title="📚 Mi semestre" hint="Pega aquí la carpeta de Drive del semestre u otros enlaces generales de la U." /></div>
+    <div v-if="!selS" class="card stack" style="gap:10px">
+      <Links :target="state.settings" field="semesterLinks" title="📚 Mi semestre" hint="Pega aquí la carpeta de Drive del semestre: MuMu encuentra sola la carpeta de cada materia." />
+      <template v-if="semesterFolder()">
+        <button class="btn sm ghost" style="align-self:flex-start" @click="showSem = !showSem">{{ showSem ? 'Ocultar Drive' : '📁 Ver Drive del semestre' }}</button>
+        <DriveBrowser v-if="showSem" :root="semesterFolder()" :height="380" />
+      </template>
+    </div>
     <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['profes', 'Profes'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
 
     <!-- Materia seleccionada -->
@@ -62,6 +78,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
+      <div v-if="subjectFolder(subjOf(selS.id))" class="card"><h3 style="margin-bottom:8px">📁 Drive de la materia</h3><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" /></div>
       <div class="card"><Links :target="subjOf(selS.id)" title="🔗 Enlaces de la materia" /></div>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3>🎯 Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>

@@ -271,3 +271,28 @@ async function doPush() {
     try { await call('gtasks/sync', { method: 'PATCH', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id, done: t.status === 'completada' } }); t.gtask.done = t.status === 'completada' } catch { /* luego */ }
   }
 }
+
+// ---------- Google Drive (solo lectura) ----------
+export const folderIdFrom = (s) => (String(s || '').match(/folders\/([\w-]{10,100})/) || String(s || '').match(/[?&]id=([\w-]{10,100})/) || [])[1] || (/^[\w-]{20,100}$/.test(String(s || '').trim()) ? String(s).trim() : null)
+export function driveAccount() {
+  const accs = state.integrations.google.filter((a) => a.services.includes('drive'))
+  return accs.find((a) => /ut\.edu\.co$/i.test(a.email || '')) || accs[0] || null
+}
+// Carpeta del semestre y de cada materia: la que pegaste como enlace o la que MuMu encontró sola
+export const semesterFolder = () => state.settings.semesterDrive || (state.settings.semesterLinks || []).map((l) => folderIdFrom(l.url)).find(Boolean) || null
+export const subjectFolder = (s) => s && (s.driveFolder || (s.links || []).map((l) => folderIdFrom(l.url)).find(Boolean) || null)
+export async function listDrive(folder) {
+  const a = driveAccount(); if (!a) throw new Error('Dale a una cuenta el permiso "Google Drive" en Configuración → Cuentas.')
+  return call(`drive/list?account=${a.id}&folder=${encodeURIComponent(folder)}`)
+}
+// Dentro de la carpeta del semestre, cada subcarpeta ("2. Elementos de Programación…") se une con su materia
+export async function linkSubjectFolders() {
+  const root = semesterFolder(); if (!root || !driveAccount()) return 0
+  const { items } = await listDrive(root)
+  let n = 0
+  for (const f of items.filter((x) => x.folder)) {
+    const s = subjectByName(f.name)
+    if (s && !s.driveFolder) { s.driveFolder = f.id; n++ }
+  }
+  return n
+}
