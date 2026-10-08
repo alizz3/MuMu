@@ -228,17 +228,26 @@ export function applyAcademicChanges(items, source = 'aula') {
       updated++
     }
   }
+  tidySubjects()
   return { created, updated }
 }
 // Une el curso de Tu Aula/Classroom con una materia que ya tengas (ej. "Ética Profesional - Grupo 3" → Ética Profesional)
 const normTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
 const STOP = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'a', 'en', 'grupo', 'i', 'ii', 'iii', 'curso', 'semestre'])
-function matchSubject(name, externalId) {
+// Forma "canónica" del nombre: "CALCULO 1" = "Cálculo I", "B2026 ENGLISH I" = "Inglés I"
+const SYN = { english: 'ingles', calculus: 'calculo', statistics: 'estadistica', ethics: 'etica', poo: 'programacion orientada objetos' }
+const canon = (s) => normTxt(s).split(' ').map((w) => SYN[w] || w).join(' ').split(' ').filter((w) => w && !/\d/.test(w) && !STOP.has(w) && !['elementos', 'introduccion', 'sii', 'g'].includes(w)).join(' ')
+const isAuto = (s) => (s.externalId || s.externalIds?.length) && !s.schedule?.length && !s.teacher && !s.teacherEmail
+function matchSubject(name, externalId, except) {
   const n = normTxt(name); if (!n) return null
+  const c = canon(name)
+  const exact = c && state.subjects.find((s) => s.id !== except && canon(s.name) === c)
+  if (exact) { exact.externalIds = [...new Set([...(exact.externalIds || []), externalId].filter(Boolean))]; return exact }
   const words = (s) => new Set(normTxt(s).split(' ').filter((w) => w.length > 2 && !STOP.has(w)))
   const wn = words(n)
   let best = null, score = 0
   for (const s of state.subjects) {
+    if (s.id === except) continue
     const sn = normTxt(s.name)
     let sc = sn && (n.includes(sn) || sn.includes(n)) ? 10 : 0
     const ws = words(s.name); ws.forEach((w) => { if (wn.has(w)) sc++ })
@@ -248,6 +257,27 @@ function matchSubject(name, externalId) {
   best.externalIds = [...new Set([...(best.externalIds || []), externalId])]
   return best
 }
+// Une una materia repetida (creada por Tu Aula/Classroom) dentro de la de verdad
+export function mergeSubject(fromId, intoId) {
+  const from = state.subjects.find((s) => s.id === fromId), into = state.subjects.find((s) => s.id === intoId)
+  if (!from || !into || from.id === into.id) return
+  into.externalIds = [...new Set([...(into.externalIds || []), ...(from.externalIds || []), from.externalId].filter(Boolean))]
+  state.tasks.forEach((t) => { if (t.subjectId === from.id) { t.subjectId = into.id; if (t.notes === `Materia: ${from.name}`) t.notes = `Materia: ${into.name}` } })
+  state.aula.forEach((a) => { if (a.courseId === from.id) a.courseId = into.id })
+  ;(state.events || []).forEach((e) => { if (e.subjectId === from.id) e.subjectId = into.id })
+  state.subjects = state.subjects.filter((s) => s.id !== from.id)
+}
+// Las que se pueden unir solas (mismo nombre con otra forma de escribirlo)
+export function tidySubjects() {
+  let n = 0
+  for (const s of [...state.subjects].filter(isAuto)) {
+    const c = canon(s.name)
+    const real = c && state.subjects.find((x) => x.id !== s.id && canon(x.name) === c && !isAuto(x)) || (c && state.subjects.find((x) => x.id !== s.id && canon(x.name) === c))
+    if (real) { mergeSubject(s.id, real.id); n++ }
+  }
+  return n
+}
+export const autoSubjects = () => state.subjects.filter(isAuto)
 function ensureSubject(name, externalId, source) {
   const s = { id: uid('s'), name: name || 'Materia', short: (name || 'Materia').split(' ').slice(0, 2).join(' '), institution: source === 'classroom' ? 'Classroom' : 'UT', color: '#E8DDF5', schedule: [], externalId }
   state.subjects.push(s)
