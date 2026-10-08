@@ -1,4 +1,4 @@
-import { handler } from './_lib/http.js'
+import { handler } from '../_lib/http.js'
 
 export default handler(async (req, res) => {
   const e = process.env

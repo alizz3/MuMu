@@ -1,10 +1,10 @@
 // Conecta Tu Aula. La contraseña se usa UNA vez para obtener el token del servicio móvil de Moodle
 // y se descarta: no se guarda, no se registra y no vuelve al navegador. Solo se guarda el token, cifrado.
-import { handler, body, str, httpsUrl, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
-import { encrypt } from '../_lib/crypto.js'
-import { getToken, siteInfo, fetchIcal } from '../_lib/moodle.js'
-import { aulaRef } from '../_lib/aula.js'
+import { handler, body, str, httpsUrl, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
+import { encrypt } from '../../_lib/crypto.js'
+import { getToken, siteInfo, fetchIcal } from '../../_lib/moodle.js'
+import { aulaRef } from '../../_lib/aula.js'
 
 export default handler(async (req, res) => {
   const { uid } = await requireUser(req)

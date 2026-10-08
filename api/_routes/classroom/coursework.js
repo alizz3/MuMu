@@ -1,8 +1,8 @@
 // Lee cursos y tareas de Google Classroom (solo lectura) y omite lo que ya entregaste.
-import { handler, HttpError } from '../_lib/http.js'
-import { requireUser } from '../_lib/firebase.js'
-import { accessToken, gget } from '../_lib/google.js'
-import { hash } from '../_lib/crypto.js'
+import { handler, HttpError } from '../../_lib/http.js'
+import { requireUser } from '../../_lib/firebase.js'
+import { accessToken, gget } from '../../_lib/google.js'
+import { hash } from '../../_lib/crypto.js'
 
 export default handler(async (req, res) => {
   const { uid } = await requireUser(req)

@@ -1,8 +1,8 @@
 // Google redirige aquí después de que autorizas. Guardamos los tokens CIFRADOS y volvemos a la app.
-import { handler, HttpError } from '../_lib/http.js'
-import { verify, encrypt, randomId } from '../_lib/crypto.js'
-import { exchangeCode, userEmail, accountsRef, servicesFromScopes, missingScopes } from '../_lib/google.js'
-import { initDb } from '../_lib/firebase.js'
+import { handler, HttpError } from '../../_lib/http.js'
+import { verify, encrypt, randomId } from '../../_lib/crypto.js'
+import { exchangeCode, userEmail, accountsRef, servicesFromScopes, missingScopes } from '../../_lib/google.js'
+import { initDb } from '../../_lib/firebase.js'
 
 export default handler(async (req, res) => {
   const app = (process.env.APP_URL || '').replace(/\/$/, '')
