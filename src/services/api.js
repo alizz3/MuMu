@@ -81,14 +81,42 @@ export async function gmailAction(emails, action, label) {
   return { done, skipped }
 }
 
+// Calendarios que MuMu lee por cuenta (por defecto, el principal)
+export const calendarsOf = (accountId) => state.integrations.calendars?.[accountId] || ['primary']
+export function setCalendars(accountId, ids) { state.integrations.calendars = { ...(state.integrations.calendars || {}), [accountId]: [...new Set(ids)] } }
+export async function listCalendars(accountId) { return (await call(`calendar/events?account=${accountId}&list=1`)).calendars }
+// Enlace de Google Calendar (…?cid=XXXX) → id del calendario
+export function calendarIdFromLink(text) {
+  const t = String(text || '').trim()
+  try {
+    const u = new URL(t)
+    const cid = u.searchParams.get('cid') || u.searchParams.get('src')
+    if (cid) { if (cid.includes('@')) return cid; const b = cid.replace(/-/g, '+').replace(/_/g, '/'); return atob(b + '='.repeat((4 - (b.length % 4)) % 4)) }
+  } catch { /* no es un enlace */ }
+  return /@/.test(t) ? t : null
+}
+
+const normT = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^(vence|entrega|tarea|due)[:\s-]*/i, '').replace(/\s*(vence|is due|fecha de entrega)\s*$/i, '').replace(/[^a-z0-9]+/g, ' ').trim()
+
 export async function syncCalendar() {
   const accs = state.integrations.google.filter((a) => a.services.includes('calendar'))
+  // Lo que ya es tarea (de Tu Aula, Classroom o tuya) no se repite como evento
+  const taskKeys = new Set(state.tasks.filter((t) => t.due).map((t) => `${normT(t.title)}|${t.due}`))
+  const seen = new Set()
+  let skipped = 0
   for (const a of accs) {
-    const { events } = await call(`calendar/events?account=${a.id}&days=21`)
+    const { events, warnings = [] } = await call(`calendar/events?account=${a.id}&days=21&calendars=${encodeURIComponent(calendarsOf(a.id).join(','))}`)
+    warnings.forEach((w) => toast(w))
     state.events = state.events.filter((e) => e.source !== `google:${a.id}`)
-    state.events.push(...events.map((e) => ({ ...e, source: `google:${a.id}`, account: a.label, readonly: true })))
+    for (const e of events) {
+      const key = `${normT(e.title)}|${e.date}`
+      const dupTask = [...taskKeys].some((k) => { const [tt, d] = k.split('|'); return d === e.date && tt && (tt === normT(e.title) || normT(e.title).includes(tt) || tt.includes(normT(e.title))) })
+      if (seen.has(`${key}|${e.start}`) || dupTask || state.events.some((x) => x.source?.startsWith('google:') && `${normT(x.title)}|${x.date}|${x.start}` === `${key}|${e.start}`)) { skipped++; continue }
+      seen.add(`${key}|${e.start}`)
+      state.events.push({ ...e, source: `google:${a.id}`, account: a.label, readonly: true })
+    }
   }
-  toast('Calendario sincronizado 🗓️')
+  toast(`Calendario sincronizado 🗓️${skipped ? ` · ${skipped} repetidos omitidos` : ''}`)
 }
 export async function createCalendarBlock(accountId, ev) { return call('calendar/events', { method: 'POST', body: { account: accountId, ...ev } }) }
 

@@ -88,6 +88,12 @@ export async function fetchWebservice(site, token) {
 
 // ---------- iCal ----------
 function unfold(text) { return text.replace(/\r?\n[ \t]/g, '') }
+function toEpoch(v) {
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/)
+  if (!m) return null
+  const d = m[4] ? (m[7] ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime()) : Date.UTC(+m[1], m[2] - 1, +m[3], 12)
+  return Math.floor(d / 1000)
+}
 function parseDate(v) {
   const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/)
   if (!m) return null
@@ -95,16 +101,19 @@ function parseDate(v) {
   const d = m[7] ? new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6])) : new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6])
   return localParts(d).day
 }
+// El calendario no trae el enlace de la actividad: se abre el día en el calendario de Tu Aula, donde está el botón para ir a ella
+const dayUrl = (origin, dt, uid) => { const t = toEpoch(dt); const id = String(uid).split('@')[0]; return t ? `${origin}/calendar/view.php?view=day&time=${t}${/^\d+$/.test(id) ? `#event_${id}` : ''}` : `${origin}/calendar/view.php?view=upcoming` }
 export async function fetchIcal(url) {
   const r = await fetch(url, { headers: { 'User-Agent': UA } })
   const text = await r.text()
   if (!text.includes('BEGIN:VCALENDAR')) throw new HttpError(400, 'Ese enlace no devolvió un calendario. Cópialo de nuevo desde Tu Aula → Calendario → Exportar.')
   const items = []
+  const origin = new URL(url).origin
   for (const block of unfold(text).split('BEGIN:VEVENT').slice(1)) {
     const get = (k) => { const m = block.match(new RegExp(`^${k}(?:;[^:]*)?:(.*)$`, 'm')); return m ? m[1].trim().replace(/\\,/g, ',').replace(/\\n/g, ' ') : '' }
     const summary = get('SUMMARY'), uid = get('UID'), dt = get('DTSTART'), cat = get('CATEGORIES'), mod = get('LAST-MODIFIED')
     if (!summary) continue
-    items.push({ externalId: `ical_${hash(uid || summary)}`, courseExternalId: `ical_c_${hash(cat || 'general')}`, courseName: cat || 'Tu Aula', type: /quiz|cuestionario|examen/i.test(summary) ? 'quiz' : 'assign', title: summary.replace(/\s*(is due|vence|fecha de entrega)\s*$/i, ''), due: parseDate(dt), url: null, hash: hash(`${summary}|${dt}|${mod}`) })
+    items.push({ externalId: `ical_${hash(uid || summary)}`, courseExternalId: `ical_c_${hash(cat || 'general')}`, courseName: cat || 'Tu Aula', type: /quiz|cuestionario|examen/i.test(summary) ? 'quiz' : 'assign', title: summary.replace(/\s*(is due|vence|fecha de entrega)\s*$/i, ''), due: parseDate(dt), url: dayUrl(origin, dt, uid), hash: hash(`${summary}|${dt}|${mod}`) })
   }
   return { items, warnings: [] }
 }

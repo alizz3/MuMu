@@ -31,13 +31,21 @@ const SERVICES = [
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos, tareas, anuncios y materiales.'],
 ]
 const adding = ref(false)
+const cals = ref([]), calBusy = ref(false), calLink = ref('')
+async function loadCals(a) { calBusy.value = true; try { cals.value = await API.listCalendars(a.id) } catch (e) { err(e) } finally { calBusy.value = false } }
+function toggleCal(a, id, on) { const cur = API.calendarsOf(a.id); API.setCalendars(a.id, on ? [...cur, id] : cur.filter((x) => x !== id)) }
+function addCalLink(a) {
+  const id = API.calendarIdFromLink(calLink.value)
+  if (!id) return toast('No reconocí ese enlace. Cópialo desde Google Calendar → Configuración del calendario → Integrar calendario.')
+  toggleCal(a, id, true); calLink.value = ''; toast('Calendario agregado. Sincroniza desde Agenda → Google 🗓️')
+}
 const sel = ref(null)
 const extra = ref([])
 const openAdd = () => { g.label = 'personal'; g.services = ['gmail', 'calendar']; adding.value = true }
 const has = (a) => SERVICES.filter((s) => a.services.includes(s[0]))
 const missing = (a) => SERVICES.filter((s) => !a.services.includes(s[0]))
 const toggleExtra = (k) => (extra.value = extra.value.includes(k) ? extra.value.filter((x) => x !== k) : [...extra.value, k])
-watch(sel, () => { extra.value = [] })
+watch(sel, () => { extra.value = []; cals.value = [] })
 async function disconnect(a) { if (await ask(`¿Desconectar ${a.email}? Se revocan todos los permisos en Google.`)) { await API.disconnectGoogle(a.id).catch(err); sel.value = null } }
 const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filter((x) => x !== s) : [...g.services, s])
 // Se piden las cuentas cuando ya cargaron tus datos, para que la sincronización no las borre de la vista
@@ -129,6 +137,13 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
             <button class="btn primary block" style="margin-top:10px" :disabled="!extra.length" @click="API.connectGoogle(sel.label, [...sel.services, ...extra], sel.email).catch(err)">Dar {{ extra.length || '' }} permiso{{ extra.length === 1 ? '' : 's' }} más</button>
           </div>
           <p v-else class="small muted">Esta cuenta ya tiene todos los permisos 💗</p>
+          <div v-if="sel.services.includes('calendar')" class="card tight soft stack" style="gap:8px">
+            <div class="row between"><b class="small">🗓️ Calendarios que MuMu lee</b><button class="btn sm ghost" :disabled="calBusy" @click="loadCals(sel)">{{ calBusy ? '…' : 'Ver mis calendarios' }}</button></div>
+            <label v-for="c in cals" :key="c.id" class="row small" style="gap:8px"><input type="checkbox" :checked="API.calendarsOf(sel.id).includes(c.primary ? 'primary' : c.id)" @change="toggleCal(sel, c.primary ? 'primary' : c.id, $event.target.checked)" /><i :style="{ background: c.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }"></i>{{ c.name }}{{ c.primary ? ' (principal)' : '' }}</label>
+            <div v-for="id in API.calendarsOf(sel.id).filter((x) => x !== 'primary' && !cals.some((c) => c.id === x))" :key="id" class="row small" style="gap:8px"><input type="checkbox" checked @change="toggleCal(sel, id, false)" /><span class="tiny">{{ id.length > 40 ? id.slice(0, 38) + '…' : id }}</span></div>
+            <div class="row"><input class="input" v-model="calLink" placeholder="Pega un enlace de Google Calendar (…?cid=…)" aria-label="Enlace de calendario" /><button class="btn sm lav" @click="addCalLink(sel)">Agregar</button></div>
+            <p class="tiny muted">Los eventos que ya son tareas (Tu Aula, Classroom) o que se repiten en varios calendarios no se duplican.</p>
+          </div>
           <button class="btn ghost" @click="disconnect(sel)"><Icon name="trash" :size="15" />Desconectar y quitar todos los permisos</button>
         </div>
       </div>

@@ -20,11 +20,23 @@ export default handler(async (req, res) => {
   const accountId = String(req.query.account || '')
   const days = Math.min(60, Number(req.query.days) || 21)
   const { token } = await accessToken(uid, accountId, 'calendar')
+  // Lista de calendarios de la cuenta (para elegir cuáles lee MuMu)
+  if (req.query.list) {
+    const { items = [] } = await gget(token, 'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=100')
+    return res.json({ calendars: items.map((c) => ({ id: c.id, name: c.summaryOverride || c.summary, primary: !!c.primary, color: c.backgroundColor })) })
+  }
+  const ids = String(req.query.calendars || 'primary').split(',').map((x) => x.trim()).filter((x) => /^[\w.@+-]{1,200}$/.test(x)).slice(0, 15)
   const p = new URLSearchParams({ timeMin: new Date(Date.now() - 86400e3).toISOString(), timeMax: new Date(Date.now() + days * 86400e3).toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '250' })
-  const j = await gget(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${p}`)
-  const events = (j.items || []).filter((e) => e.status !== 'cancelled' && e.start?.dateTime).map((e) => {
-    const s = localParts(new Date(e.start.dateTime)), f = localParts(new Date(e.end.dateTime))
-    return { id: `gc_${e.id}`, title: e.summary || '(sin título)', date: s.day, start: s.time, end: f.day === s.day ? f.time : '23:59', type: /clase|class/i.test(e.summary || '') ? 'clase' : 'evento' }
-  })
-  res.json({ events })
+  const events = [], warnings = []
+  for (const cal of ids) {
+    const j = await gget(token, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal)}/events?${p}`).catch((e) => { warnings.push(`No pude leer el calendario ${cal === 'primary' ? 'principal' : cal.slice(0, 18) + '…'} (${e.status === 404 ? 'no tienes acceso o no existe' : e.message})`); return { items: [] } })
+    for (const e of j.items || []) {
+      if (e.status === 'cancelled') continue
+      const allDay = !e.start?.dateTime
+      const s = allDay ? { day: e.start.date, time: '00:00' } : localParts(new Date(e.start.dateTime))
+      const f = allDay ? { day: e.start.date, time: '23:59' } : localParts(new Date(e.end.dateTime))
+      events.push({ id: `gc_${e.id}`, calendar: cal, calendarName: j.summary, title: e.summary || '(sin título)', date: s.day, start: s.time, end: f.day === s.day ? f.time : '23:59', allDay, url: e.htmlLink, type: /clase|class/i.test(e.summary || '') ? 'clase' : allDay ? 'recordatorio' : 'evento' })
+    }
+  }
+  res.json({ events, warnings })
 }, { methods: ['GET', 'POST'], limit: 30 })

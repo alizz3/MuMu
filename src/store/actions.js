@@ -199,7 +199,7 @@ export function aulaToTask(aid) {
   const a = state.aula.find((x) => x.id === aid)
   if (!a || a.taskId) return
   const s = state.subjects.find((x) => x.id === a.courseId)
-  const t = addTask({ title: a.title, subjectId: a.courseId, category: 'universidad', source: 'aula', due: a.due, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
+  const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
   a.taskId = t.id
   return t
 }
@@ -211,12 +211,16 @@ export function applyAcademicChanges(items, source = 'aula') {
   for (const it of items) {
     const ex = state.aula.find((a) => a.externalId === it.externalId && a.source === source)
     if (!ex) {
-      const subj = state.subjects.find((s) => s.externalId === it.courseExternalId) || ensureSubject(it.courseName, it.courseExternalId, source)
+      const subj = state.subjects.find((s) => s.externalId === it.courseExternalId || (s.externalIds || []).includes(it.courseExternalId)) || matchSubject(it.courseName, it.courseExternalId) || ensureSubject(it.courseName, it.courseExternalId, source)
       const a = { id: uid('a'), source, externalId: it.externalId, courseId: subj.id, type: it.type, title: it.title, due: it.due, url: it.url, hash: it.hash, firstSeen: dayKey(), changed: false }
       state.aula.unshift(a)
       if (['assign', 'quiz'].includes(it.type)) aulaToTask(a.id)
       created++
-    } else if (ex.hash !== it.hash) {
+    } else if (it.url && ex.url !== it.url) {
+      ex.url = it.url
+      const t = state.tasks.find((x) => x.id === ex.taskId); if (t) t.url = it.url
+    }
+    if (ex && ex.hash !== it.hash) {
       const oldDue = ex.due
       Object.assign(ex, { title: it.title, due: it.due, hash: it.hash, changed: true, notified: false, changeNote: oldDue !== it.due ? `La fecha cambió (antes: ${oldDue || 'sin fecha'})` : 'El contenido cambió' })
       const t = state.tasks.find((x) => x.id === ex.taskId)
@@ -225,6 +229,24 @@ export function applyAcademicChanges(items, source = 'aula') {
     }
   }
   return { created, updated }
+}
+// Une el curso de Tu Aula/Classroom con una materia que ya tengas (ej. "Ética Profesional - Grupo 3" → Ética Profesional)
+const normTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+const STOP = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'a', 'en', 'grupo', 'i', 'ii', 'iii', 'curso', 'semestre'])
+function matchSubject(name, externalId) {
+  const n = normTxt(name); if (!n) return null
+  const words = (s) => new Set(normTxt(s).split(' ').filter((w) => w.length > 2 && !STOP.has(w)))
+  const wn = words(n)
+  let best = null, score = 0
+  for (const s of state.subjects) {
+    const sn = normTxt(s.name)
+    let sc = sn && (n.includes(sn) || sn.includes(n)) ? 10 : 0
+    const ws = words(s.name); ws.forEach((w) => { if (wn.has(w)) sc++ })
+    if (sc > score) { best = s; score = sc }
+  }
+  if (!best || score < 2) return null
+  best.externalIds = [...new Set([...(best.externalIds || []), externalId])]
+  return best
 }
 function ensureSubject(name, externalId, source) {
   const s = { id: uid('s'), name: name || 'Materia', short: (name || 'Materia').split(' ').slice(0, 2).join(' '), institution: source === 'classroom' ? 'Classroom' : 'UT', color: '#E8DDF5', schedule: [], externalId }
