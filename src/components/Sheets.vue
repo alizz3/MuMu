@@ -246,7 +246,7 @@ const prettyVal = (f, v) => {
         </div>
         <h2 style="margin:8px 0 4px">{{ task.title }}</h2>
         <div class="row wrap small muted" style="gap:6px">
-          <span v-if="task.due">📅 vence {{ relDay(task.due) }}{{ task.dueTime ? ' · ' + fmt12s(task.dueTime) : '' }}</span><span>· ⏱ {{ fmtDur(task.estimate) }} (faltan ~{{ fmtDur(remaining(task)) }})</span>
+          <span v-if="task.due">📅 vence {{ relDay(task.due) }}{{ /^\d{2}:\d{2}$/.test(task.dueTime || '') ? ' · ' + fmt12s(task.dueTime) : '' }}</span><span>· ⏱ {{ fmtDur(task.estimate) }} (faltan ~{{ fmtDur(remaining(task)) }})</span>
           <span v-if="task.postponed">· pospuesta {{ task.postponed }}×</span>
           <span v-if="task.demo" class="badge demo">ejemplo</span>
         </div>
