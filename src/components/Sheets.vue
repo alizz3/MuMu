@@ -23,6 +23,7 @@ const SCHEMAS = {
     title: 'Tarea', coll: 'tasks', fields: [
       { k: 'title', l: 'Título', t: 'text', req: true },
       { k: 'notes', l: 'Descripción / notas', t: 'textarea' },
+      { k: 'url', l: 'Enlace (Tu Aula, Classroom, Drive…)', t: 'url' },
       { k: 'priority', l: 'Prioridad', t: 'select', o: ['alta', 'media', 'baja'] },
       { k: 'status', l: 'Estado', t: 'select', o: ['pendiente', 'en progreso', 'completada', 'pausada', 'cancelada'] },
       { k: 'due', l: 'Fecha límite', t: 'date' },
@@ -72,7 +73,7 @@ const SCHEMAS = {
   ] }),
   subject: () => ({ title: 'Materia', coll: 'subjects', fields: [
     { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'short', l: 'Nombre corto', t: 'text' },
-    { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' },
+    { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' }, { k: 'url', l: 'Enlace del curso (Tu Aula, Classroom…)', t: 'url' },
     { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'semester', l: 'Semestre', t: 'text' },
     { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
   ] }),
@@ -112,16 +113,21 @@ function save() {
   const sc = schema.value
   for (const f of sc.fields) if (f.req && !form[f.k]) return toast(`Falta: ${f.l}`)
   const data = {}
+  let bad = null
   sc.fields.forEach((f) => {
     let v = form[f.k]
     if (f.t === 'tags') v = String(v || '').split(',').map((s) => s.trim()).filter(Boolean)
     if (f.t === 'number') v = v === '' || v == null ? null : Number(v)
     if (f.t === 'select' && v === '') v = null
     if (f.t === 'date' && !v) v = null
+    if (f.t === 'url') { v = String(v || '').trim(); if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v; if (v && !/^https?:\/\/[^\s]+$/i.test(v)) return (bad = f.l); v = v || null }
     data[f.k] = v
   })
+  if (bad) return toast(`Revisa el enlace: ${bad}`)
   if (m.value.id) {
-    Object.assign(state[sc.coll].find((x) => x.id === m.value.id), data)
+    const rec = state[sc.coll].find((x) => x.id === m.value.id)
+    if ('url' in data && (data.url || null) !== (rec.url || null)) data.urlManual = true
+    Object.assign(rec, data)
     editMode.value = false
     if (m.value.type !== 'task') close()
   } else {
@@ -148,6 +154,7 @@ const task = computed(() => (m.value?.type === 'task' && m.value.id ? state.task
 // Enlace a la plataforma: el de la tarea, o el de la actividad de origen, o al menos la plataforma
 const taskLink = computed(() => {
   const t = task.value; if (!t) return null
+  if (t.urlManual && t.url) return { url: t.url, src: t.source }
   const a = state.aula.find((x) => x.taskId === t.id)
   const src = t.source || a?.source
   const url = t.url || a?.url
@@ -251,7 +258,8 @@ const prettyVal = (f, v) => {
           <input class="input" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="%" style="width:80px" :value="task.weight ?? ''" @change="setGrade(task, 'weight', $event.target.value, 100)" aria-label="Porcentaje que vale" />
           <span class="small muted">%</span>
         </div>
-        <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ taskLink.generic ? 'Ir a' : 'Abrir en' }} {{ taskLink.src === 'classroom' ? 'Classroom' : taskLink.src === 'gmail' ? 'Gmail' : 'Tu Aula' }}</a>
+        <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ task.urlManual && task.url ? 'Abrir enlace' : (taskLink.generic ? 'Ir a ' : 'Abrir en ') + (taskLink.src === 'classroom' ? 'Classroom' : taskLink.src === 'gmail' ? 'Gmail' : 'Tu Aula') }}</a>
+        <button v-if="task" class="link tiny" style="margin:10px 0 0 8px" @click="editMode = true">✏️ {{ task.url ? 'Cambiar enlace' : 'Poner enlace' }}</button>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>
@@ -301,7 +309,7 @@ const prettyVal = (f, v) => {
               </div>
               <button class="btn sm ghost" type="button" @click.prevent="form[f.k].push({ weekday: 0, start: '08:00', end: '10:00' })">+ Agregar horario</button>
             </div>
-            <input v-else class="input" :type="{ number: 'number', date: 'date', time: 'time', color: 'color' }[f.t] || 'text'" v-model="form[f.k]" />
+            <input v-else class="input" :type="{ number: 'number', date: 'date', time: 'time', color: 'color' }[f.t] || 'text'" v-model="form[f.k]" :inputmode="f.t === 'url' ? 'url' : undefined" :placeholder="f.t === 'url' ? 'https://…' : undefined" />
           </label>
           <div class="row" style="margin-top:6px">
             <button v-if="m.id" type="button" class="btn ghost" @click="remove"><Icon name="trash" :size="16" />Eliminar</button>
