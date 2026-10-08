@@ -214,7 +214,7 @@ export function applyAcademicChanges(items, source = 'aula') {
       const subj = state.subjects.find((s) => s.externalId === it.courseExternalId) || ensureSubject(it.courseName, it.courseExternalId, source)
       const a = { id: uid('a'), source, externalId: it.externalId, courseId: subj.id, type: it.type, title: it.title, due: it.due, url: it.url, hash: it.hash, firstSeen: dayKey(), changed: false }
       state.aula.unshift(a)
-      if (it.type !== 'forum') aulaToTask(a.id)
+      if (['assign', 'quiz'].includes(it.type)) aulaToTask(a.id)
       created++
     } else if (ex.hash !== it.hash) {
       const oldDue = ex.due

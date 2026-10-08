@@ -86,10 +86,11 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
       <p v-if="aula.some((a) => a.demo)" class="notice">🧪 Estas actividades son de ejemplo para que veas cómo funciona. Desaparecen al conectar Tu Aula o en Configuración → “Empezar en limpio”.</p>
       <div class="card"><div class="list">
         <div v-for="a in aula" :key="a.id" class="item">
-          <span class="ico" :class="a.type === 'forum' ? 'cream' : 'lav'"><Icon :name="a.type === 'forum' ? 'bell' : 'list'" :size="17" /></span>
+          <span class="ico" :class="a.type === 'forum' ? 'cream' : a.type === 'material' ? 'mint' : 'lav'"><Icon :name="a.type === 'forum' ? 'bell' : a.type === 'material' ? 'book' : 'list'" :size="17" /></span>
           <div class="grow"><div class="title-line">{{ a.title }}</div>
             <div class="tiny muted">{{ subjOf(a.courseId)?.short || '' }} · {{ a.source === 'classroom' ? 'Classroom' : 'Tu Aula' }}{{ a.due ? ' · vence ' + relDay(a.due) : '' }}
               <span v-if="a.changed" class="badge yellow">{{ a.changeNote }}</span><span v-if="a.firstSeen === dayKey()" class="badge pink">nueva</span><span v-if="a.demo" class="badge demo">ejemplo</span></div></div>
+          <a v-if="a.url" class="btn sm ghost" :href="a.url" target="_blank" rel="noopener">Abrir</a>
           <button v-if="!a.taskId && a.type !== 'forum'" class="btn sm lav" @click="A.aulaToTask(a.id)">→ Tarea</button>
           <button v-else-if="a.taskId" class="btn sm ghost" @click="ui.modal = { type: 'task', id: a.taskId }">Ver</button>
         </div>

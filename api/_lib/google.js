@@ -7,7 +7,7 @@ export const SERVICE_SCOPES = {
   gmail: ['https://www.googleapis.com/auth/gmail.readonly'],
   calendar: ['https://www.googleapis.com/auth/calendar.readonly'],
   'calendar-write': ['https://www.googleapis.com/auth/calendar.events'],
-  classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly'],
+  classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly', 'https://www.googleapis.com/auth/classroom.announcements.readonly', 'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly'],
 }
 
 const cfg = () => {
