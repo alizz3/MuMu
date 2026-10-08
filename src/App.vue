@@ -33,7 +33,9 @@ const comp = (id) => (cache[id] ||= defineAsyncComponent({
   },
 }))
 // Se precargan todas las vistas cuando el navegador está libre, así cambiar de sección es inmediato
-const prefetch = () => Object.values(views).forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 120))
+const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 300))
+let prefetched = false
+const prefetch = () => { if (prefetched) return; prefetched = true; const list = Object.values(views); const next = () => { const l = list.shift(); if (l) l().catch(() => {}).finally(() => idle(next)) }; setTimeout(() => idle(next), 4000) }
 const View = computed(() => comp(ui.route))
 
 const unread = computed(() => state.notifications.some((n) => !n.read))
@@ -53,7 +55,6 @@ onMounted(() => {
   if (location.hash.startsWith('#/')) setUrl(false)
   window.addEventListener('popstate', () => { fromUrl(); ui.drawer = false })
   window.addEventListener('hashchange', () => { fromUrl(); setUrl(false) })
-  ;(window.requestIdleCallback || ((f) => setTimeout(f, 2500)))(prefetch)
   setTimeout(() => { try { sessionStorage.removeItem('mumu-reloaded') } catch {} }, 15000)
   const q = new URLSearchParams(location.search)
   const c = q.get('connected')
@@ -81,6 +82,8 @@ const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dar
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
+// Solo se precarga cuando ya estás dentro (los visitantes de la bienvenida no lo necesitan)
+watch(gate, (g) => { if (g === 'app') prefetch() }, { immediate: true })
 // El acompañante de enfoque vive aquí para seguir aunque cambies de sección
 watch(() => !!ui.focus, (on) => (on ? startFocusCompanion() : stopFocusCompanion()))
 const fmtLeft = computed(() => {
