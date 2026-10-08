@@ -12,8 +12,9 @@ export default handler(async (req, res) => {
   const base = 'https://classroom.googleapis.com/v1'
   const { courses = [] } = await gget(token, `${base}/courses?courseStates=ACTIVE&studentId=me&pageSize=30`)
   const items = []
+  let noWork = false
   for (const c of courses) {
-    const { courseWork = [] } = await gget(token, `${base}/courses/${c.id}/courseWork?pageSize=30&orderBy=updateTime desc`).catch(() => ({}))
+    const { courseWork = [] } = await gget(token, `${base}/courses/${c.id}/courseWork?pageSize=30&orderBy=updateTime desc`).catch((e) => { if (e.status === 403) noWork = true; return {} })
     const subs = await gget(token, `${base}/courses/${c.id}/courseWork/-/studentSubmissions?userId=me&pageSize=100`).catch(() => ({ studentSubmissions: [] }))
     const turnedIn = new Set((subs.studentSubmissions || []).filter((s) => ['TURNED_IN', 'RETURNED'].includes(s.state)).map((s) => s.courseWorkId))
     for (const w of courseWork) {
@@ -33,5 +34,5 @@ export default handler(async (req, res) => {
       items.push({ externalId: `crm_${m.id}`, courseExternalId: `crc_${c.id}`, courseName: c.name, type: 'material', title: m.title || 'Material nuevo', due: null, url: m.alternateLink, hash: hash(`${m.title}|${m.updateTime}`) })
     }
   }
-  res.json({ items })
+  res.json({ items, courses: courses.length, warnings: noWork ? ['Google no dio permiso para ver tus tareas de Classroom: desconecta la cuenta y vuelve a agregarla marcando todas las casillas.'] : [] })
 }, { methods: ['GET'], limit: 20 })
