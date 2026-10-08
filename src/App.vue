@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, watchEffect, defineAsyncComponent } from 'vue'
+import { computed, ref, onMounted, watchEffect, defineAsyncComponent } from 'vue'
 import { state, ui } from './store'
 import { go, back } from './store/actions'
 import { NAV, BOTTOM, titleOf } from './config/nav'
@@ -44,6 +44,11 @@ watchEffect(() => {
   document.title = ui.route === 'home' ? state.settings.appName : `${titleOf(ui.route)} · ${state.settings.appName}`
 })
 
+// Botón de modo claro / oscuro (recuerda tu elección; "Automático" sigue al celular)
+const sysDark = ref(window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => { sysDark.value = e.matches })
+const isDark = computed(() => state.settings.theme === 'dark' || (state.settings.theme === 'auto' && sysDark.value))
+const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dark' }
 const fmtLeft = computed(() => {
   const f = ui.focus; if (!f) return ''
   const el = f.elapsed + (f.paused ? 0 : ui.now - f.startedAt)
@@ -73,6 +78,7 @@ const fmtLeft = computed(() => {
         <button v-if="ui.route === 'home'" class="iconbtn" aria-label="Ver todas las secciones" @click="go('mas')"><Icon name="menu" /></button>
         <button v-else class="iconbtn" aria-label="Volver" @click="back"><Icon name="back" /></button>
         <h1>{{ title }}<span v-if="ui.route === 'home'" aria-hidden="true">{{ '🌸' }}</span></h1>
+        <button class="iconbtn" :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="toggleTheme"><Icon :name="isDark ? 'sun' : 'moon'" /></button>
         <button class="iconbtn" aria-label="Buscar y crear" @click="ui.modal = { type: 'search' }"><Icon name="search" /></button>
         <button class="iconbtn" aria-label="Notificaciones" @click="go('notificaciones')"><Icon name="bell" /><span v-if="unread" class="dot"></span></button>
       </header>

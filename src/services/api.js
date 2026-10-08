@@ -62,8 +62,10 @@ export async function syncClassroom() {
   const accs = state.integrations.google.filter((a) => a.services.includes('classroom'))
   let created = 0, updated = 0
   for (const a of accs) {
-    const { items } = await call(`classroom/coursework?account=${a.id}`)
+    const { items, courses, warnings = [] } = await call(`classroom/coursework?account=${a.id}`)
     const r = applyAcademicChanges(items, 'classroom'); created += r.created; updated += r.updated
+    warnings.forEach((w) => toast(w))
+    if (!courses) toast(`No encontré cursos activos en ${a.email}`)
   }
   state.integrations.classroom = { status: 'conectado', lastSync: new Date().toISOString() }
   toast(`Classroom: ${created} nuevas, ${updated} actualizadas`)
