@@ -125,7 +125,9 @@ export async function syncClassroom() {
   let created = 0, updated = 0
   for (const a of accs) {
     const { items, courses, warnings = [] } = await call(`classroom/coursework?account=${a.id}`)
-    const r = applyAcademicChanges(items, 'classroom'); created += r.created; updated += r.updated
+    // authuser hace que el enlace abra con la cuenta correcta (no con la personal)
+    const withAcc = items.map((it) => (it.url && a.email ? { ...it, url: it.url + (it.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.email) } : it))
+    const r = applyAcademicChanges(withAcc, 'classroom'); created += r.created; updated += r.updated
     warnings.forEach((w) => toast(w))
     if (!courses) toast(`No encontré cursos activos en ${a.email}`)
   }
