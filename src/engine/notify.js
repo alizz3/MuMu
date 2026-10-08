@@ -14,7 +14,7 @@ function inQuiet(m) {
 export function push(key, text, opts = {}) {
   const k = dayKey()
   if (state.notifications.some((n) => n.key === key && n.day === k)) return
-  state.notifications.unshift({ id: Math.random().toString(36).slice(2), key, day: k, at: new Date().toISOString(), text, go: opts.go || null, open: opts.open || null, read: false, kind: opts.kind || 'info' })
+  state.notifications.unshift({ id: Math.random().toString(36).slice(2), key, day: k, at: new Date().toISOString(), text, go: opts.go || null, open: opts.open || null, subject: opts.subject || null, read: false, kind: opts.kind || 'info' })
   state.notifications = state.notifications.slice(0, 60)
   toast(text, opts.kind || 'info', opts.go ? { label: 'Ver', go: opts.go } : null)
   if (state.settings.notify.browser && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
@@ -37,7 +37,13 @@ export function tick() {
   }
   if (n.aula) {
     const fresh = state.aula.filter((a) => !a.notified)
-    fresh.forEach((a) => { a.notified = true; if (!a.demo) push(`aula:${a.id}`, a.changed ? `Cambió algo en Aula: ${a.title}` : `Tienes una actividad nueva de Aula: ${a.title}`, { go: 'universidad', open: a.taskId ? { type: 'task', id: a.taskId } : null }) })
+    fresh.forEach((a) => {
+      a.notified = true
+      if (a.demo) return
+      const subj = state.subjects.find((s) => s.id === a.courseId)?.name || null
+      const src = a.source === 'classroom' ? 'Classroom' : 'Tu Aula'
+      push(`aula:${a.id}`, a.changed ? `Cambió algo en ${src}: ${a.title}` : `Nueva actividad en ${src}: ${a.title}`, { go: 'universidad', subject: subj, open: a.taskId ? { type: 'task', id: a.taskId } : null })
+    })
   }
   if (n.email) {
     const imp = state.emails.filter((e) => e.category === 'importante' && e.status === 'nuevo' && !e.demo && !e.notified)
