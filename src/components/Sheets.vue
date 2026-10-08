@@ -9,7 +9,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { planTask, remaining } from '../engine/planner'
-import { dayKey, fmtDur, relDay, shortDate, uid } from '../engine/time'
+import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { toast, ask } from '../engine/game'
 
@@ -27,6 +27,7 @@ const SCHEMAS = {
       { k: 'priority', l: 'Prioridad', t: 'select', o: ['alta', 'media', 'baja'] },
       { k: 'status', l: 'Estado', t: 'select', o: ['pendiente', 'en progreso', 'completada', 'pausada', 'cancelada'] },
       { k: 'due', l: 'Fecha límite', t: 'date' },
+      { k: 'dueTime', l: 'Hora límite', t: 'time' },
       { k: 'estimate', l: 'Duración estimada (min)', t: 'number' },
       { k: 'category', l: 'Categoría', t: 'select', o: ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas'] },
       { k: 'projectId', l: 'Proyecto', t: 'select', o: opts(state.projects) },
@@ -120,6 +121,7 @@ function save() {
     if (f.t === 'number') v = v === '' || v == null ? null : Number(v)
     if (f.t === 'select' && v === '') v = null
     if (f.t === 'date' && !v) v = null
+    if (f.t === 'time' && !v) v = null
     if (f.t === 'url') { v = String(v || '').trim(); if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v; if (v && !/^https?:\/\/[^\s]+$/i.test(v)) return (bad = f.l); v = v || null }
     data[f.k] = v
   })
@@ -127,6 +129,7 @@ function save() {
   if (m.value.id) {
     const rec = state[sc.coll].find((x) => x.id === m.value.id)
     if ('url' in data && (data.url || null) !== (rec.url || null)) data.urlManual = true
+    if ('dueTime' in data) { data.dueTime = data.dueTime || null; if (data.dueTime !== (rec.dueTime || null)) data.dueTimeManual = true }
     Object.assign(rec, data)
     editMode.value = false
     if (m.value.type !== 'task') close()
@@ -243,7 +246,7 @@ const prettyVal = (f, v) => {
         </div>
         <h2 style="margin:8px 0 4px">{{ task.title }}</h2>
         <div class="row wrap small muted" style="gap:6px">
-          <span v-if="task.due">📅 vence {{ relDay(task.due) }}</span><span>· ⏱ {{ fmtDur(task.estimate) }} (faltan ~{{ fmtDur(remaining(task)) }})</span>
+          <span v-if="task.due">📅 vence {{ relDay(task.due) }}{{ task.dueTime ? ' · ' + fmt12s(task.dueTime) : '' }}</span><span>· ⏱ {{ fmtDur(task.estimate) }} (faltan ~{{ fmtDur(remaining(task)) }})</span>
           <span v-if="task.postponed">· pospuesta {{ task.postponed }}×</span>
           <span v-if="task.demo" class="badge demo">ejemplo</span>
         </div>
