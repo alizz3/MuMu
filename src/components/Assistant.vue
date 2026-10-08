@@ -96,7 +96,7 @@ async function send() {
   if (canUseBackend()) {
     busy.value = true
     try { const r = await askAssistant(text, summary()); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy 💗`) } finally { busy.value = false }
-  } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Para conversar libremente, conecta el asistente con IA en Configuración 💗')
+  } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Y desde cualquier pantalla puedes tocarme para ver qué te recomiendo 💗')
 }
 
 watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.value.length) say(pet.value.msg) } })

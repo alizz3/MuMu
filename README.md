@@ -71,6 +71,10 @@ Qué hace la sincronización: lo nuevo → crea tarea con materia, fecha, duraci
 - Platzi: no tiene API pública de progreso → registro manual conectado a objetivos y proyectos.
 - MuMu Finanzas: el puente existe (`/api/finance/summary`), falta la otra app. Contrato en `docs/INTEGRACION-FINANZAS.md`.
 
+## Entrar con dos cuentas (Gmail y la de la U)
+
+`ALLOWED_EMAILS=tu-gmail,tu-correo@ut.edu.co` — el **primer** correo es la dueña de los datos; las demás cuentas permitidas ven y editan esos mismos datos. Al entrar con la cuenta de la U se activa solo el **Modo U** (se apaga con el birrete 🎓 o en Configuración → Apariencia). Los correos de `firestore.rules` deben coincidir: después de cambiarlos, vuelve a publicar las reglas.
+
 ## Seguridad
 
 - Cero secretos en el frontend: tokens de Google/Moodle cifrados en `secrets/` (bloqueado por reglas), claves solo en variables de entorno.

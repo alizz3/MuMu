@@ -4,6 +4,7 @@ import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { markVisit, applyAcademicChanges } from '../store/actions'
 import { syncAula } from './api'
+import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
 
 const last = {}
@@ -28,13 +29,21 @@ export async function initSync() {
       try {
         const r = await fetch('/api/me', { headers: { Authorization: `Bearer ${await idToken()}` } })
         if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
+        const j = await r.json().catch(() => ({}))
+        if (j.dataUid) uid = j.dataUid // la cuenta de la U usa los mismos datos que tu Gmail
       } catch { /* sin servidor: se permite (modo local) */ }
     }
     ui.blocked = false
     ui.demo = false
+    ui.dataUid = uid
+    initModoU(user.email)
     ui.authReady = true
     const keys = Object.keys(state)
-    const snaps = await Promise.all(keys.map((k) => getDoc(doc(fb.db, 'users', uid, 'data', k))))
+    let snaps
+    try { snaps = await Promise.all(keys.map((k) => getDoc(doc(fb.db, 'users', uid, 'data', k)))) } catch (e) {
+      toast('No pude leer tus datos: revisa que las reglas de Firestore estén publicadas (firestore.rules) 🙏')
+      console.warn('sync', e.message); ui.synced = true; return
+    }
     const anyRemote = snaps.some((s) => s.exists())
     if (anyRemote) {
       snaps.forEach((s, i) => { if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items) } })

@@ -4,5 +4,5 @@ import { requireUser } from '../_lib/firebase.js'
 
 export default handler(async (req, res) => {
   const u = await requireUser(req)
-  res.json({ ok: true, email: u.email })
+  res.json({ ok: true, email: u.email, dataUid: u.uid })
 }, { methods: ['GET'], limit: 30 })

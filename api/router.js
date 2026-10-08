@@ -7,6 +7,7 @@ import googleStart from './_routes/google/start.js'
 import googleCallback from './_routes/google/callback.js'
 import googleAccounts from './_routes/google/accounts.js'
 import gmailInbox from './_routes/gmail/inbox.js'
+import gmailAction from './_routes/gmail/action.js'
 import calendarEvents from './_routes/calendar/events.js'
 import classroomCoursework from './_routes/classroom/coursework.js'
 import aulaConnect from './_routes/aula/connect.js'
@@ -18,7 +19,7 @@ import financeSummary from './_routes/finance/summary.js'
 const ROUTES = {
   health, me, assistant,
   'google/start': googleStart, 'google/callback': googleCallback, 'google/accounts': googleAccounts,
-  'gmail/inbox': gmailInbox, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
+  'gmail/inbox': gmailInbox, 'gmail/action': gmailAction, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
   'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/aula': cronAula, 'finance/summary': financeSummary,
 }
 

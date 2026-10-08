@@ -5,6 +5,7 @@ import { isOpen, effectivePriority, scoreTask, currentContext } from '../engine/
 import { daysUntil } from '../engine/time'
 import { Chip, Empty, Icon } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
+import { inScope } from '../engine/modoU'
 
 // Vistas tipo base de datos: mismo set de tareas, diferentes filtros y agrupaciones
 const filter = ref('abiertas')
@@ -13,7 +14,7 @@ const cat = ref('todas')
 const q = ref('')
 const CATS = ['todas', 'universidad', 'trabajo', 'aprendizaje', 'personal', 'vida']
 const list = computed(() => {
-  let ts = state.tasks
+  let ts = state.tasks.filter((t) => inScope('task', t))
   if (filter.value === 'abiertas') ts = ts.filter(isOpen)
   if (filter.value === 'hoy') ts = ts.filter((t) => isOpen(t) && t.due && daysUntil(t.due) <= 0)
   if (filter.value === 'semana') ts = ts.filter((t) => isOpen(t) && t.due && daysUntil(t.due) <= 7)

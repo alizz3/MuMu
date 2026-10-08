@@ -23,6 +23,15 @@ async function app() {
   return initializeApp({ credential: cert(json) })
 }
 
+let owner = null
+async function ownerUid(ownerEmail, decoded) {
+  if (String(decoded.email).toLowerCase() === ownerEmail) return decoded.uid
+  if (owner) return owner
+  const { getAuth } = await load()
+  try { owner = (await getAuth(await app()).getUserByEmail(ownerEmail)).uid } catch { throw new HttpError(409, `Primero entra una vez con ${ownerEmail}, que es la cuenta dueña de los datos`) }
+  return owner
+}
+
 let dbi
 export async function initDb() { if (!dbi) { const m = await load(); dbi = m.getFirestore(await app()) } return dbi }
 export const db = () => { if (!dbi) throw new Error('Firestore sin inicializar'); return dbi }
@@ -39,8 +48,10 @@ export async function requireUser(req) {
   await initDb()
   try { decoded = await getAuth(a).verifyIdToken(token) } catch { throw new HttpError(401, 'Sesión vencida, vuelve a entrar') }
   const allowed = (process.env.ALLOWED_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
-  if (!allowed.length || !allowed.includes(String(decoded.email).toLowerCase())) throw new HttpError(403, 'Esta cuenta no tiene acceso a esta app personal')
-  return { uid: decoded.uid, email: decoded.email }
+  const email = String(decoded.email).toLowerCase()
+  if (!allowed.length || !allowed.includes(email) || decoded.email_verified === false) throw new HttpError(403, 'Esta cuenta no tiene acceso a esta app personal')
+  // Todas las cuentas permitidas (ej. Gmail personal y la de la U) comparten los datos de la dueña: el primer correo de ALLOWED_EMAILS
+  return { uid: await ownerUid(allowed[0], decoded), authUid: decoded.uid, email: decoded.email }
 }
 
 // Los secretos (tokens cifrados) viven en /secrets/{uid}/..., una ruta que las reglas

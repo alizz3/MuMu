@@ -5,6 +5,14 @@ import * as A from '../store/actions'
 import { rankedTasks, isOpen } from '../engine/planner'
 import { dayKey, fmtDur } from '../engine/time'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
+import { openFloat, canFloat } from '../services/focusFloat'
+import { askBrowserPermission } from '../engine/notify'
+import { toast } from '../engine/game'
+async function floatOrNotify() {
+  if (canFloat()) { await openFloat(); return }
+  const r = await askBrowserPermission()
+  toast(r === 'granted' ? 'Listo: si cambias de pestaña te mando mensajitos suaves 💗' : 'Tu navegador no permite ventanita flotante; deja esta pestaña abierta y verás el tiempo en su título ⏱')
+}
 
 const f = computed(() => ui.focus)
 const elapsed = computed(() => (f.value ? f.value.elapsed + (f.value.paused ? 0 : ui.now - f.value.startedAt) : 0))
@@ -72,7 +80,9 @@ const today = computed(() => state.focus.filter((x) => x.date === dayKey()).redu
           <button class="btn lav" @click="pause"><Icon :name="f.paused ? 'play' : 'pause'" :size="16" />{{ f.paused ? 'Seguir' : 'Pausa' }}</button>
           <button class="btn primary" @click="ending = true"><Icon name="check" :size="16" />Terminar</button>
         </div>
-        <p class="tiny muted" style="margin-top:10px">Tip: deja el celular boca abajo y lejos 📵 Leo cuida tu concentración.</p>
+        <p v-if="ui.focusMsg" class="small" style="margin-top:10px">🐮 {{ ui.focusMsg }}</p>
+        <button class="btn ghost sm" style="margin-top:10px" @click="floatOrNotify"><Icon name="link" :size="14" />{{ canFloat() ? 'Seguir en una ventanita flotante' : 'Avisarme si cambio de pestaña' }}</button>
+        <p class="tiny muted" style="margin-top:8px">¿Necesitas Classroom o Tu Aula? Ábrelos en otra pestaña: la ventanita queda encima y el tiempo sigue en el título 📵</p>
       </div>
       <div v-if="ending" class="card">
         <h3>{{ finished ? (f.mode === 'empezar' ? '¡Empezaste! 🥹 Eso era lo difícil' : '¡Tiempo! ✨') : '¿Cómo te fue?' }}</h3>

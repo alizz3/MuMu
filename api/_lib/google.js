@@ -5,6 +5,8 @@ import { secrets } from './firebase.js'
 
 export const SERVICE_SCOPES = {
   gmail: ['https://www.googleapis.com/auth/gmail.readonly'],
+  // Mover a la papelera y poner etiquetas/estrella (no puede enviar correos)
+  'gmail-organize': ['https://www.googleapis.com/auth/gmail.modify'],
   calendar: ['https://www.googleapis.com/auth/calendar.readonly'],
   'calendar-write': ['https://www.googleapis.com/auth/calendar.events'],
   classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly', 'https://www.googleapis.com/auth/classroom.announcements.readonly', 'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly'],
@@ -86,6 +88,9 @@ export function localParts(date) {
 const REQUIRED = { classroom: ['https://www.googleapis.com/auth/classroom.courses.readonly'] }
 export function servicesFromScopes(granted) {
   const g = new Set(granted)
-  return Object.entries(SERVICE_SCOPES).filter(([k, scopes]) => (REQUIRED[k] || scopes).every((x) => g.has(x))).map(([k]) => k)
+  const out = Object.entries(SERVICE_SCOPES).filter(([k, scopes]) => (REQUIRED[k] || scopes).every((x) => g.has(x))).map(([k]) => k)
+  // gmail.modify también permite leer
+  if (!out.includes('gmail') && g.has(SERVICE_SCOPES['gmail-organize'][0])) out.unshift('gmail')
+  return out
 }
 export const missingScopes = (service, granted) => (REQUIRED[service] || SERVICE_SCOPES[service] || []).filter((x) => !granted.includes(x)).map((x) => x.split('/').pop())

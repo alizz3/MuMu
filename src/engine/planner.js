@@ -1,5 +1,6 @@
 // Motor de disponibilidad + "¿Qué hago ahora?"
 import { state, ui } from '../store'
+import { inScope } from './modoU'
 import { dayKey, parseDay, hm, toHM, nowMin, daysUntil, fmtDur, fmt12, keyPlus, relDay } from './time'
 
 export const PRIORITY_W = { alta: 3, media: 2, baja: 1 }
@@ -88,7 +89,7 @@ export function scoreTask(t, ctx) {
 }
 
 export function rankedTasks(ctx = currentContext()) {
-  return state.tasks.filter(isOpen).filter((t) => t.status !== 'pausada').map((t) => ({ t, score: scoreTask(t, ctx) })).sort((a, b) => b.score - a.score)
+  return state.tasks.filter(isOpen).filter((t) => t.status !== 'pausada' && inScope('task', t)).map((t) => ({ t, score: scoreTask(t, ctx) })).sort((a, b) => b.score - a.score)
 }
 
 function principleFor(tags) {
