@@ -70,7 +70,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     </template>
 
     <template v-else-if="tab === 'cursos'">
-      <div class="row"><div class="chips grow"><Chip v-for="i in ['todas', 'UT', 'SENA', 'Classroom']" :key="i" :active="inst === i" @click="inst = i">{{ i === 'UT' ? 'U. del Tolima' : i }}</Chip></div>
+      <div class="row"><div class="chips grow"><Chip v-for="i in ['todas', 'UT', 'Classroom']" :key="i" :active="inst === i" @click="inst = i">{{ i === 'UT' ? 'U. del Tolima' : i }}</Chip></div>
         <button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></div>
       <div v-if="autos.length && reales.length" class="card soft stack" style="gap:10px">
         <div><b class="small">🧩 ¿Cuál materia es cada una?</b><p class="tiny muted">Tu Aula y Classroom nombran los cursos con códigos. Dime a cuál de tus materias corresponde y MuMu lo recordará para siempre.</p></div>

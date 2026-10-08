@@ -11,7 +11,7 @@ export function seed() {
   const past = (n) => keyPlus(-n)
 
   const goals = [
-    { id: 'g1', name: 'Graduarme con excelencia', category: 'universidad', description: 'Ingeniería de Sistemas en la Universidad del Tolima y ADSO en el SENA.', due: keyPlus(900), emoji: '🎓', progress: 35 },
+    { id: 'g1', name: 'Graduarme con excelencia', category: 'universidad', description: 'Ingeniería de Sistemas en la Universidad del Tolima.', due: keyPlus(900), emoji: '🎓', progress: 35 },
     { id: 'g2', name: 'Mejorar mi inglés', category: 'inglés', description: 'Poder tener una entrevista de trabajo en inglés.', due: keyPlus(240), emoji: '🇺🇸', progress: 0 },
     { id: 'g3', name: 'Portafolio y perfil profesional', category: 'carrera', description: 'Un portafolio que me consiga trabajo y clientes freelance.', due: keyPlus(60), emoji: '💼', progress: 0 },
     { id: 'g4', name: 'Independencia financiera', category: 'dinero', description: 'Ingresos estables como desarrolladora.', due: keyPlus(540), emoji: '💰', progress: 15 },
@@ -32,7 +32,6 @@ export function seed() {
     { id: 's2', name: 'Ética Profesional', short: 'Ética', institution: 'UT', color: '#F6DC8B', teacher: 'María Arévalo', schedule: [{ weekday: 0, start: '10:30', end: '12:00' }], notes: '' },
     { id: 's3', name: 'Teoría de Sistemas', short: 'Sistemas', institution: 'UT', color: '#B9DCCB', teacher: 'Edna Triana', schedule: [{ weekday: 0, start: '13:00', end: '15:00' }], notes: '' },
     { id: 's4', name: 'Estadística', short: 'Estadística', institution: 'UT', color: '#F7B6C2', teacher: '', schedule: [{ weekday: 0, start: '15:30', end: '17:00' }], notes: '' },
-    { id: 's5', name: 'ADSO · SENA', short: 'ADSO', institution: 'SENA', color: '#BFD7F0', teacher: '', schedule: [{ weekday: 2, start: '18:30', end: '21:00' }, { weekday: 4, start: '18:30', end: '21:00' }], notes: 'Clase virtual (horario de ejemplo, ajústalo)' },
   ]
 
   const T = (o) => ({ status: 'pendiente', priority: 'media', tags: [], subtasks: [], notes: '', postponed: 0, createdAt: past(3), source: 'manual', estimate: 30, category: 'personal', ...o })
