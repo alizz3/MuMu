@@ -208,7 +208,9 @@ export function aulaToTask(aid) {
 // nueva → crear pendiente, cambió fecha → actualizar, cambió contenido → marcar cambio.
 export function applyAcademicChanges(items, source = 'aula') {
   let created = 0, updated = 0
+  const ignored = new Set((state.integrations.ignoredCourses || []).map((c) => c.id))
   for (const it of items) {
+    if (it.courseExternalId && ignored.has(it.courseExternalId)) continue
     const ex = state.aula.find((a) => a.externalId === it.externalId && a.source === source)
     if (!ex) {
       const subj = state.subjects.find((s) => s.externalId === it.courseExternalId || (s.externalIds || []).includes(it.courseExternalId)) || matchSubject(it.courseName, it.courseExternalId) || ensureSubject(it.courseName, it.courseExternalId, source)
@@ -267,6 +269,17 @@ export function mergeSubject(fromId, intoId) {
   ;(state.events || []).forEach((e) => { if (e.subjectId === from.id) e.subjectId = into.id })
   state.subjects = state.subjects.filter((s) => s.id !== from.id)
 }
+// Un curso que solo quieres para ver contenidos: sin tareas, sin avisos
+export function ignoreCourse(subjectId) {
+  const s = state.subjects.find((x) => x.id === subjectId); if (!s) return
+  const ids = [...new Set([s.externalId, ...(s.externalIds || [])].filter(Boolean))]
+  state.integrations.ignoredCourses = [...(state.integrations.ignoredCourses || []), ...ids.map((id) => ({ id, name: s.name }))]
+  state.aula = state.aula.filter((a) => a.courseId !== s.id)
+  state.tasks = state.tasks.filter((t) => !(t.subjectId === s.id && ['aula', 'classroom'].includes(t.source)))
+  state.tasks.forEach((t) => { if (t.subjectId === s.id) t.subjectId = null })
+  state.subjects = state.subjects.filter((x) => x.id !== s.id)
+}
+export function unignoreCourse(name) { state.integrations.ignoredCourses = (state.integrations.ignoredCourses || []).filter((c) => c.name !== name) }
 // Las que se pueden unir solas (mismo nombre con otra forma de escribirlo)
 export function tidySubjects() {
   let n = 0
