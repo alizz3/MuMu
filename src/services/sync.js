@@ -3,7 +3,7 @@
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { markVisit, applyAcademicChanges } from '../store/actions'
-import { syncAula } from './api'
+import { syncAula, syncClassroom } from './api'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
 
@@ -74,13 +74,15 @@ function processInbox() {
   let created = 0, updated = 0
   for (const entry of box) { const r = applyAcademicChanges(entry.items || [], entry.source || 'aula'); created += r.created; updated += r.updated }
   state.inbox = []
-  if (created || updated) toast(`Tu Aula: ${created} nuevas, ${updated} con cambios 🎓`)
+  if (created || updated) toast(`Universidad: ${created} nuevas, ${updated} con cambios 🎓`)
 }
 
 // Si Tu Aula está conectada y no se revisa hace más de 3 horas, se revisa al abrir
 function autoSync() {
+  if (!ui.backend) return
+  const old = (iso) => !iso || Date.now() - new Date(iso).getTime() > 3 * 3600e3
   const a = state.integrations.aula
-  if (!ui.backend || a?.status !== 'conectado') return
-  if (a.lastSync && Date.now() - new Date(a.lastSync).getTime() < 3 * 3600e3) return
-  syncAula().catch(() => {})
+  if (a?.status === 'conectado' && old(a.lastSync)) syncAula().catch(() => {})
+  const cr = state.integrations.classroom
+  if (state.integrations.google.some((g) => g.services.includes('classroom')) && old(cr?.lastSync)) syncClassroom().catch(() => {})
 }

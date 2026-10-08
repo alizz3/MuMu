@@ -5,15 +5,15 @@
   "outputDirectory": "dist",
   "crons": [
     {
-      "path": "/api/cron/aula?franja=manana",
+      "path": "/api/cron/sync?franja=manana",
       "schedule": "0 11 * * *"
     },
     {
-      "path": "/api/cron/aula?franja=mediodia",
+      "path": "/api/cron/sync?franja=mediodia",
       "schedule": "0 17 * * *"
     },
     {
-      "path": "/api/cron/aula?franja=tarde",
+      "path": "/api/cron/sync?franja=tarde",
       "schedule": "0 23 * * *"
     }
   ],

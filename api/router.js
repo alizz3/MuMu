@@ -13,14 +13,14 @@ import classroomCoursework from './_routes/classroom/coursework.js'
 import aulaConnect from './_routes/aula/connect.js'
 import aulaSync from './_routes/aula/sync.js'
 import aulaStatus from './_routes/aula/status.js'
-import cronAula from './_routes/cron/aula.js'
+import cronSync from './_routes/cron/sync.js'
 import financeSummary from './_routes/finance/summary.js'
 
 const ROUTES = {
   health, me, assistant,
   'google/start': googleStart, 'google/callback': googleCallback, 'google/accounts': googleAccounts,
   'gmail/inbox': gmailInbox, 'gmail/action': gmailAction, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
-  'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/aula': cronAula, 'finance/summary': financeSummary,
+  'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/sync': cronSync, 'cron/aula': cronSync, 'finance/summary': financeSummary,
 }
 
 export default async function router(req, res) {

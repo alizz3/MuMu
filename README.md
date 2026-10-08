@@ -60,7 +60,7 @@ No existe una "API de Tu Aula" aparte: Tu Aula es Moodle, y Moodle trae dos vía
 
 Qué hace la sincronización: lo nuevo → crea tarea con materia, fecha, duración estimada y objetivo "Graduarme"; si cambia la fecha → actualiza la tarea y la marca; si cambia el contenido → la marca como cambiada; al acercarse la fecha → sube la prioridad; y el motor busca bloques libres antes de la entrega.
 
-**Frecuencia:** se revisa al abrir la app (si pasaron más de 3 h), con el botón "Revisar ahora" y con tres crons diarios de Vercel (6 a. m., 12 m. y 6 p. m. hora de Bogotá; en el plan gratuito cada uno puede llegar hasta 59 min después).
+**Frecuencia:** se revisa al abrir la app (si pasaron más de 3 h), con el botón "Revisar ahora" y con tres crons diarios de Vercel que revisan Tu Aula y Classroom (6 a. m., 12 m. y 6 p. m. hora de Bogotá; en el plan gratuito cada uno puede llegar hasta 59 min después).
 
 **Lo que necesita tu intervención:** pegar la dirección de Tu Aula y elegir el método en *Configuración → Integraciones*. **No me pases contraseñas por chat**: escríbelas solo en ese formulario de tu app desplegada.
 
