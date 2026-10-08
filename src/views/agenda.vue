@@ -8,6 +8,7 @@ import { syncCalendar, canUseBackend } from '../services/api'
 import { Icon, Pet } from '../components/ui'
 import { ask } from '../engine/game'
 import TaskRow from '../components/TaskRow.vue'
+import { inScope } from '../engine/modoU'
 
 const view = ref('dia')
 const sel = ref(dayKey())
@@ -17,7 +18,7 @@ const TYPES = { clase: ['lav', 'cap'], bloque: ['cream', 'timer'], familia: ['mi
 const timeline = computed(() => {
   const k = sel.value
   const from = k === dayKey() ? nowMin() : null
-  const items = itemsOn(k).map((i) => ({ ...i, at: hm(i.start) }))
+  const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: hm(i.start) }))
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
   return [...items, ...free].sort((a, b) => a.at - b.at)
 })

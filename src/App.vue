@@ -11,6 +11,8 @@ import Assistant from './components/Assistant.vue'
 import Welcome from './components/Welcome.vue'
 import { hasFirebase } from './services/firebase'
 import { consent, trackView } from './services/analytics'
+import { setModoU } from './engine/modoU'
+import { startFocusCompanion, stop as stopFocusCompanion, openFloat, canFloat } from './services/focusFloat'
 import { watch } from 'vue'
 
 const views = import.meta.glob('./views/*.vue')
@@ -56,6 +58,8 @@ const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dar
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
+// El acompañante de enfoque vive aquí para seguir aunque cambies de sección
+watch(() => !!ui.focus, (on) => (on ? startFocusCompanion() : stopFocusCompanion()))
 const fmtLeft = computed(() => {
   const f = ui.focus; if (!f) return ''
   const el = f.elapsed + (f.paused ? 0 : ui.now - f.startedAt)
@@ -88,14 +92,21 @@ const fmtLeft = computed(() => {
         <button v-else class="iconbtn" aria-label="Volver" @click="back"><Icon name="back" /></button>
         <span v-if="ui.demo" class="badge demo" style="position:absolute;left:50%;top:calc(100% - 4px);transform:translateX(-50%)">demo · <button class="link" style="padding:0;font-size:11px" @click="ui.demo = false">salir</button></span>
         <h1>{{ title }}<span v-if="ui.route === 'home'" aria-hidden="true">{{ '🌸' }}</span></h1>
+        <button class="iconbtn" :class="{ 'is-on': ui.modoU }" :aria-pressed="ui.modoU" :aria-label="ui.modoU ? 'Salir del Modo U' : 'Activar Modo U (solo universidad)'" :title="ui.modoU ? 'Modo U activo' : 'Modo U'" @click="setModoU(!ui.modoU)"><Icon name="cap" /></button>
         <button class="iconbtn" :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="toggleTheme"><Icon :name="isDark ? 'sun' : 'moon'" /></button>
         <button class="iconbtn" aria-label="Buscar y crear" @click="ui.modal = { type: 'search' }"><Icon name="search" /></button>
         <button class="iconbtn" aria-label="Notificaciones" @click="go('notificaciones')"><Icon name="bell" /><span v-if="unread" class="dot"></span></button>
       </header>
+      <h2 class="sr">{{ title }}</h2>
 
+      <div v-if="ui.modoU" class="card tight row" style="margin-bottom:12px;background:var(--lav-100);border-color:transparent" role="status">
+        <Icon name="cap" :size="18" /><div class="grow small"><b>Modo U</b> · solo ves lo de la universidad</div>
+        <button class="btn sm ghost" @click="setModoU(false)">Ver todo</button>
+      </div>
       <div v-if="ui.focus && ui.route !== 'enfoque'" class="card tight pink row" style="margin-bottom:12px" role="status">
         <Pet pose="study" :size="40" :bob="false" />
-        <div class="grow"><div class="small b">En enfoque: {{ ui.focus.title }}</div><div class="tiny muted">Quedan {{ fmtLeft }}</div></div>
+        <div class="grow"><div class="small b">En enfoque: {{ ui.focus.title }}</div><div class="tiny muted">Quedan {{ fmtLeft }} · {{ ui.focusMsg }}</div></div>
+        <button v-if="canFloat()" class="btn sm lav" @click="openFloat">Flotante</button>
         <button class="btn sm primary" @click="go('enfoque')">Ver</button>
       </div>
 

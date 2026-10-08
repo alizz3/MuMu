@@ -10,6 +10,7 @@ import { toast } from '../engine/game'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
+import { importProfes } from '../engine/contactos'
 
 const tab = ref('cursos')
 const sel = ref(null)
@@ -28,6 +29,11 @@ async function doSync() {
   try { await syncAula(); if (classroomOn.value) await syncClassroom() } catch (e) { toast(e.message) } finally { sync.value = false }
 }
 const reviewed = computed(() => daily().reviewed)
+async function onCSV(ev) {
+  const f = ev.target.files?.[0]; if (!f) return
+  try { const r = importProfes(await f.text()); toast(`Profes listos: ${r.updated} materias actualizadas, ${r.created} nuevas 👩‍🏫`) } catch (e) { toast('No pude leer ese archivo. Expórtalo desde Google Contacts como “Google CSV”.') }
+  ev.target.value = ''
+}
 const classroomOn = computed(() => state.integrations.google.some((a) => a.services.includes('classroom')))
 const syncCr = ref(false)
 async function doClassroom() { syncCr.value = true; try { await syncClassroom(); state.aula = state.aula.filter((a) => !a.demo); daily().reviewed = true } catch (e) { toast(e.message) } finally { syncCr.value = false } }
@@ -44,6 +50,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
       <div class="card" :style="{ borderTop: `5px solid ${selS.color}` }">
         <div class="row"><Ring :value="selS.p" :size="56" :color="selS.color" /><div class="grow"><h2>{{ selS.name }}</h2><div class="small muted">{{ selS.institution }}{{ selS.teacher ? ' · ' + selS.teacher : '' }}</div></div>
           <button class="iconbtn" aria-label="Editar materia" @click="ui.modal = { type: 'subject', id: selS.id }"><Icon name="edit" :size="18" /></button></div>
+        <div v-if="selS.teacherEmail || selS.teacherPhone" class="small" style="margin-top:8px"><span class="sel">✉️ {{ selS.teacherEmail }}</span><span v-if="selS.teacherPhone"> · 📱 {{ selS.teacherPhone }}</span></div>
         <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
@@ -59,9 +66,15 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></div>
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
-        <div class="grow"><div class="b small">{{ s.name }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
+        <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
         <Ring :value="s.p" :size="46" :color="s.color" />
       </button>
+      <label class="card row" style="cursor:pointer">
+        <span class="ico lav">👩‍🏫</span>
+        <div class="grow"><div class="b small">Importar mis profes</div><div class="tiny muted">Sube el CSV de Google Contacts y cada profe queda en su materia: sus correos salen como importantes.</div></div>
+        <span class="btn sm lav">Elegir archivo</span>
+        <input type="file" accept=".csv,text/csv" class="sr" @change="onCSV" />
+      </label>
       <div class="card pink now-card" style="min-height:130px">
         <h3>Recordatorio 🎓</h3>
         <p class="small" style="max-width:62%;margin-top:4px">Revisa tu Aula antes de tu próxima clase.</p>

@@ -35,6 +35,9 @@ export const ui = reactive({
   blocked: false,
   installPrompt: null, installed: false, isIOS: false, // app instalable
   cookieBanner: false,
+  focusMsg: '', // mensajito del acompañante de enfoque
+  modoU: false, // filtro universitario
+  dataUid: null, // de quién son los datos (la cuenta dueña)
   aulaStatus: null, // { online, ms, checkedAt } de Tu Aula // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
 })
 

@@ -30,7 +30,7 @@ const box = (d) => (d.slot === 'accessory' ? '0 0 64 42' : SLOT_BOX[d.slot] || '
     <p class="small muted" style="text-align:center">{{ pet.msg }}</p>
     <div class="chips"><Chip v-for="c in cats" :key="c" :active="cat === c" @click="cat = c">{{ c }}</Chip></div>
     <div class="shop">
-      <button v-for="d in items" :key="d.id" :class="{ owned: owned(d), placed: placed(d) }" @click="tap(d)" :aria-label="`${d.name}${owned(d) ? (placed(d) ? ', puesto' : ', tuyo') : ', cuesta ' + d.price + ' monedas'}`">
+      <button v-for="d in items" :key="d.id" :class="{ owned: owned(d), placed: placed(d) }" @click="tap(d)" :aria-pressed="placed(d)">
         <svg class="thumb" :viewBox="box(d)" preserveAspectRatio="xMidYMid meet" v-html="thumb(d)" aria-hidden="true"></svg>
         <span style="line-height:1.2">{{ d.name }}</span>
         <span v-if="!owned(d)" class="badge yellow">🪙 {{ d.price }}</span>

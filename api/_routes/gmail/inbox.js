@@ -12,8 +12,8 @@ export default handler(async (req, res) => {
   if (!accountId) throw new HttpError(400, 'Falta la cuenta')
   const { token } = await accessToken(uid, accountId, 'gmail')
   const base = 'https://gmail.googleapis.com/gmail/v1/users/me'
-  const q = encodeURIComponent('newer_than:10d -category:promotions -category:social in:inbox')
-  const list = await gget(token, `${base}/messages?maxResults=30&q=${q}`)
+  const q = encodeURIComponent('newer_than:10d in:inbox')
+  const list = await gget(token, `${base}/messages?maxResults=60&q=${q}`)
   const msgs = await Promise.all((list.messages || []).map((m) => gget(token, `${base}/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`)))
   const uni = (process.env.UNIVERSITY_EMAIL_DOMAIN || 'ut.edu.co').toLowerCase()
   const emails = msgs.map((m) => {
@@ -23,7 +23,9 @@ export default handler(async (req, res) => {
     if (labels.includes('IMPORTANT') || labels.includes('STARRED') || KEY.test(subject) || from.toLowerCase().includes(uni)) category = 'importante'
     if (INFO.test(from) && !KEY.test(subject)) category = 'informativo'
     if (labels.includes('CATEGORY_UPDATES') || labels.includes('CATEGORY_FORUMS')) category = category === 'importante' ? 'importante' : 'informativo'
-    return { id: `gm_${m.id}`, from: from.replace(/<.*>/, '').replace(/"/g, '').trim() || from, subject, snippet: m.snippet, date: localParts(new Date(Number(m.internalDate))).day, category, unread: labels.includes('UNREAD'), url: `https://mail.google.com/mail/u/0/#inbox/${m.threadId}` }
+    // Promociones y redes sociales: candidatos a limpiar (salvo que parezcan importantes)
+    if ((labels.includes('CATEGORY_PROMOTIONS') || labels.includes('CATEGORY_SOCIAL')) && !KEY.test(subject) && !from.toLowerCase().includes(uni)) category = 'promos'
+    return { id: `gm_${m.id}`, fromEmail: (from.match(/<([^>]+)>/)?.[1] || from).trim().toLowerCase(), labels, from: from.replace(/<.*>/, '').replace(/"/g, '').trim() || from, subject, snippet: m.snippet, date: localParts(new Date(Number(m.internalDate))).day, category, unread: labels.includes('UNREAD'), url: `https://mail.google.com/mail/u/0/#inbox/${m.threadId}` }
   })
   res.json({ emails })
 }, { methods: ['GET'], limit: 20 })

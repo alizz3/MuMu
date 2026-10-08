@@ -33,19 +33,52 @@ export async function disconnectGoogle(id) {
   toast('Cuenta desconectada y permisos revocados')
 }
 
+// Correos de tus profes actuales (sacados de tus materias) → siempre importantes
+export function profesMap() {
+  const m = {}
+  for (const sj of state.subjects) for (const em of String(sj.teacherEmail || '').toLowerCase().split(/[,;\s]+/).filter(Boolean)) m[em] = sj
+  return m
+}
+
 export async function syncGmail() {
   const accs = state.integrations.google.filter((a) => a.services.includes('gmail'))
   state.emails = state.emails.filter((e) => !e.demo) // al conectar lo real, se van los ejemplos
+  const profes = profesMap()
+  const pref = state.settings.mail || {}
   let n = 0
   for (const a of accs) {
     const { emails } = await call(`gmail/inbox?account=${a.id}`)
+    const toStar = []
     for (const e of emails) {
+      const sj = profes[e.fromEmail]
+      if (sj) { e.category = 'importante'; e.profe = sj.teacher || sj.short || sj.name; e.subjectId = sj.id }
       const ex = state.emails.find((x) => x.id === e.id)
-      if (ex) Object.assign(ex, { category: ex.manualCategory ? ex.category : e.category, snippet: e.snippet })
-      else { state.emails.unshift({ ...e, account: a.label, status: 'nuevo' }); n++ }
+      if (ex) Object.assign(ex, { category: ex.manualCategory ? ex.category : e.category, snippet: e.snippet, profe: e.profe, subjectId: e.subjectId, accountId: a.id, fromEmail: e.fromEmail })
+      else { state.emails.unshift({ ...e, account: a.label, accountId: a.id, status: 'nuevo' }); n++ }
+      if (sj && !e.labels?.includes('STARRED')) toStar.push(e.id)
+    }
+    // Marcar en tu Gmail real los correos de profes (si diste el permiso de organizar)
+    if (toStar.length && a.services.includes('gmail-organize')) {
+      if (pref.starProfes !== false) await call('gmail/action', { method: 'POST', body: { account: a.id, ids: toStar, action: 'star' } }).catch(() => {})
+      if (pref.labelProfes !== false) await call('gmail/action', { method: 'POST', body: { account: a.id, ids: toStar, action: 'label', label: 'MuMu/Profes' } }).catch(() => {})
     }
   }
+  state.emails = state.emails.slice(0, 250)
   toast(n ? `${n} correos nuevos clasificados 📧` : 'Correo al día ✨')
+}
+
+export const canOrganize = (accountId) => !!state.integrations.google.find((a) => a.id === accountId)?.services.includes('gmail-organize')
+
+// Acción sobre varios correos: agrupa por cuenta y llama al servidor
+export async function gmailAction(emails, action, label) {
+  const by = {}
+  for (const e of emails) if (e.accountId && canOrganize(e.accountId)) (by[e.accountId] = by[e.accountId] || []).push(e.id)
+  const skipped = emails.length - Object.values(by).flat().length
+  let done = 0
+  for (const [account, ids] of Object.entries(by)) for (let i = 0; i < ids.length; i += 100) {
+    const r = await call('gmail/action', { method: 'POST', body: { account, ids: ids.slice(i, i + 100), action, label } }); done += r.count
+  }
+  return { done, skipped }
 }
 
 export async function syncCalendar() {

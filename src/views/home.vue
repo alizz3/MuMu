@@ -7,24 +7,25 @@ import { petState, missions, claimMission, daily, streakMessage, habitStats } fr
 import { greeting, longDate, dayKey, fmt12, fmt12s, hm, fmtDur, nowMin, relDay, daysUntil } from '../engine/time'
 import { Icon, Pet, Ring } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
+import { inScope } from '../engine/modoU'
 
 const k = computed(() => dayKey(ui.now))
 const pet = computed(() => petState())
 const rec = computed(() => recommend())
 const items = computed(() => itemsOn(k.value))
-const upcoming = computed(() => items.value.filter((i) => hm(i.end) > nowMin(ui.now)).slice(0, 4))
-const open = computed(() => state.tasks.filter(isOpen))
+const upcoming = computed(() => items.value.filter((i) => hm(i.end) > nowMin(ui.now) && inScope('event', i)).slice(0, 4))
+const open = computed(() => state.tasks.filter((t) => isOpen(t) && inScope('task', t)))
 const dueSoon = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)).slice(0, 4))
 const todayCount = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) <= 0).length)
 const classes = computed(() => items.value.filter((i) => i.type === 'clase'))
-const habitsLeft = computed(() => state.habits.filter((h) => !state.habitLogs[h.id]?.[k.value]?.done))
+const habitsLeft = computed(() => state.habits.filter((h) => inScope('habit', h) && !state.habitLogs[h.id]?.[k.value]?.done))
 const load = computed(() => dayLoad(k.value))
 const sleepToday = computed(() => state.sleep.find((s) => s.date === k.value))
 const mis = computed(() => missions())
 const d = computed(() => daily(k.value))
 const aulaNew = computed(() => state.aula.filter((a) => a.firstSeen >= dayKey(new Date(Date.now() - 3 * 864e5)) || a.changed).slice(0, 3))
-const mailImportant = computed(() => state.emails.filter((e) => e.category === 'importante' && e.status === 'nuevo').slice(0, 3))
-const goals = computed(() => state.goals.slice(0, 4).map((g) => ({ ...g, p: A.goalProgress(g) })))
+const mailImportant = computed(() => state.emails.filter((e) => e.category === 'importante' && e.status === 'nuevo' && inScope('email', e)).slice(0, 3))
+const goals = computed(() => state.goals.filter((g) => inScope('goal', g)).slice(0, 4).map((g) => ({ ...g, p: A.goalProgress(g) })))
 const principle = computed(() => rec.value.principle || state.principles.find((p) => p.status === 'probando') || state.principles[0])
 const activeExp = computed(() => state.experiments.find((x) => x.status === 'activo'))
 const priorityTask = computed(() => state.tasks.find((t) => t.id === d.value.priority))
@@ -139,7 +140,7 @@ const welcome = () => { d.value.welcomed = true }
         <section class="card">
           <div class="row between"><h3>Hábitos de hoy</h3><button class="link" @click="A.go('habitos')">Ver semana</button></div>
           <div class="list">
-            <div v-for="h in state.habits" :key="h.id" class="item">
+            <div v-for="h in state.habits.filter((x) => inScope('habit', x))" :key="h.id" class="item">
               <button class="check" :class="{ on: state.habitLogs[h.id]?.[k]?.done }" :aria-label="`Marcar ${h.name}`" @click="A.toggleHabit(h.id)"><Icon v-if="state.habitLogs[h.id]?.[k]?.done" name="check" :size="15" :stroke="3" /></button>
               <div class="grow"><div class="title-line">{{ h.emoji }} {{ h.name }}</div><div class="tiny muted">{{ habitStats(h).weekDone }} de los últimos 7 días</div></div>
             </div>

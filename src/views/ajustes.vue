@@ -6,6 +6,7 @@ import * as API from '../services/api'
 import { askBrowserPermission } from '../engine/notify'
 import { installApp } from '../services/pwa'
 import AulaStatus from '../components/AulaStatus.vue'
+import { setModoU } from '../engine/modoU'
 import { BRAND } from '../config/brand'
 import { toast, ask } from '../engine/game'
 import { Icon, Pet, Chip } from '../components/ui'
@@ -24,6 +25,7 @@ const err = (e) => toast(FB_ERR[e?.code] || e?.message || String(e))
 const g = reactive({ label: 'personal', services: ['gmail', 'calendar'] })
 const SERVICES = [
   ['gmail', 'Gmail (solo lectura)', 'Leer correos para detectar los importantes. No puede enviar ni borrar.'],
+  ['gmail-organize', 'Organizar Gmail', 'Mandar a la papelera, poner etiquetas y estrella a tus profes. Sigue sin poder enviar correos.'],
   ['calendar', 'Google Calendar (solo lectura)', 'Ver tus eventos para calcular tiempo libre.'],
   ['calendar-write', 'Calendar: crear eventos', 'Opcional: crear bloques de estudio en tu calendario.'],
   ['classroom', 'Classroom (solo lectura)', 'Ver cursos, tareas, anuncios y materiales.'],
@@ -42,7 +44,7 @@ const toggleSvc = (s) => (g.services = g.services.includes(s) ? g.services.filte
 const loadingAcc = ref(false)
 async function loadAccounts() { loadingAcc.value = true; try { await API.refreshAccounts() } catch (e) { err(e) } finally { loadingAcc.value = false } }
 watch(() => backendOk.value && ui.synced, (ok) => { if (ok) loadAccounts() }, { immediate: true })
-const SVC_LABEL = { gmail: 'Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
+const SVC_LABEL = { gmail: 'Gmail', 'gmail-organize': 'Organizar Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
 
 // Tu Aula
 const aula = reactive({ site: state.integrations.aula.site || BRAND.aulaSite, method: 'webservice', username: '', password: '', icalUrl: '' })
@@ -157,13 +159,16 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
 
       <div class="card row"><span class="ico"><Icon name="cap" /></span><div class="grow"><b class="small">Google Classroom</b><div class="tiny muted">Se activa al conectar una cuenta de Google con el permiso de Classroom (pestaña Cuentas).</div></div>
         <button class="btn sm lav" :disabled="!backendOk" @click="API.syncClassroom().catch(err)">Revisar</button></div>
-      <div class="card row"><span class="ico"><Icon name="mail" /></span><div class="grow"><b class="small">Gmail y Calendar</b><div class="tiny muted">Por cuenta de Google (pestaña Cuentas). Se revisan desde Correo y Agenda.</div></div></div>
+      <div class="card stack"><div class="row"><span class="ico"><Icon name="mail" /></span><div class="grow"><b class="small">Gmail y Calendar</b><div class="tiny muted">Por cuenta de Google (pestaña Cuentas). Se revisan desde Correo y Agenda.</div></div></div>
+        <label class="row small"><input type="checkbox" :checked="state.settings.mail?.starProfes !== false" @change="state.settings.mail = { ...(state.settings.mail || {}), starProfes: $event.target.checked }" /> Poner estrella en Gmail a los correos de mis profes</label>
+        <label class="row small"><input type="checkbox" :checked="state.settings.mail?.labelProfes !== false" @change="state.settings.mail = { ...(state.settings.mail || {}), labelProfes: $event.target.checked }" /> Ponerles la etiqueta “MuMu/Profes”</label>
+        <p class="tiny muted">Los correos de tus profes se reconocen por el correo que tiene cada materia (Universidad → Materias). Necesita el permiso “Organizar Gmail”.</p>
+      </div>
       <div class="card row"><span class="ico cream"><Icon name="book" /></span><div class="grow"><b class="small">Platzi</b><div class="tiny muted">Registro manual: Platzi no tiene API pública para tu progreso.</div></div></div>
       <div class="card stack">
         <div class="row"><span class="ico mint"><Icon name="wallet" /></span><div class="grow"><b class="small">{{ state.settings.financeAppName }}</b><div class="tiny muted">Resumen compartido servidor a servidor (FINANCE_API_URL + FINANCE_API_KEY).</div></div></div>
         <label class="field"><span>URL de la app de finanzas (para el botón “Abrir”)</span><input class="input" v-model="state.settings.financeAppUrl" placeholder="https://…" /></label>
       </div>
-      <div class="card row"><span class="ico lav"><Icon name="sparkles" /></span><div class="grow"><b class="small">Asistente con IA (opcional)</b><div class="tiny muted">El motor de recomendaciones funciona sin IA. Para conversar libremente, el servidor usa la API de Claude con una clave guardada solo en Vercel (ANTHROPIC_API_KEY).</div></div></div>
     </template>
 
     <!-- Notificaciones -->
@@ -184,6 +189,7 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <label class="field"><span>¿Cómo te llamo?</span><input class="input" v-model="state.settings.ownerName" /></label>
         <label class="field"><span>Nombre de la app de finanzas</span><input class="input" v-model="state.settings.financeAppName" /></label>
         <div class="field"><span>Tema</span><div class="seg"><button v-for="t in [['auto', 'Automático'], ['light', 'Clarito'], ['dark', 'Oscuro']]" :key="t[0]" :class="{ on: state.settings.theme === t[0] }" @click="state.settings.theme = t[0]">{{ t[1] }}</button></div></div>
+        <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" :checked="ui.modoU" @change="setModoU($event.target.checked)" style="margin-top:3px" /><span><b>🎓 Modo U</b><br /><span class="tiny muted">Muestra solo tareas, clases, correos y metas de la universidad. Se activa solo cuando entras con tu cuenta @{{ BRAND.uniDomain }}; puedes apagarlo aquí o con el birrete de arriba.</span></span></label>
         <div class="field"><span>App en tu celular o computador</span>
           <p v-if="ui.installed" class="small">✅ MuMu ya está instalada como app.</p>
           <button v-else-if="ui.installPrompt" class="btn lav" @click="installApp">📲 Instalar MuMu</button>
