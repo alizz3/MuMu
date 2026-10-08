@@ -285,6 +285,11 @@ export function ignoreCourse(subjectId) {
 }
 export function unignoreCourse(name) { state.integrations.ignoredCourses = (state.integrations.ignoredCourses || []).filter((c) => c.name !== name) }
 // Ya no está en el SENA (ADSO): se quita la materia, sus clases y lo pendiente
+export function cleanTitles() {
+  const re = /\s+(est[aá] pendiente|pendiente|debe entregarse|is due)\s*$/i
+  state.tasks.forEach((t) => { if (['aula', 'classroom'].includes(t.source) && re.test(t.title)) t.title = t.title.replace(re, '') })
+  state.aula.forEach((a) => { if (re.test(a.title || '')) a.title = a.title.replace(re, '') })
+}
 export function dropSena() {
   const ids = new Set(state.subjects.filter((s) => s.institution === 'SENA' || /\badso\b/i.test(s.name)).map((s) => s.id))
   if (ids.size) {

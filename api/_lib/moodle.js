@@ -119,7 +119,7 @@ export async function fetchIcal(url) {
     const get = (k) => { const m = block.match(new RegExp(`^${k}(?:;[^:]*)?:(.*)$`, 'm')); return m ? m[1].trim().replace(/\\,/g, ',').replace(/\\n/g, ' ') : '' }
     const summary = get('SUMMARY'), uid = get('UID'), dt = get('DTSTART'), cat = get('CATEGORIES'), mod = get('LAST-MODIFIED')
     if (!summary) continue
-    items.push({ externalId: `ical_${hash(uid || summary)}`, courseExternalId: `ical_c_${hash(cat || 'general')}`, courseName: cat || 'Tu Aula', type: /quiz|cuestionario|examen/i.test(summary) ? 'quiz' : 'assign', title: summary.replace(/\s*(is due|vence|fecha de entrega)\s*$/i, ''), due: parseDate(dt), dueTime: parseTime(dt), url: dayUrl(origin, dt, uid), hash: hash(`${summary}|${dt}|${mod}`) })
+    items.push({ externalId: `ical_${hash(uid || summary)}`, courseExternalId: `ical_c_${hash(cat || 'general')}`, courseName: cat || 'Tu Aula', type: /quiz|cuestionario|examen/i.test(summary) ? 'quiz' : 'assign', title: summary.replace(/\s*(is due|vence|fecha de entrega|est[aá] pendiente|pendiente|debe entregarse|se cierra|cierra)\s*$/i, ''), due: parseDate(dt), dueTime: parseTime(dt), url: dayUrl(origin, dt, uid), hash: hash(`${summary}|${dt}|${mod}`) })
   }
   return { items, warnings: [] }
 }
