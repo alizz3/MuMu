@@ -153,6 +153,21 @@ async function remove() {
 }
 
 // ---------- detalle de tarea ----------
+// Evento abierto desde la agenda (incluye las marcas de "quién va")
+const ev = computed(() => (m.value?.type === 'eventView' ? m.value.ev : null))
+const evKey = computed(() => (ev.value ? `${ev.value.id}|${m.value.date}` : ''))
+const evMark = computed(() => (evKey.value ? state.eventMarks?.[evKey.value] || null : null))
+const evDate = computed(() => { if (!m.value?.date) return ''; const d = parseDay(m.value.date); return `${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}` })
+const MARKS = [['yo', '🙋 Voy yo'], ['otro', '👥 Va alguien más'], ['recordatorio', '📌 Solo recordatorio'], ['hecho', '✅ Ya pasó']]
+const who = ref('')
+watch(evKey, () => { who.value = evMark.value?.who || '' }, { immediate: true })
+function setMark(status) {
+  state.eventMarks ||= {}
+  if (evMark.value?.status === status) delete state.eventMarks[evKey.value]
+  else state.eventMarks[evKey.value] = { status, who: status === 'otro' ? who.value.trim() : '', at: dayKey() }
+}
+function saveWho() { if (evMark.value?.status === 'otro') state.eventMarks[evKey.value] = { ...evMark.value, who: who.value.trim() } }
+async function delEvent() { if (await ask(`¿Eliminar "${ev.value.title}" de tu agenda?`)) { A.deleteEvent(ev.value.id); close() } }
 const task = computed(() => (m.value?.type === 'task' && m.value.id ? state.tasks.find((t) => t.id === m.value.id) : null))
 // Enlace a la plataforma: el de la tarea, o el de la actividad de origen, o al menos la plataforma
 function dueText(t) {
@@ -243,6 +258,35 @@ const prettyVal = (f, v) => {
       </template>
 
       <!-- Detalle de tarea -->
+      <!-- Detalle de evento: info, quién va, editar o eliminar -->
+      <template v-else-if="m.type === 'eventView' && ev">
+        <div class="row between">
+          <span class="badge" :class="{ pink: ev.kind === 'event' }">{{ ev.kind === 'class' ? 'Clase' : ev.readonly ? (ev.calendarName || 'Google Calendar') : 'Evento' }}</span>
+          <button class="iconbtn" aria-label="Cerrar" @click="close"><Icon name="x" :size="18" /></button>
+        </div>
+        <h2 style="margin:8px 0 4px;overflow-wrap:anywhere">{{ ev.title }}</h2>
+        <div class="stack small muted" style="gap:2px">
+          <span>📅 {{ evDate }}</span>
+          <span>🕒 {{ ev.allDay ? 'Todo el día' : `${fmt12s(ev.start)} – ${fmt12s(ev.end)}` }}</span>
+          <span v-if="ev.location" style="overflow-wrap:anywhere">📍 {{ ev.location }}</span>
+          <span v-if="ev.account" style="overflow-wrap:anywhere">👤 {{ ev.account }}</span>
+        </div>
+        <p v-if="ev.description || ev.notes" class="small" style="margin-top:8px;white-space:pre-line;overflow-wrap:anywhere">{{ ev.description || ev.notes }}</p>
+        <template v-if="ev.kind === 'event'">
+          <h3 style="margin-top:14px">¿Quién va?</h3>
+          <div class="row wrap" style="margin-top:6px;gap:6px"><button v-for="mk in MARKS" :key="mk[0]" class="chip" :class="{ on: evMark?.status === mk[0] }" @click="setMark(mk[0])">{{ mk[1] }}</button></div>
+          <div v-if="evMark?.status === 'otro'" class="row" style="margin-top:8px"><input class="input" v-model="who" placeholder="¿Quién? ej. mi prima" aria-label="Quién va" @change="saveWho" @keyup.enter="saveWho" /></div>
+          <p class="tiny muted" style="margin-top:6px">Si va alguien más o es solo un recordatorio, no te quita tiempo libre.</p>
+        </template>
+        <div class="row wrap" style="gap:8px;margin-top:14px">
+          <a v-if="ev.url" class="btn sm lav" :href="ev.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ ev.readonly ? 'Editar en Google Calendar' : 'Abrir' }}</a>
+          <button v-if="ev.kind === 'event' && !ev.readonly" class="btn sm ghost" @click="ui.modal = { type: 'event', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
+          <button v-if="ev.kind === 'event' && !ev.readonly" class="btn sm ghost" @click="delEvent"><Icon name="trash" :size="14" />Eliminar</button>
+          <button v-if="ev.kind === 'class'" class="btn sm ghost" @click="close(); A.go('universidad')">Ver materia</button>
+        </div>
+        <p v-if="ev.readonly" class="tiny muted" style="margin-top:8px">Este evento viene de Google Calendar: se edita o elimina allá y MuMu lo actualiza al sincronizar.</p>
+      </template>
+
       <template v-else-if="task && !editMode">
         <div class="row between">
           <span class="badge pink">{{ task.status }}</span>
