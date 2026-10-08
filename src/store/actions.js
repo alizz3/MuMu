@@ -354,9 +354,30 @@ export function saveGod(entry, k = dayKey()) {
 
 // ---------- Casa de la vaquita ----------
 import { DECOR } from '../engine/decor'
+import { ROOMS } from '../engine/rooms'
+// Cuartos de la casita: cada uno tiene sus cosas puestas; el dormitorio usa state.game.placed
+export function roomOf(roomId) {
+  const g = state.game
+  g.rooms ||= {}
+  if (!g.rooms[roomId]) {
+    const base = DECOR.filter((d) => d.room === roomId && d.price === 0)
+    g.rooms[roomId] = { unlocked: false, placed: Object.fromEntries(base.map((d) => [d.slot, d.id])) }
+  }
+  return g.rooms[roomId]
+}
+export function unlockRoom(roomId) {
+  const r = ROOMS.find((x) => x.id === roomId); const st = roomOf(roomId)
+  if (!r || st.unlocked) return
+  if (state.game.coins < r.price) { toast(`Te faltan ${r.price - state.game.coins} monedas para la ${r.name.toLowerCase()} 🪙`); return }
+  state.game.coins -= r.price
+  st.unlocked = true
+  DECOR.filter((d) => d.room === roomId && d.price === 0).forEach((d) => { if (!state.game.owned.includes(d.id)) state.game.owned.push(d.id) })
+  toast(`¡Nuevo cuarto: ${r.emoji} ${r.name}!`, 'coin')
+}
 export function buyDecor(id) {
   const d = DECOR.find((x) => x.id === id)
   if (!d || state.game.owned.includes(id)) return
+  if (d.room && !['dormitorio', 'ropita'].includes(d.room) && !roomOf(d.room).unlocked) { toast('Primero desbloquea ese cuarto 🔒'); return }
   if (state.game.coins < d.price) { toast('Te faltan monedas. ¡Cada pasito suma! 🪙'); return }
   state.game.coins -= d.price
   state.game.owned.push(id)
@@ -367,10 +388,12 @@ export function placeDecor(id) {
   const d = DECOR.find((x) => x.id === id)
   if (!d) return
   if (d.slot === 'accessory') state.game.accessory = state.game.accessory === id ? null : id
-  else state.game.placed[d.slot] = state.game.placed[d.slot] === id ? null : id
+  else if (d.pet) { state.game.wear ||= {}; state.game.wear[d.pet] = state.game.wear[d.pet] === d.wear ? null : d.wear }
+  else if (d.room && d.room !== 'dormitorio') { const p = roomOf(d.room).placed; p[d.slot] = p[d.slot] === id && d.slot !== 'wall' ? null : id }
+  else state.game.placed[d.slot] = state.game.placed[d.slot] === id && d.slot !== 'wall' ? null : id
 }
 function giftDecor() {
-  const pool = DECOR.filter((d) => !state.game.owned.includes(d.id) && d.price <= 200)
+  const pool = DECOR.filter((d) => !state.game.owned.includes(d.id) && d.price <= 200 && (!d.room || d.room === 'dormitorio' || d.room === 'ropita' || roomOf(d.room).unlocked))
   const d = pool[Math.floor(Math.random() * pool.length)]
   if (d) { state.game.owned.push(d.id); placeDecor(d.id) }
 }

@@ -1,5 +1,6 @@
 // Catálogo de la casita y dibujo de la escena. Todo se gana con progreso real (monedas), nunca con dinero.
-import { cow, leo, negra, INK } from '../components/art'
+import { cow, INK } from '../components/art'
+import { ROOM_ITEMS, pets } from './rooms'
 
 const S = (w = 2.6) => `stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`
 const PINK = '#F7B6C2', LAV = '#C3B3D4', HOT = '#EE8FAE', CREAM = '#FFF3E3', LEAF = '#9CCFB4', LEAF_D = '#78B596'
@@ -44,6 +45,12 @@ export const DECOR = [
   { id: 'backpack', name: 'Mochila', cat: 'Accesorios', slot: 'accessory', price: 100 },
   { id: 'cap', name: 'Birrete', cat: 'Accesorios', slot: 'accessory', price: 150 },
   { id: 'santa', name: 'Gorrito navideño', cat: 'Accesorios', slot: 'accessory', price: 120 },
+  // nuevos para el dormitorio
+  { id: 'tv', name: 'Televisor', cat: 'Muebles', slot: 'tv', price: 170 },
+  { id: 'nightstand', name: 'Mesita de noche', cat: 'Muebles', slot: 'nightstand', price: 90 },
+  { id: 'clock', name: 'Reloj de pared', cat: 'Decoración', slot: 'clock', price: 60 },
+  // cuartos nuevos y ropita de Leo y Negra
+  ...ROOM_ITEMS,
 ]
 
 const WALLS = {
@@ -75,26 +82,27 @@ const DRAW = {
   'garland-xmas': () => `<path d="M0 8 q100 26 200 0 q100 26 200 0" fill="none" stroke="${LEAF_D}" stroke-width="3"/>${Array.from({ length: 13 }, (_, i) => { const x = 14 + i * 30, y = 8 + Math.sin((x % 200) / 200 * Math.PI) * 13; return `<ellipse cx="${x}" cy="${y + 6}" rx="3.5" ry="5" fill="${['#E86A7D', '#FFE29A', '#9CCFB4', '#BFD7F0'][i % 4]}"/>` }).join('')}`,
   'garland-uni': () => `<path d="M0 6 q100 22 200 0 q100 22 200 0" fill="none" ${S(1.8)}/>${Array.from({ length: 12 }, (_, i) => { const x = 18 + i * 32, y = 6 + Math.sin((x % 200) / 200 * Math.PI) * 11; return `<path d="M${x - 8} ${y} h16 l-8 14z" fill="${[LAV, PINK, '#FFE29A'][i % 3]}" ${S(1.4)}/>` }).join('')}`,
   moto: () => `<g transform="translate(330 220)"><circle cx="0" cy="12" r="9" fill="#fff" ${S()}/><circle cx="34" cy="12" r="9" fill="#fff" ${S()}/><path d="M0 12 l12 -16 h16 l6 16" fill="none" ${S(3)}/><path d="M8 -2 h20 q4 -8 -2 -10 h-14z" fill="${HOT}" ${S(2)}/><path d="M28 -4 l6 -10" ${S(2.6)}/></g>`,
+  tv: () => `<g transform="translate(176 112)"><rect x="0" y="0" width="64" height="40" rx="5" fill="#2F2A3A" ${S()}/><rect x="5" y="5" width="54" height="30" rx="2" fill="#BFD7F0"/><path d="M12 28 q10 -14 20 -4 q10 -12 22 2" fill="none" stroke="#fff" stroke-width="2.4"/><rect x="-4" y="40" width="72" height="10" rx="3" fill="#E8C7AE" ${S()}/><path d="M4 50 v30 M60 50 v30" ${S(3.4)}/></g>`,
+  nightstand: () => `<g transform="translate(118 176)"><rect x="0" y="0" width="34" height="40" rx="5" fill="#F5E1CF" ${S()}/><path d="M0 20 h34" ${S(2)}/><circle cx="17" cy="11" r="2.4" fill="${INK}"/><circle cx="17" cy="30" r="2.4" fill="${INK}"/><path d="M10 0 v-10 h14 v10" fill="#FFE8B0" ${S(2)}/></g>`,
+  clock: () => `<g transform="translate(160 30)"><circle r="16" fill="#fff" ${S()}/><path d="M0 0 v-9 M0 0 l7 4" ${S(2.4)}/><circle r="2" fill="${HOT}"/></g>`,
   'leo-bed': () => `<ellipse cx="318" cy="232" rx="36" ry="12" fill="#D9D5E0" ${S()}/><ellipse cx="318" cy="228" rx="26" ry="7" fill="#fff"/>`,
   'negra-bed': () => `<ellipse cx="96" cy="236" rx="38" ry="12" fill="${PINK}" ${S()}/><ellipse cx="96" cy="232" rx="27" ry="7" fill="#fff"/>`,
 }
 
 export function scene(placed, opts = {}) {
   const w = WALLS[placed.wall] || WALLS['wall-pink']
-  const order = ['window', 'season', 'wallart', 'shelf', 'hanging', 'kitchen', 'rug', 'bed', 'desk', 'sofa', 'lamp', 'plantL', 'plantR', 'leoBed', 'negraBed', 'toy']
+  const order = ['window', 'season', 'clock', 'wallart', 'shelf', 'hanging', 'kitchen', 'rug', 'bed', 'nightstand', 'desk', 'tv', 'sofa', 'lamp', 'plantL', 'plantR', 'leoBed', 'negraBed', 'toy']
   const dots = Array.from({ length: 40 }, (_, i) => `<circle cx="${(i * 47) % 400}" cy="${18 + ((i * 29) % 140)}" r="${w.stars ? 1.6 : 2.4}" fill="${w.dots}" opacity=".9"/>`).join('')
   const stars = w.stars ? Array.from({ length: 8 }, (_, i) => `<path transform="translate(${30 + i * 48} ${30 + ((i * 37) % 90)}) scale(.5)" d="M0 -9 Q1.5 -1.5 9 0 Q1.5 1.5 0 9 Q-1.5 1.5 -9 0 Q-1.5 -1.5 0 -9Z" fill="#F6D27B"/>`).join('') : ''
   const planks = Array.from({ length: 6 }, (_, i) => `<path d="M0 ${176 + i * 15} H400" stroke="${w.plank}" stroke-width="1.6"/>`).join('')
   let s = `<rect width="400" height="172" fill="${w.wall}"/>${dots}${stars}<rect y="170" width="400" height="90" fill="${w.floor}"/>${planks}<path d="M0 170 H400" stroke="#fff" stroke-width="5"/>`
   for (const slot of order) { const id = placed[slot]; if (id && DRAW[id]) s += DRAW[id]() }
   const pet = opts.pet || {}
-  const showLeo = placed.leo !== null, showNegra = placed.negra !== null
-  if (showNegra) s += `<g transform="translate(${placed.negraBed ? 58 : 60} ${placed.negraBed ? 186 : 182}) scale(.36)">${negra(pet.negra || 'sit')}</g>`
-  if (showLeo) s += `<g transform="translate(${placed.leoBed ? 282 : 286} ${placed.leoBed ? 182 : 182}) scale(.36)">${leo(pet.leo || 'sit')}</g>`
+  s += pets({ negra: [placed.negraBed ? 58 : 60, placed.negraBed ? 186 : 182], leo: [placed.leoBed ? 282 : 286, 182] }, { ...opts, showLeo: placed.leo !== null, showNegra: placed.negra !== null })
   s += `<g transform="translate(140 118) scale(.62)">${cow(pet.pose || 'happy', opts.accessory)}</g>`
   if (w.night) s += `<rect width="400" height="260" fill="#2a2140" opacity=".08"/>`
   return s
 }
 
 // Recorte de la escena para las miniaturas de la tienda
-export const SLOT_BOX = { window: '40 18 130 100', bed: '0 110 130 130', sofa: '240 130 140 100', desk: '165 100 90 100', shelf: '300 22 90 90', kitchen: '-10 50 70 70', rug: '100 190 200 60', plantL: '105 150 60 70', plantR: '345 120 60 90', hanging: '220 0 60 80', lamp: '205 100 70 110', wallart: '180 25 80 60', season: '0 0 400 60', toy: '310 195 75 50', leoBed: '270 200 95 50', negraBed: '50 205 95 45', wall: '0 0 400 260', leo: '270 160 110 100', negra: '40 165 110 100' }
+export const SLOT_BOX = { window: '40 18 130 100', bed: '0 110 130 130', sofa: '240 130 140 100', desk: '165 100 90 100', shelf: '300 22 90 90', kitchen: '-10 50 70 70', rug: '100 190 200 60', plantL: '105 150 60 70', plantR: '345 120 60 90', hanging: '220 0 60 80', lamp: '205 100 70 110', wallart: '180 25 80 60', season: '0 0 400 60', toy: '310 195 75 50', leoBed: '270 200 95 50', negraBed: '50 205 95 45', tv: '165 100 90 100', nightstand: '108 160 54 60', clock: '136 6 48 48', wall: '0 0 400 260', leo: '270 160 110 100', negra: '40 165 110 100' }
