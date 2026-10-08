@@ -10,7 +10,7 @@ import { toast, ask } from '../engine/game'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
-import { importProfes } from '../engine/contactos'
+import Profes from '../components/Profes.vue'
 
 const tab = ref('cursos')
 const sel = ref(null)
@@ -29,11 +29,6 @@ async function doSync() {
   try { await syncAula(); if (classroomOn.value) await syncClassroom() } catch (e) { toast(e.message) } finally { sync.value = false }
 }
 const reviewed = computed(() => daily().reviewed)
-async function onCSV(ev) {
-  const f = ev.target.files?.[0]; if (!f) return
-  try { const r = importProfes(await f.text()); toast(`Profes listos: ${r.updated} materias actualizadas, ${r.created} nuevas 👩‍🏫`) } catch (e) { toast('No pude leer ese archivo. Expórtalo desde Google Contacts como “Google CSV”.') }
-  ev.target.value = ''
-}
 const classroomOn = computed(() => state.integrations.google.some((a) => a.services.includes('classroom')))
 const syncCr = ref(false)
 async function doClassroom() { syncCr.value = true; try { await syncClassroom(); state.aula = state.aula.filter((a) => !a.demo); daily().reviewed = true } catch (e) { toast(e.message) } finally { syncCr.value = false } }
@@ -51,7 +46,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 <template>
   <div class="stack">
     <AulaStatus />
-    <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
+    <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['profes', 'Profes'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
 
     <!-- Materia seleccionada -->
     <template v-if="selS">
@@ -86,12 +81,6 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
         <Ring :value="s.p" :size="46" :color="s.color" />
       </button>
-      <label class="card row" style="cursor:pointer">
-        <span class="ico lav">👩‍🏫</span>
-        <div class="grow"><div class="b small">Importar mis profes</div><div class="tiny muted">Sube el CSV de Google Contacts y cada profe queda en su materia: sus correos salen como importantes.</div></div>
-        <span class="btn sm lav">Elegir archivo</span>
-        <input type="file" accept=".csv,text/csv" class="sr" @change="onCSV" />
-      </label>
       <p v-if="ignoredNames.length" class="tiny muted" style="text-align:center">🙈 Ignorando: <span v-for="n in ignoredNames" :key="n">{{ n }} <button class="link tiny" @click="A.unignoreCourse(n)">volver a traer</button> </span></p>
       <div class="card pink now-card" style="min-height:130px">
         <h3>Recordatorio 🎓</h3>
@@ -103,6 +92,8 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <Pet pose="grad" :size="100" :bob="false" />
       </div>
     </template>
+
+    <Profes v-else-if="tab === 'profes'" />
 
     <template v-else-if="tab === 'tareas'">
       <div class="card"><div class="list"><TaskRow v-for="t in uniTasks" :key="t.id" :task="t" /></div>
