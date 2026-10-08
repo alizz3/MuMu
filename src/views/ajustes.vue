@@ -4,6 +4,9 @@ import { state, ui, startClean, resetToSeed, exportJSON } from '../store'
 import { hasFirebase, signIn, signOut } from '../services/firebase'
 import * as API from '../services/api'
 import { askBrowserPermission } from '../engine/notify'
+import { installApp } from '../services/pwa'
+import AulaStatus from '../components/AulaStatus.vue'
+import { BRAND } from '../config/brand'
 import { toast, ask } from '../engine/game'
 import { Icon, Pet, Chip } from '../components/ui'
 
@@ -42,7 +45,7 @@ watch(() => backendOk.value && ui.synced, (ok) => { if (ok) loadAccounts() }, { 
 const SVC_LABEL = { gmail: 'Gmail', calendar: 'Calendar (lectura)', 'calendar-write': 'Calendar (crear eventos)', classroom: 'Classroom' }
 
 // Tu Aula
-const aula = reactive({ site: state.integrations.aula.site || '', method: 'webservice', username: '', password: '', icalUrl: '' })
+const aula = reactive({ site: state.integrations.aula.site || BRAND.aulaSite, method: 'webservice', username: '', password: '', icalUrl: '' })
 const connecting = ref(false)
 async function connectAula() {
   connecting.value = true
@@ -133,6 +136,8 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
     <template v-if="tab === 'integraciones'">
       <div class="card stack">
         <div class="row"><span class="ico lav"><Icon name="cap" /></span><div class="grow"><h3>Tu Aula · Universidad del Tolima</h3><div class="tiny muted">Estado: {{ state.integrations.aula.status }}{{ state.integrations.aula.lastSync ? ' · última revisión ' + new Date(state.integrations.aula.lastSync).toLocaleString('es-CO') : '' }}</div></div></div>
+        <AulaStatus />
+        <p v-if="ui.aulaStatus && ui.aulaStatus.online === false" class="notice">Tu Aula está caída ahora mismo. Mejor espera a que vuelva antes de conectarla 💗</p>
         <label class="field"><span>Dirección de Tu Aula (la que abres en el navegador)</span><input class="input" v-model="aula.site" placeholder="https://…" inputmode="url" /></label>
         <div class="seg"><button :class="{ on: aula.method === 'webservice' }" @click="aula.method = 'webservice'">Usuario y contraseña</button><button :class="{ on: aula.method === 'ical' }" @click="aula.method = 'ical'">Enlace de calendario</button></div>
         <template v-if="aula.method === 'webservice'">
@@ -179,6 +184,11 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <label class="field"><span>¿Cómo te llamo?</span><input class="input" v-model="state.settings.ownerName" /></label>
         <label class="field"><span>Nombre de la app de finanzas</span><input class="input" v-model="state.settings.financeAppName" /></label>
         <div class="field"><span>Tema</span><div class="seg"><button v-for="t in [['auto', 'Automático'], ['light', 'Clarito'], ['dark', 'Oscuro']]" :key="t[0]" :class="{ on: state.settings.theme === t[0] }" @click="state.settings.theme = t[0]">{{ t[1] }}</button></div></div>
+        <div class="field"><span>App en tu celular o computador</span>
+          <p v-if="ui.installed" class="small">✅ MuMu ya está instalada como app.</p>
+          <button v-else-if="ui.installPrompt" class="btn lav" @click="installApp">📲 Instalar MuMu</button>
+          <p v-else class="tiny muted">{{ ui.isIOS ? 'En iPhone: Compartir → "Agregar a inicio".' : 'En Chrome: menú ⋮ → "Instalar MuMu" (o "Agregar a pantalla de inicio").' }}</p>
+        </div>
         <div class="row"><Pet :size="70" /><div class="grow small">Los accesorios de la vaquita y la decoración se cambian en la casita.</div><button class="btn sm lav" @click="ui.route = 'casa'">Ir</button></div>
       </div>
     </template>

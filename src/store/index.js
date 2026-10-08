@@ -32,7 +32,10 @@ export const ui = reactive({
   synced: false,
   authReady: false, // ya se sabe si hay sesión
   demo: false, // explorando con datos de ejemplo sin sesión
-  blocked: false, // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
+  blocked: false,
+  installPrompt: null, installed: false, isIOS: false, // app instalable
+  cookieBanner: false,
+  aulaStatus: null, // { online, ms, checkedAt } de Tu Aula // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
 })
 
 setInterval(() => { ui.now = new Date() }, 30 * 1000)

@@ -9,6 +9,7 @@ import { syncAula, syncClassroom, canUseBackend } from '../services/api'
 import { toast } from '../engine/game'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
+import AulaStatus from '../components/AulaStatus.vue'
 
 const tab = ref('cursos')
 const sel = ref(null)
@@ -35,6 +36,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 
 <template>
   <div class="stack">
+    <AulaStatus />
     <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
 
     <!-- Materia seleccionada -->

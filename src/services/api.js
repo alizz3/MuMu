@@ -5,6 +5,7 @@ import { idToken } from './firebase'
 import { applyAcademicChanges } from '../store/actions'
 import { toast } from '../engine/game'
 import { dayKey } from '../engine/time'
+import { BRAND } from '../config/brand'
 
 async function call(path, { method = 'GET', body } = {}) {
   const token = await idToken()
@@ -91,3 +92,15 @@ export async function disconnectAula() { await call('aula/connect', { method: 'D
 
 export async function askAssistant(message, context) { return call('assistant', { method: 'POST', body: { message, context } }) }
 export async function financeSummary() { return call('finance/summary') }
+
+// Estado de Tu Aula (en línea / caída). Se guarda 5 minutos para no revisar a cada rato.
+export async function aulaStatus(force = false) {
+  const c = ui.aulaStatus
+  if (!force && c && Date.now() - c.checkedAt < 5 * 60e3) return c
+  ui.aulaStatus = { checking: true, checkedAt: Date.now() }
+  try {
+    const site = state.integrations.aula.site || BRAND.aulaSite
+    ui.aulaStatus = await call(`aula/status?site=${encodeURIComponent(site)}`)
+  } catch (e) { ui.aulaStatus = { error: e.message, checkedAt: Date.now() } }
+  return ui.aulaStatus
+}
