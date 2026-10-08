@@ -37,6 +37,12 @@ async function onCSV(ev) {
 const classroomOn = computed(() => state.integrations.google.some((a) => a.services.includes('classroom')))
 const syncCr = ref(false)
 async function doClassroom() { syncCr.value = true; try { await syncClassroom(); state.aula = state.aula.filter((a) => !a.demo); daily().reviewed = true } catch (e) { toast(e.message) } finally { syncCr.value = false } }
+const autos = computed(() => A.autoSubjects())
+const reales = computed(() => state.subjects.filter((s) => !autos.value.includes(s)))
+const hint = (id) => state.aula.filter((a) => a.courseId === id).slice(0, 2).map((a) => a.title).join(' · ')
+const into = ref({})
+function merge(s) { const t = into.value[s.id]; if (!t) return; const name = subjOf(t)?.name; A.mergeSubject(s.id, t); toast(`Unida con ${name} ✨ Lo que llegue de ese curso irá allí`) }
+const tidied = A.tidySubjects(); if (tidied) toast(`Uní ${tidied} materia${tidied === 1 ? '' : 's'} repetida${tidied === 1 ? '' : 's'} 🧩`)
 const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 </script>
 
@@ -64,6 +70,14 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     <template v-else-if="tab === 'cursos'">
       <div class="row"><div class="chips grow"><Chip v-for="i in ['todas', 'UT', 'SENA', 'Classroom']" :key="i" :active="inst === i" @click="inst = i">{{ i === 'UT' ? 'U. del Tolima' : i }}</Chip></div>
         <button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></div>
+      <div v-if="autos.length && reales.length" class="card soft stack" style="gap:10px">
+        <div><b class="small">🧩 ¿Cuál materia es cada una?</b><p class="tiny muted">Tu Aula y Classroom nombran los cursos con códigos. Dime a cuál de tus materias corresponde y MuMu lo recordará para siempre.</p></div>
+        <div v-for="s in autos" :key="s.id" class="stack" style="gap:4px">
+          <div class="small b" style="word-break:break-all">{{ s.name }}</div>
+          <div v-if="hint(s.id)" class="tiny muted">Ej.: {{ hint(s.id) }}</div>
+          <div class="row"><select class="input" v-model="into[s.id]" :aria-label="`Materia real de ${s.name}`"><option :value="undefined" disabled>Es…</option><option v-for="r in reales" :key="r.id" :value="r.id">{{ r.name }}</option></select><button class="btn sm primary" :disabled="!into[s.id]" @click="merge(s)">Unir</button></div>
+        </div>
+      </div>
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
         <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
