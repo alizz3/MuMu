@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, onMounted, watchEffect, defineAsyncComponent } from 'vue'
 import { state, ui } from './store'
-import { go, back } from './store/actions'
+import { go, back, setUrl } from './store/actions'
+import { h } from 'vue'
 import { NAV, BOTTOM, titleOf } from './config/nav'
 import { Icon, Pet } from './components/ui'
 import { tick } from './engine/notify'
@@ -17,7 +18,22 @@ import { watch } from 'vue'
 
 const views = import.meta.glob('./views/*.vue')
 const cache = {}
-const comp = (id) => (cache[id] ||= defineAsyncComponent(views[`./views/${id}.vue`] || views['./views/home.vue']))
+// Si una parte de la app no carga (por ejemplo justo después de publicar una versión nueva), se reintenta y,
+// si sigue fallando, se recarga una sola vez sola en vez de dejar la pantalla en blanco.
+const ViewLoading = { render: () => h('div', { class: 'stack', style: 'align-items:center;padding:60px 0;opacity:.7', 'aria-busy': 'true' }, [h('div', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'small muted' }, 'Cargando…')]) }
+const ViewError = { render: () => h('div', { class: 'card stack', style: 'align-items:center;text-align:center;margin-top:30px' }, [h('b', 'Esta parte no cargó 😿'), h('span', { class: 'small muted' }, 'Puede que haya una versión nueva de MuMu.'), h('button', { class: 'btn primary', onClick: () => location.reload() }, 'Recargar')]) }
+const isChunkError = (e) => /dynamically imported module|Importing a module script failed|Failed to fetch|Loading chunk|error loading/i.test(String(e?.message || e))
+const comp = (id) => (cache[id] ||= defineAsyncComponent({
+  loader: views[`./views/${id}.vue`] || views['./views/home.vue'],
+  loadingComponent: ViewLoading, delay: 150, errorComponent: ViewError, timeout: 20000,
+  onError(err, retry, fail, attempts) {
+    if (attempts <= 2) return setTimeout(retry, 400 * attempts)
+    if (isChunkError(err) && !sessionStorage.getItem('mumu-reloaded')) { try { sessionStorage.setItem('mumu-reloaded', '1') } catch {} ; location.reload(); return }
+    delete cache[id]; fail()
+  },
+}))
+// Se precargan todas las vistas cuando el navegador está libre, así cambiar de sección es inmediato
+const prefetch = () => Object.values(views).forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 120))
 const View = computed(() => comp(ui.route))
 
 const unread = computed(() => state.notifications.some((n) => !n.read))
@@ -26,17 +42,24 @@ const lvl = computed(() => level())
 const title = computed(() => ui.route === 'home' ? state.settings.appName : titleOf(ui.route))
 
 onMounted(() => {
-  const fromHash = () => {
-    const m = location.hash.match(/^#\/([\w-]+)(?:\/([\w-]+))?/)
-    if (m && views[`./views/${m[1]}.vue`] && (m[1] !== ui.route || (m[2] || '') !== (ui.params.id || ''))) { ui.route = m[1]; ui.params = m[2] ? { id: m[2] } : {} }
+  const fromUrl = () => {
+    // Las direcciones viejas con # (…/#/ajustes) siguen funcionando
+    const m = (location.hash.match(/^#\/([\w-]+)(?:\/([\w-]+))?/) || location.pathname.match(/^\/([\w-]+)(?:\/([\w-]+))?\/?$/))
+    const r = m && views[`./views/${m[1]}.vue`] ? m[1] : 'home'
+    const id = m && r !== 'home' ? m[2] || '' : ''
+    if (r !== ui.route || id !== (ui.params.id || '')) { ui.route = r; ui.params = id ? { id } : {} }
   }
-  fromHash()
-  window.addEventListener('hashchange', fromHash)
+  fromUrl()
+  if (location.hash.startsWith('#/')) setUrl(false)
+  window.addEventListener('popstate', () => { fromUrl(); ui.drawer = false })
+  window.addEventListener('hashchange', () => { fromUrl(); setUrl(false) })
+  ;(window.requestIdleCallback || ((f) => setTimeout(f, 2500)))(prefetch)
+  setTimeout(() => { try { sessionStorage.removeItem('mumu-reloaded') } catch {} }, 15000)
   const q = new URLSearchParams(location.search)
   const c = q.get('connected')
   if (c) {
     ui.route = 'ajustes'
-    history.replaceState(null, '', location.pathname + '#/ajustes')
+    history.replaceState(null, '', '/ajustes')
     setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada 💗' : c === 'parcial' ? q.get('msg') : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
   }
   setTimeout(tick, 2500)

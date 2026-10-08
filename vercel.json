@@ -57,6 +57,10 @@
     {
       "source": "/api/:path*",
       "destination": "/api/router?path=:path*"
+    },
+    {
+      "source": "/((?!api/|assets/).*)",
+      "destination": "/index.html"
     }
   ]
 }
