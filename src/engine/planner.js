@@ -27,7 +27,7 @@ export function freeBlocks(k, fromMin = null) {
   const start = Math.max(hm(state.profile.wake), fromMin ?? 0)
   let end = hm(state.profile.sleep)
   if (end <= hm(state.profile.wake)) end = 24 * 60 - 1
-  const busy = itemsOn(k).filter((i) => !i.done).map((i) => [hm(i.start), hm(i.end)]).sort((a, b) => a[0] - b[0])
+  const busy = itemsOn(k).filter((i) => !i.done && !i.allDay).map((i) => [hm(i.start), hm(i.end)]).sort((a, b) => a[0] - b[0])
   const blocks = []
   let cur = start
   for (const [s, e] of busy) {

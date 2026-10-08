@@ -226,6 +226,7 @@ const prettyVal = (f, v) => {
           <span v-for="(c, i) in chain" :key="i" class="badge">{{ c }}</span>
         </div>
         <p v-if="task.notes" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
+        <a v-if="task.url" class="btn sm lav" style="margin-top:10px" :href="task.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />Abrir en {{ task.source === 'classroom' ? 'Classroom' : task.source === 'gmail' ? 'Gmail' : 'Tu Aula' }}</a>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>

@@ -18,7 +18,7 @@ const TYPES = { clase: ['lav', 'cap'], bloque: ['cream', 'timer'], familia: ['mi
 const timeline = computed(() => {
   const k = sel.value
   const from = k === dayKey() ? nowMin() : null
-  const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: hm(i.start) }))
+  const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: i.allDay ? -1 : hm(i.start) }))
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
   return [...items, ...free].sort((a, b) => a.at - b.at)
 })
@@ -76,7 +76,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
           </div>
           <div v-else class="tl-card" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="delEv(i)">
             <span class="ico" :class="(TYPES[i.type] || [])[0]" style="width:32px;height:32px"><Icon :name="(TYPES[i.type] || ['', 'calendar'])[1]" :size="16" /></span>
-            <div class="grow"><div class="small b" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ fmt12s(i.start) }} – {{ fmt12s(i.end) }}<span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div></div>
+            <div class="grow"><div class="small b" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div></div>
             <button v-if="i.kind === 'block'" class="check" :class="{ on: i.done }" aria-label="Bloque hecho" @click.stop="doneBlock(i)"><Icon v-if="i.done" name="check" :size="14" :stroke="3" /></button>
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
           </div>
@@ -95,7 +95,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         <div v-for="d in week" :key="dayKey(d)" class="card tight" @click="sel = dayKey(d); view = 'dia'" style="cursor:pointer">
           <div class="row between"><b class="small">{{ WEEKDAYS[d.getDay()] }} {{ d.getDate() }}</b><span class="tiny muted">{{ fmtDur(freeBlocks(dayKey(d)).reduce((a, b) => a + b.minutes, 0)) }} libres</span></div>
           <div class="row wrap" style="gap:4px;margin-top:6px">
-            <span v-for="i in itemsOn(dayKey(d))" :key="i.id" class="badge" :class="{ pink: i.type !== 'clase', green: i.type === 'familia' || i.type === 'vida' }">{{ i.start }} {{ i.title }}</span>
+            <span v-for="i in itemsOn(dayKey(d))" :key="i.id" class="badge" :class="{ pink: i.type !== 'clase', green: i.type === 'familia' || i.type === 'vida' }">{{ i.allDay ? '' : i.start }} {{ i.title }}</span>
             <span v-for="t in dueOn(dayKey(d))" :key="t.id" class="badge red">📌 {{ t.title }}</span>
           </div>
         </div>
@@ -118,7 +118,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
     <template v-if="view === 'lista'">
       <div v-for="d in listDays" :key="d.k" class="card">
         <h3 style="margin-bottom:6px">{{ relDay(d.k)[0].toUpperCase() + relDay(d.k).slice(1) }} <span class="muted small">· {{ longDate(parseDay(d.k)) }}</span></h3>
-        <div v-for="i in d.items" :key="i.id" class="row small" style="padding:4px 0"><span class="muted" style="width:66px">{{ fmt12s(i.start) }}</span>{{ i.title }}</div>
+        <div v-for="i in d.items" :key="i.id" class="row small" style="padding:4px 0"><span class="muted" style="width:66px">{{ i.allDay ? 'Todo el día' : fmt12s(i.start) }}</span>{{ i.title }}</div>
         <TaskRow v-for="t in d.due" :key="t.id" :task="t" compact />
       </div>
     </template>
