@@ -6,7 +6,7 @@ import { daily } from '../engine/game'
 import { isOpen } from '../engine/planner'
 import { relDay, WEEKDAYS, fmt12s, dayKey } from '../engine/time'
 import { syncAula, syncClassroom, canUseBackend } from '../services/api'
-import { toast } from '../engine/game'
+import { toast, ask } from '../engine/game'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
@@ -42,6 +42,8 @@ const reales = computed(() => state.subjects.filter((s) => !autos.value.includes
 const hint = (id) => state.aula.filter((a) => a.courseId === id).slice(0, 2).map((a) => a.title).join(' · ')
 const into = ref({})
 function merge(s) { const t = into.value[s.id]; if (!t) return; const name = subjOf(t)?.name; A.mergeSubject(s.id, t); toast(`Unida con ${name} ✨ Lo que llegue de ese curso irá allí`) }
+const ignoredNames = computed(() => [...new Set((state.integrations.ignoredCourses || []).map((c) => c.name))])
+async function ignore(s) { if (await ask(`¿Ignorar "${s.name}"? Se borran sus tareas de MuMu y no vuelven a llegar. En Tu Aula sigue todo igual.`)) { A.ignoreCourse(s.id); toast('Listo, ese curso ya no te manda tareas 🙈') } }
 const tidied = A.tidySubjects(); if (tidied) toast(`Uní ${tidied} materia${tidied === 1 ? '' : 's'} repetida${tidied === 1 ? '' : 's'} 🧩`)
 const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 </script>
@@ -76,8 +78,10 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
           <div class="small b" style="word-break:break-all">{{ s.name }}</div>
           <div v-if="hint(s.id)" class="tiny muted">Ej.: {{ hint(s.id) }}</div>
           <div class="row"><select class="input" v-model="into[s.id]" :aria-label="`Materia real de ${s.name}`"><option :value="undefined" disabled>Es…</option><option v-for="r in reales" :key="r.id" :value="r.id">{{ r.name }}</option></select><button class="btn sm primary" :disabled="!into[s.id]" @click="merge(s)">Unir</button></div>
+          <button class="link tiny" style="align-self:flex-start" @click="ignore(s)">🙈 No es una materia mía (ignorar sus tareas)</button>
         </div>
       </div>
+      <p v-if="ignoredNames.length" class="tiny muted">🙈 Ignorando: <span v-for="n in ignoredNames" :key="n">{{ n }} <button class="link tiny" @click="A.unignoreCourse(n)">volver a traer</button> </span></p>
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
         <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted">👩‍🏫 {{ s.teacher }}{{ s.teacherEmail ? ' · ✉️' : '' }}</div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
