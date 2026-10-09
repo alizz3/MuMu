@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { APPS, parseMin, showMin, socialMinutes } from '../engine/screen'
 import { state } from '../store'
 import * as A from '../store/actions'
+import { toast } from '../engine/game'
 import { insights } from '../engine/insights'
 import { dayKey, fmtDur, keyPlus, WEEKDAYS, parseDay } from '../engine/time'
 import { Pet, Chip, Icon } from '../components/ui'
@@ -30,6 +31,25 @@ function saveScreen() {
   sc.extra.forEach((x) => { const k = x.name.trim().toLowerCase().replace(/\s+/g, '-'); const m = parseMin(x.min); if (k && m) { apps[k] = m; names[k] = x.name.trim() } })
   const total = parseMin(sc.total) || appSum.value
   A.logScreen({ date: scDate.value, total, notifications: Number(sc.notif) || null, apps, names })
+}
+// Leer capturas (en tu equipo, gratis): llena el formulario y tú solo revisas y guardas
+const ocr = ref({ busy: false, pct: 0 })
+async function fromShots(ev) {
+  const files = [...(ev.target.files || [])]; ev.target.value = ''
+  if (!files.length) return
+  ocr.value = { busy: true, pct: 0 }
+  try {
+    const { readScreenshots } = await import('../services/screenOcr')
+    const r = await readScreenshots(files, (p) => (ocr.value.pct = Math.round(p * 100)))
+    if (r.total) sc.total = showMin(r.total)
+    if (r.notifications) sc.notif = r.notifications
+    let n = 0
+    for (const [k, m] of Object.entries(r.apps)) {
+      if (APPS.some((a) => a[0] === k)) { sc.apps[k] = showMin(m); n++ }
+      else if (m >= 5 && !sc.extra.some((x) => x.name.toLowerCase() === (r.names[k] || k).toLowerCase())) { sc.extra.push({ name: r.names[k] || k, min: showMin(m) }); n++ }
+    }
+    toast(n || r.total ? `Leí ${n} apps${r.total ? ' y el total' : ''} ✨ Revisa y dale Guardar` : 'No pude leer la captura 😿 Prueba con una más nítida')
+  } catch (e) { console.warn(e); toast('No pude leer la captura (¿sin internet la primera vez?)') } finally { ocr.value.busy = false }
 }
 const daysBack = computed(() => Array.from({ length: 7 }, (_, i) => keyPlus(-i)))
 const week = computed(() => Array.from({ length: 7 }, (_, i) => { const k = keyPlus(-6 + i); const s = state.screen.find((x) => x.date === k); return { k, social: socialMinutes(s), total: s?.total || 0 } }))
@@ -72,7 +92,13 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
           <option v-for="(k, i) in daysBack" :key="k" :value="k">{{ i === 0 ? 'Hoy' : i === 1 ? 'Ayer' : WEEKDAYS[parseDay(k).getDay()] + ' ' + parseDay(k).getDate() }}</option>
         </select>
       </div>
-      <p class="tiny muted">Cópialo de Ajustes → Bienestar digital → Panel. Puedes escribir como sale allá: "2 h 40 min", "2h40" o "160".</p>
+      <label class="shot" :class="{ busy: ocr.busy }">
+        <input type="file" accept="image/*" multiple class="sr" :disabled="ocr.busy" @change="fromShots" />
+        <Icon name="image" :size="18" />
+        <span v-if="!ocr.busy"><b>Subir capturas de Bienestar digital</b><br /><span class="tiny muted">El Panel y la lista de apps. Se leen aquí en tu celular, no se suben a ningún lado.</span></span>
+        <span v-else>Leyendo… {{ ocr.pct }}%</span>
+      </label>
+      <p class="tiny muted">O escríbelo a mano como sale allá: "2 h 40 min", "2h40" o "160".</p>
       <div class="grid2">
         <label class="field"><span>Tiempo total</span><input class="input" v-model="sc.total" placeholder="6 h 51 min" inputmode="text" /></label>
         <label class="field"><span>Notificaciones</span><input class="input" v-model="sc.notif" type="number" placeholder="410" /></label>
@@ -109,6 +135,8 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
 </template>
 
 <style scoped>
+.shot { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px dashed var(--pink-300); border-radius: 14px; cursor: pointer; background: var(--pink-50, transparent); font-size: 14px; }
+.shot.busy { opacity: .7; cursor: progress; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
 .app { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 8px; }
