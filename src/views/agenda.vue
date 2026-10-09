@@ -36,8 +36,9 @@ const listDays = computed(() => Array.from({ length: 14 }, (_, i) => { const k =
 const shift = (n) => { sel.value = dayKey(addDays(selD.value, view.value === 'mes' ? n * 30 : n * 7)) }
 // Al tocar un evento o clase se abre su ventanita con la info, quién va, editar o eliminar
 const openEv = (i) => { if (i.kind === 'event' || i.kind === 'class') ui.modal = { type: 'eventView', ev: { ...i }, date: sel.value } }
-const MARK_TXT = { yo: '🙋 Voy yo', recordatorio: '📌 Recordatorio', hecho: '✅ Ya pasó' }
-const markText = (m) => m && (m.status === 'otro' ? `👥 ${m.who ? 'Va ' + m.who : 'Va alguien más'}` : MARK_TXT[m.status])
+const MARK_TXT = { yo: 'Voy yo', recordatorio: 'Recordatorio', hecho: 'Ya pasó' }
+const MARK_ICON = { yo: 'user', otro: 'users', recordatorio: 'pin', hecho: 'check' }
+const markText = (m) => m && (m.status === 'otro' ? (m.who ? 'Va ' + m.who : 'Va alguien más') : MARK_TXT[m.status])
 const doneBlock = (i) => { const t = state.tasks.find((x) => x.id === i.taskId); const b = t?.blocks.find((x) => x.start === i.start && x.date === sel.value); if (b) b.done = !b.done }
 const googleOn = computed(() => state.integrations.google.some((a) => a.services.includes('calendar')))
 </script>
@@ -78,12 +79,12 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
           </div>
           <div v-else class="tl-card" :class="{ click: i.kind === 'event' || i.kind === 'class', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="openEv(i)">
             <span class="ico" :class="(TYPES[i.type] || [])[0]" style="width:32px;height:32px"><Icon :name="(TYPES[i.type] || ['', 'calendar'])[1]" :size="16" /></span>
-            <div class="grow tl-txt"><div class="small b tl-title" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div><span v-if="i.mark" class="badge tl-badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }">{{ markText(i.mark) }}</span></div>
+            <div class="grow tl-txt"><div class="small b tl-title" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div><span v-if="i.mark" class="badge tl-badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }"><Icon v-if="MARK_ICON[i.mark.status]" :name="MARK_ICON[i.mark.status]" :size="12" />{{ markText(i.mark) }}</span></div>
             <button v-if="i.kind === 'block'" class="check" :class="{ on: i.done }" aria-label="Bloque hecho" @click.stop="doneBlock(i)"><Icon v-if="i.done" name="check" :size="14" :stroke="3" /></button>
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
           </div>
         </div>
-        <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar 🌙</p></div>
+        <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
       </div>
       <div v-if="dueOn(sel).length" class="card">
         <h3>Vence este día</h3>
@@ -98,7 +99,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
           <div class="row between"><b class="small">{{ WEEKDAYS[d.getDay()] }} {{ d.getDate() }}</b><span class="tiny muted">{{ fmtDur(freeBlocks(dayKey(d)).reduce((a, b) => a + b.minutes, 0)) }} libres</span></div>
           <div class="row wrap" style="gap:4px;margin-top:6px">
             <span v-for="i in itemsOn(dayKey(d))" :key="i.id" class="badge wk-badge" :class="{ pink: i.type !== 'clase', green: i.type === 'familia' || i.type === 'vida', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }">{{ i.allDay ? '' : i.start }} {{ i.title }}</span>
-            <span v-for="t in dueOn(dayKey(d))" :key="t.id" class="badge red wk-badge">📌 {{ t.title }}</span>
+            <span v-for="t in dueOn(dayKey(d))" :key="t.id" class="badge red wk-badge"><Icon name="pin" :size="12" />{{ t.title }}</span>
           </div>
         </div>
       </div>

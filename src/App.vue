@@ -21,7 +21,7 @@ const cache = {}
 // Si una parte de la app no carga (por ejemplo justo después de publicar una versión nueva), se reintenta y,
 // si sigue fallando, se recarga una sola vez sola en vez de dejar la pantalla en blanco.
 const ViewLoading = { render: () => h('div', { class: 'stack', style: 'align-items:center;padding:60px 0;opacity:.7', 'aria-busy': 'true' }, [h('div', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'small muted' }, 'Cargando…')]) }
-const ViewError = { render: () => h('div', { class: 'card stack', style: 'align-items:center;text-align:center;margin-top:30px' }, [h('b', 'Esta parte no cargó 😿'), h('span', { class: 'small muted' }, 'Puede que haya una versión nueva de MuMu.'), h('button', { class: 'btn primary', onClick: () => location.reload() }, 'Recargar')]) }
+const ViewError = { render: () => h('div', { class: 'card stack', style: 'align-items:center;text-align:center;margin-top:30px' }, [h('b', 'Esta parte no cargó'), h('span', { class: 'small muted' }, 'Puede que haya una versión nueva de MuMu.'), h('button', { class: 'btn primary', onClick: () => location.reload() }, 'Recargar')]) }
 const isChunkError = (e) => /dynamically imported module|Importing a module script failed|Failed to fetch|Loading chunk|error loading/i.test(String(e?.message || e))
 const comp = (id) => (cache[id] ||= defineAsyncComponent({
   loader: views[`./views/${id}.vue`] || views['./views/home.vue'],
@@ -61,7 +61,7 @@ onMounted(() => {
   if (c) {
     ui.route = 'ajustes'
     history.replaceState(null, '', '/ajustes')
-    setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada 💗' : c === 'parcial' ? q.get('msg') : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
+    setTimeout(() => toast(c === 'google' ? 'Cuenta de Google conectada' : c === 'parcial' ? q.get('msg') : c === 'cancelado' ? 'Cancelaste la conexión con Google' : q.get('msg') || 'No se pudo conectar'), 600)
   }
   setTimeout(tick, 2500)
   setInterval(tick, 60 * 1000)
@@ -88,7 +88,7 @@ watch(() => ui.route, (r) => trackView(r))
 // Aviso de "sin internet" (la app sigue funcionando con lo guardado en el equipo)
 const online = ref(navigator.onLine)
 window.addEventListener('offline', () => { online.value = false })
-window.addEventListener('online', () => { online.value = true; toast('Volvió el internet: subiendo lo que hiciste 💗') })
+window.addEventListener('online', () => { online.value = true; toast('Volvió el internet: subiendo lo que hiciste') })
 // …/proyectos#importar=<datos>: espera a que carguen tus datos y pregunta antes de agregar el proyecto
 const pendingImport = (location.hash.match(/^#importar=([\w-]+)/) || [])[1]
 if (pendingImport) {
@@ -102,8 +102,8 @@ if (pendingImport) {
       const parts = [data.project?.name && `el proyecto "${data.project.name}"`, data.habits?.length && `${data.habits.length} hábito${data.habits.length === 1 ? '' : 's'}`, data.tasks?.length && `${data.tasks.length} tarea${data.tasks.length === 1 ? '' : 's'}`].filter(Boolean)
       if (!(await ask(`¿Agregar ${parts.join(', ')}?`))) return
       const p = importProject(data)
-      if (p) { go('proyectos', { id: p.id }); toast(`Proyecto ${p.name} agregado 📁`) }
-      else { go(data.habits?.length ? 'habitos' : 'tareas'); toast('Listo, agregado 💪') }
+      if (p) { go('proyectos', { id: p.id }); toast(`Proyecto ${p.name} agregado`) }
+      else { go(data.habits?.length ? 'habitos' : 'tareas'); toast('Listo, agregado') }
     } catch (e) { toast('Ese enlace de proyecto no se pudo leer') }
   }, { immediate: true })
 }
@@ -122,7 +122,7 @@ const fmtLeft = computed(() => {
 <template>
   <div v-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true">
     <div class="stack" style="align-items:center;gap:10px"><Pet pose="happy" :size="120" />
-      <template v-if="slow"><span class="small muted">Está tardando un poquito… 🐮</span><button class="btn sm ghost" @click="reload">Reintentar</button></template>
+      <template v-if="slow"><span class="small muted">Está tardando un poquito…</span><button class="btn sm ghost" @click="reload">Reintentar</button></template>
     </div>
   </div>
   <Welcome v-else-if="gate === 'welcome'" />
@@ -130,7 +130,7 @@ const fmtLeft = computed(() => {
     <aside class="side" aria-label="Navegación principal">
       <div class="brand"><Pet :size="34" :bob="false" pose="happy" label="" />{{ state.settings.appName }}</div>
       <div class="card tight soft" style="margin: 0 4px 6px">
-        <div class="row between small"><span class="b">Nivel {{ lvl.n }}</span><span>🪙 {{ state.game.coins }}</span></div>
+        <div class="row between small"><span class="b">Nivel {{ lvl.n }}</span><span class="wi"><Icon name="coin" :size="14" />{{ state.game.coins }}</span></div>
         <div class="bar" style="margin-top:6px"><i :style="{ width: lvl.pct + '%', background: 'var(--pink-500)' }"></i></div>
       </div>
       <template v-for="g in NAV" :key="g.group">
@@ -147,7 +147,7 @@ const fmtLeft = computed(() => {
         <button v-if="ui.route === 'home'" class="iconbtn" aria-label="Ver todas las secciones" @click="go('mas')"><Icon name="menu" /></button>
         <button v-else class="iconbtn" aria-label="Volver" @click="back"><Icon name="back" /></button>
         <span v-if="ui.demo" class="badge demo" style="position:absolute;left:50%;top:calc(100% - 4px);transform:translateX(-50%)">demo · <button class="link" style="padding:0;font-size:11px" @click="ui.demo = false">salir</button></span>
-        <h1>{{ title }}<span v-if="ui.route === 'home'" aria-hidden="true">{{ '🌸' }}</span></h1>
+        <h1>{{ title }}</h1>
         <button class="iconbtn" :class="{ 'is-on': ui.modoU }" :aria-pressed="ui.modoU" :aria-label="ui.modoU ? 'Salir del Modo U' : 'Activar Modo U (solo universidad)'" :title="ui.modoU ? 'Modo U activo' : 'Modo U'" @click="setModoU(!ui.modoU)"><Icon name="cap" /></button>
         <button class="iconbtn" :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="toggleTheme"><Icon :name="isDark ? 'sun' : 'moon'" /></button>
         <button class="iconbtn" aria-label="Buscar y crear" @click="ui.modal = { type: 'search' }"><Icon name="search" /></button>
@@ -186,7 +186,7 @@ const fmtLeft = computed(() => {
 
     <div class="toasts" aria-live="polite">
       <div v-for="t in ui.toasts" :key="t.id" class="toast" :class="t.kind">
-        <span class="grow">{{ t.text }}</span>
+        <Icon v-if="t.kind === 'coin'" name="coin" :size="16" /><span class="grow">{{ t.text }}</span>
         <button v-if="t.action" class="btn sm lav" @click="t.action.fn ? t.action.fn() : go(t.action.go)">{{ t.action.label }}</button>
       </div>
     </div>
@@ -211,13 +211,13 @@ const fmtLeft = computed(() => {
         <p class="muted">{{ ui.celebrate.text }}</p>
         <div class="row" style="justify-content:center;margin-top:16px;gap:8px">
           <button class="btn lav" @click="ui.celebrate = null; go('casa')">Ir a la casita</button>
-          <button class="btn primary" @click="ui.celebrate = null">¡Gracias! 💗</button>
+          <button class="btn primary" @click="ui.celebrate = null">¡Gracias!</button>
         </div>
       </div>
     </div>
   </div>
   <div v-if="ui.cookieBanner" class="card" role="dialog" aria-label="Cookies" style="position:fixed;z-index:90;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;box-shadow:var(--shadow-lg)">
-    <p class="small">🍪 MuMu usa cookies de analítica (Google Analytics) solo si las aceptas, para saber cuánta gente visita la página. Tus datos personales no se comparten. <a href="/privacidad.html">Privacidad</a></p>
+    <p class="small"><Icon name="cookie" :size="14" class="inl" /> MuMu usa cookies de analítica (Google Analytics) solo si las aceptas, para saber cuánta gente visita la página. Tus datos personales no se comparten. <a href="/privacidad.html">Privacidad</a></p>
     <div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn sm ghost" @click="consent(false)">Rechazar</button><button class="btn sm primary" @click="consent(true)">Aceptar</button></div>
   </div>
 </template>

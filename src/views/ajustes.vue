@@ -41,7 +41,7 @@ function toggleCal(a, id, on) { const cur = API.calendarsOf(a.id); API.setCalend
 function addCalLink(a) {
   const id = API.calendarIdFromLink(calLink.value)
   if (!id) return toast('No reconocí ese enlace. Cópialo desde Google Calendar → Configuración del calendario → Integrar calendario.')
-  toggleCal(a, id, true); calLink.value = ''; toast('Calendario agregado. Sincroniza desde Agenda → Google 🗓️')
+  toggleCal(a, id, true); calLink.value = ''; toast('Calendario agregado. Sincroniza desde Agenda → Google.')
 }
 const sel = ref(null)
 const extra = ref([])
@@ -133,16 +133,16 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
             <button class="iconbtn" aria-label="Cerrar" @click="sel = null"><Icon name="x" /></button></div>
           <div v-if="has(sel).length">
             <div class="tiny b muted">TIENE PERMISO</div>
-            <div v-for="s in has(sel)" :key="s[0]" class="item"><span class="badge green">✓</span><div class="grow small"><b>{{ s[1] }}</b><div class="tiny muted">{{ s[2] }}</div></div></div>
+            <div v-for="s in has(sel)" :key="s[0]" class="item"><span class="badge green" aria-label="Activo"><Icon name="check" :size="13" :stroke="2.6" /></span><div class="grow small"><b>{{ s[1] }}</b><div class="tiny muted">{{ s[2] }}</div></div></div>
           </div>
           <div v-if="missing(sel).length">
             <div class="tiny b muted">LE FALTA</div>
             <label v-for="s in missing(sel)" :key="s[0]" class="item" style="cursor:pointer"><input type="checkbox" :checked="extra.includes(s[0])" @change="toggleExtra(s[0])" /><div class="grow small"><b>{{ s[1] }}</b><div class="tiny muted">{{ s[2] }}</div></div></label>
             <button class="btn primary block" style="margin-top:10px" :disabled="!extra.length" @click="API.connectGoogle(sel.label, [...sel.services, ...extra], sel.email).catch(err)">Dar {{ extra.length || '' }} permiso{{ extra.length === 1 ? '' : 's' }} más</button>
           </div>
-          <p v-else class="small muted">Esta cuenta ya tiene todos los permisos 💗</p>
+          <p v-else class="small muted">Esta cuenta ya tiene todos los permisos.</p>
           <div v-if="sel.services.includes('tasks')" class="card tight soft stack" style="gap:8px">
-            <b class="small">✅ Google Tasks</b>
+            <b class="small wi"><Icon name="check" :size="15" />Google Tasks</b>
             <label class="field"><span>Esta cuenta es para</span>
               <select class="input" v-model="API.gtConf(sel).role"><option value="universidad">Tareas de la universidad</option><option value="personal">Tareas personales</option></select></label>
             <label v-if="API.gtConf(sel).lists.length" class="field"><span>Lista para tareas nuevas {{ API.gtConf(sel).role === 'universidad' ? 'sin materia' : '' }}</span>
@@ -151,7 +151,7 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
             <button class="btn sm lav" :disabled="gtBusyUi" @click="gtNow">{{ gtBusyUi ? 'Sincronizando…' : 'Sincronizar ahora' }}</button>
           </div>
           <div v-if="sel.services.includes('calendar')" class="card tight soft stack" style="gap:8px">
-            <div class="row between"><b class="small">🗓️ Calendarios que MuMu lee</b><button class="btn sm ghost" :disabled="calBusy" @click="loadCals(sel)">{{ calBusy ? '…' : 'Ver mis calendarios' }}</button></div>
+            <div class="row between"><b class="small wi"><Icon name="calendar" :size="15" />Calendarios que MuMu lee</b><button class="btn sm ghost" :disabled="calBusy" @click="loadCals(sel)">{{ calBusy ? '…' : 'Ver mis calendarios' }}</button></div>
             <label v-for="c in cals" :key="c.id" class="row small" style="gap:8px"><input type="checkbox" :checked="API.calendarsOf(sel.id).includes(c.primary ? 'primary' : c.id)" @change="toggleCal(sel, c.primary ? 'primary' : c.id, $event.target.checked)" /><i :style="{ background: c.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }"></i>{{ c.name }}{{ c.primary ? ' (principal)' : '' }}</label>
             <div v-for="id in API.calendarsOf(sel.id).filter((x) => x !== 'primary' && !cals.some((c) => c.id === x))" :key="id" class="row small" style="gap:8px"><input type="checkbox" checked @change="toggleCal(sel, id, false)" /><span class="tiny">{{ id.length > 40 ? id.slice(0, 38) + '…' : id }}</span></div>
             <div class="row"><input class="input" v-model="calLink" placeholder="Pega un enlace de Google Calendar (…?cid=…)" aria-label="Enlace de calendario" /><button class="btn sm lav" @click="addCalLink(sel)">Agregar</button></div>
@@ -167,7 +167,7 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
       <div class="card stack">
         <div class="row"><span class="ico lav"><Icon name="cap" /></span><div class="grow"><h3>Tu Aula · Universidad del Tolima</h3><div class="tiny muted">Estado: {{ state.integrations.aula.status }}{{ state.integrations.aula.lastSync ? ' · última revisión ' + new Date(state.integrations.aula.lastSync).toLocaleString('es-CO') : '' }}</div></div></div>
         <AulaStatus />
-        <p v-if="ui.aulaStatus && ui.aulaStatus.online === false" class="notice">Tu Aula está caída ahora mismo. Mejor espera a que vuelva antes de conectarla 💗</p>
+        <p v-if="ui.aulaStatus && ui.aulaStatus.online === false" class="notice">Tu Aula está caída ahora mismo. Mejor espera a que vuelva antes de conectarla.</p>
         <label class="field"><span>Dirección de Tu Aula (la que abres en el navegador)</span><input class="input" v-model="aula.site" placeholder="https://…" inputmode="url" /></label>
         <div class="seg"><button :class="{ on: aula.method === 'webservice' }" @click="aula.method = 'webservice'">Usuario y contraseña</button><button :class="{ on: aula.method === 'ical' }" @click="aula.method = 'ical'">Enlace de calendario</button></div>
         <template v-if="aula.method === 'webservice'">
@@ -217,10 +217,10 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <label class="field"><span>¿Cómo te llamo?</span><input class="input" v-model="state.settings.ownerName" /></label>
         <label class="field"><span>Nombre de la app de finanzas</span><input class="input" v-model="state.settings.financeAppName" /></label>
         <div class="field"><span>Tema</span><div class="seg"><button v-for="t in [['auto', 'Automático'], ['light', 'Clarito'], ['dark', 'Oscuro']]" :key="t[0]" :class="{ on: state.settings.theme === t[0] }" @click="state.settings.theme = t[0]">{{ t[1] }}</button></div></div>
-        <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" :checked="ui.modoU" @change="setModoU($event.target.checked)" style="margin-top:3px" /><span><b>🎓 Modo U</b><br /><span class="tiny muted">Muestra solo tareas, clases, correos y metas de la universidad. Se activa solo cuando entras con tu cuenta @{{ BRAND.uniDomain }}; puedes apagarlo aquí o con el birrete de arriba.</span></span></label>
+        <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" :checked="ui.modoU" @change="setModoU($event.target.checked)" style="margin-top:3px" /><span><b class="wi"><Icon name="cap" :size="15" />Modo U</b><br /><span class="tiny muted">Muestra solo tareas, clases, correos y metas de la universidad. Se activa solo cuando entras con tu cuenta @{{ BRAND.uniDomain }}; puedes apagarlo aquí o con el birrete de arriba.</span></span></label>
         <div class="field"><span>App en tu celular o computador</span>
-          <p v-if="ui.installed" class="small">✅ MuMu ya está instalada como app.</p>
-          <button v-else-if="ui.installPrompt" class="btn lav" @click="installApp">📲 Instalar MuMu</button>
+          <p v-if="ui.installed" class="small wi"><Icon name="check" :size="15" />MuMu ya está instalada como app.</p>
+          <button v-else-if="ui.installPrompt" class="btn lav" @click="installApp"><Icon name="download" :size="16" />Instalar MuMu</button>
           <p v-else class="tiny muted">{{ ui.isIOS ? 'En iPhone: Compartir → "Agregar a inicio".' : 'En Chrome: menú ⋮ → "Instalar MuMu" (o "Agregar a pantalla de inicio").' }}</p>
         </div>
         <div class="row"><Pet :size="70" /><div class="grow small">Los accesorios de la vaquita y la decoración se cambian en la casita.</div><button class="btn sm lav" @click="ui.route = 'casa'">Ir</button></div>

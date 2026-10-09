@@ -105,7 +105,7 @@ export function recommend(now = ui.now) {
   const name = state.settings.ownerName
 
   if (ctx.night) {
-    return { kind: 'rest', pose: 'sleep', title: 'Ir cerrando el día', minutes: 15, reason: `Ya es tarde, ${name}. Lo mejor ahora es la rutina de noche y dejar mañana preparado. Descansar también es avanzar 🌙`, actions: ['rutina'], ctx }
+    return { kind: 'rest', pose: 'sleep', title: 'Ir cerrando el día', minutes: 15, reason: `Ya es tarde, ${name}. Lo mejor ahora es la rutina de noche y dejar mañana preparado. Descansar también es avanzar.`, actions: ['rutina'], ctx }
   }
   if (ctx.inNow) {
     const after = rankedTasks(ctx)[0]?.t
@@ -117,7 +117,7 @@ export function recommend(now = ui.now) {
   const lifeToday = state.life.some((l) => l.date === ctx.k)
 
   if (focusToday >= 150 && !lifeToday && free >= 20) {
-    return { kind: 'life', pose: 'happy', title: 'Una pausa de verdad', minutes: 20, reason: `Hoy ya llevas ${fmtDur(focusToday)} de enfoque. Una pausa con tu familia, Leo o Negra también cuenta como un buen día 🤍`, actions: ['vida'], ctx }
+    return { kind: 'life', pose: 'happy', title: 'Una pausa de verdad', minutes: 20, reason: `Hoy ya llevas ${fmtDur(focusToday)} de enfoque. Una pausa con tu familia, Leo o Negra también cuenta como un buen día.`, actions: ['vida'], ctx }
   }
   if (!ranked.length) {
     return { kind: 'free', pose: 'celebrate', title: 'No tienes pendientes urgentes', minutes: free, reason: 'Puedes adelantar un objetivo, aprender algo de Mi cerebro o simplemente descansar sin culpa.', actions: ['cerebro'], ctx }
@@ -144,7 +144,7 @@ export function recommend(now = ui.now) {
     parts.push(`Llevas ${top.postponed} veces posponiéndola. ¿La convertimos en solo 5 minutos?`)
   } else if (ctx.part === 'morning' && prefs.morningBetter) {
     principle = principleFor(['mañana', 'prioridad'])
-    parts.push('Tus datos dicen que en la mañana te concentras mejor ✨')
+    parts.push('Tus datos dicen que en la mañana te concentras mejor.')
   }
   if (rem > free && top.due) {
     const plan = planTask(top)

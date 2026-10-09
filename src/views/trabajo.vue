@@ -37,7 +37,7 @@ const STAGES = ['idea', 'contactado', 'propuesta', 'en curso', 'cerrado']
 
     <div class="card">
       <h3>Habilidades que estás construyendo</h3>
-      <div class="row wrap" style="gap:6px;margin-top:10px"><span v-for="s in skills" :key="s.s" class="badge pink">{{ s.s }} · {{ s.projects }}📁 {{ s.courses }}📘</span></div>
+      <div class="row wrap" style="gap:6px;margin-top:10px"><span v-for="s in skills" :key="s.s" class="badge pink" :aria-label="`${s.s}: ${s.projects} proyectos, ${s.courses} cursos`">{{ s.s }} · {{ s.projects }}<Icon name="folder" :size="12" /> {{ s.courses }}<Icon name="book" :size="12" /></span></div>
     </div>
 
     <div class="card">

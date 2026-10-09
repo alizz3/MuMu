@@ -5,6 +5,7 @@ import * as A from '../store/actions'
 import { myMethod } from '../engine/insights'
 import { dayKey, daysUntil, keyPlus, parseDay, addDays, shortDate } from '../engine/time'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
+import { FACES, FEELINGS } from '../components/iconFor'
 
 const tab = ref('activos')
 const active = computed(() => state.experiments.filter((x) => x.status === 'activo'))
@@ -26,7 +27,7 @@ const days = (x) => Array.from({ length: x.days }, (_, i) => { const k = keyPlus
   <div class="stack">
     <div class="card pink row">
       <Pet pose="think" :size="86" />
-      <div class="grow"><h2 style="font-size:17px">Experimentos personales 🧪</h2><p class="small">Probar ideas contigo misma para descubrir <b>tu propio método</b>.</p></div>
+      <div class="grow"><h2 style="font-size:17px">Experimentos personales</h2><p class="small">Probar ideas contigo misma para descubrir <b>tu propio método</b>.</p></div>
     </div>
     <div class="seg"><button v-for="t in [['activos', 'Activos'], ['metodo', 'Mi propio método'], ['principios', 'Principios'], ['historial', 'Historial']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]">{{ t[1] }}</button></div>
 
@@ -35,10 +36,10 @@ const days = (x) => Array.from({ length: x.days }, (_, i) => { const k = keyPlus
         <div class="row"><Ring :value="dayN(x) / x.days * 100" :size="54" label="Días del experimento">{{ dayN(x) }}/{{ x.days }}</Ring>
           <div class="grow"><div class="b">{{ x.title }}</div><div class="tiny muted">{{ princ(x)?.author }} · desde {{ shortDate(x.start) }}</div></div></div>
         <p class="small quote" style="margin-top:10px">Hipótesis: {{ x.hypothesis }}</p>
-        <div class="week" style="margin-top:10px"><span v-for="d in days(x)" :key="d.k" :class="{ on: d.l?.did, today: d.k === today }" :title="d.l?.note || d.k">{{ d.l ? (d.l.did ? '✓' : '·') : '' }}</span></div>
+        <div class="week" style="margin-top:10px"><span v-for="d in days(x)" :key="d.k" :class="{ on: d.l?.did, today: d.k === today }" :title="d.l?.note || d.k"><Icon v-if="d.l?.did" name="check" :size="12" :stroke="2.6" /><template v-else-if="d.l">·</template></span></div>
         <div v-if="!x.logs[today]" class="card tight soft" style="margin-top:10px">
           <div class="small b">¿Lo aplicaste hoy?</div>
-          <div class="small" style="margin-top:6px">¿Cómo te sentiste? {{ ['😣', '😕', '😐', '🙂', '🤩'][log.felt - 1] }}</div>
+          <div class="small row" style="margin-top:6px;gap:6px">¿Cómo te sentiste? <span class="wi"><Icon :name="FACES[log.felt - 1]" :size="18" />{{ FEELINGS[log.felt - 1] }}</span></div>
           <input type="range" min="1" max="5" v-model.number="log.felt" style="width:100%" aria-label="Cómo te sentiste" />
           <input class="input" v-model="log.note" placeholder="¿Qué pasó? ¿Qué notaste?" style="margin-top:6px" />
           <div class="row" style="gap:6px;margin-top:8px">
@@ -46,7 +47,7 @@ const days = (x) => Array.from({ length: x.days }, (_, i) => { const k = keyPlus
             <button class="btn sm ghost" @click="A.logExperiment(x.id, false, log.felt, log.note); log.note = ''">Hoy no</button>
           </div>
         </div>
-        <p v-else class="small" style="margin-top:8px">Hoy: {{ x.logs[today].did ? '✓ lo aplicaste' : 'no se dio, y está bien' }}{{ x.logs[today].note ? ' — ' + x.logs[today].note : '' }}</p>
+        <p v-else class="small" style="margin-top:8px">Hoy: {{ x.logs[today].did ? 'lo aplicaste' : 'no se dio, y está bien' }}{{ x.logs[today].note ? ' — ' + x.logs[today].note : '' }}</p>
         <p class="tiny muted" style="margin-top:6px">{{ okDays(x) }} días aplicado · el modo “5 minutos” del enfoque registra este experimento automáticamente cuando aplica.</p>
         <button v-if="closing !== x.id" class="btn sm lav" style="margin-top:8px" @click="closing = x.id">{{ dayN(x) >= x.days ? 'Cerrar y sacar conclusiones' : 'Terminar antes' }}</button>
         <div v-else class="stack" style="gap:8px;margin-top:10px">
@@ -62,17 +63,17 @@ const days = (x) => Array.from({ length: x.days }, (_, i) => { const k = keyPlus
         <h3>Empezar un experimento</h3>
         <p class="tiny muted">Elige un principio de lo que estás aprendiendo:</p>
         <div class="stack" style="gap:6px;margin-top:8px">
-          <button v-for="p in state.principles.filter((p) => p.status === 'idea')" :key="p.id" class="btn ghost sm" style="justify-content:flex-start;text-align:left" @click="A.startExperiment(p.id)">🧪 {{ p.text }} <span class="muted">· {{ p.author }}</span></button>
+          <button v-for="p in state.principles.filter((p) => p.status === 'idea')" :key="p.id" class="btn ghost sm" style="justify-content:flex-start;text-align:left" @click="A.startExperiment(p.id)"><Icon name="flask" :size="14" />{{ p.text }} <span class="muted">· {{ p.author }}</span></button>
         </div>
       </div>
     </template>
 
     <template v-else-if="tab === 'metodo'">
       <div class="card soft">
-        <h3>Mi propio método 💗</h3>
+        <h3>Mi propio método</h3>
         <p class="tiny muted">Lo que tus experimentos y tus datos dicen que funciona para ti. No reglas de otras personas.</p>
         <div v-for="(m, i) in method" :key="i" class="item" style="align-items:flex-start">
-          <span class="ico" :class="{ lav: m.kind === 'datos', mint: m.kind === 'principio' }">{{ m.kind === 'experimento' ? '🧪' : m.kind === 'datos' ? '📊' : '✅' }}</span>
+          <span class="ico" :class="{ lav: m.kind === 'datos', mint: m.kind === 'principio' }"><Icon :name="m.kind === 'experimento' ? 'flask' : m.kind === 'datos' ? 'chart' : 'check'" :size="18" /></span>
           <div class="grow"><div class="small b">{{ m.text }}</div><div class="tiny muted">{{ m.from }}</div></div>
         </div>
         <p v-if="!method.length" class="small muted" style="margin-top:8px">Termina tu primer experimento y aquí empezará tu método.</p>

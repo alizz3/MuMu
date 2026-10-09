@@ -9,9 +9,9 @@ export function award(coins, xp, reason) {
   state.game.xp += xp
   state.game.history.unshift({ at: new Date().toISOString(), coins, xp, reason })
   state.game.history = state.game.history.slice(0, 80)
-  toast(`+${coins} 🪙  ${reason}`, 'coin')
+  toast(`+${coins} · ${reason}`, 'coin')
   if (level().n > before) {
-    ui.celebrate = { title: `¡Nivel ${level().n}!`, text: 'La vaquita está orgullosísima 🥹✨', pose: 'celebrate' }
+    ui.celebrate = { title: `¡Nivel ${level().n}!`, text: 'La vaquita está orgullosísima', pose: 'celebrate' }
   }
 }
 
@@ -81,8 +81,8 @@ export function overallConsistency(days = 24) {
 export function streakMessage() {
   const c = overallConsistency()
   const today = state.habits.some((h) => state.habitLogs[h.id]?.[dayKey()]?.done)
-  if (c.active === 0) return 'Hoy es un día perfecto para empezar 💗'
-  if (!today && !state.habits.some((h) => state.habitLogs[h.id]?.[keyPlus(-1)]?.done)) return `Has sido constante ${c.active} de los últimos ${c.days} días. Tu racha se pausó, pero podemos retomarla hoy 💗`
+  if (c.active === 0) return 'Hoy es un día perfecto para empezar'
+  if (!today && !state.habits.some((h) => state.habitLogs[h.id]?.[keyPlus(-1)]?.done)) return `Has sido constante ${c.active} de los últimos ${c.days} días. Tu racha se pausó, pero podemos retomarla hoy`
   return `Constante ${c.active} de los últimos ${c.days} días · semana al ${c.weekPct}%`
 }
 
@@ -99,7 +99,7 @@ export function missions() {
   const late = rankedTasks().map((r) => r.t).find((t) => (t.postponed || 0) >= 1 || daysUntil(t.due) < 0)
   const list = [
     {
-      id: 'prepara-dia', title: 'Ayúdame a preparar el día', emoji: '🗓️', reward: 30,
+      id: 'prepara-dia', title: 'Ayúdame a preparar el día', icon: 'calendar', reward: 30,
       steps: [
         { t: 'Revisar Aula y correos', done: !!d.reviewed, go: 'universidad' },
         { t: 'Elegir la prioridad del día', done: !!d.priority, go: 'home' },
@@ -109,7 +109,7 @@ export function missions() {
       ],
     },
     {
-      id: 'rescate', title: 'Rescate de productividad', emoji: '🛟', reward: 25, taskId: late?.id,
+      id: 'rescate', title: 'Rescate de productividad', icon: 'lifebuoy', reward: 25, taskId: late?.id,
       steps: [
         { t: late ? `Elegir: "${late.title}"` : 'Elegir una tarea atrasada', done: !!d.rescueTask, go: 'tareas' },
         { t: 'Dividirla en pasitos', done: !!(d.rescueTask && (state.tasks.find((t) => t.id === d.rescueTask)?.subtasks || []).length >= 2), go: 'tareas' },
@@ -118,7 +118,7 @@ export function missions() {
       ],
     },
     {
-      id: 'vida', title: 'Un día con vida 🤍', emoji: '🌷', reward: 15,
+      id: 'vida', title: 'Un día con vida', icon: 'flower', reward: 15,
       steps: [
         { t: 'Un momento con familia o mascotas', done: state.life.some((l) => l.date === k), go: 'vida' },
         { t: 'Un espacio con Dios', done: !!state.god.entries[k], go: 'dios' },
@@ -142,7 +142,7 @@ export function claimMission(m) {
 }
 
 // ----- La vaquita reacciona al día -----
-const HAPPY = ['Hoy es un buen día para hacer cosas increíbles 💗', 'Estoy aquí contigo, poquito a poquito 🐮', '¿Un aguita y empezamos? 💧', 'Progreso, no perfección ✨']
+const HAPPY = ['Hoy es un buen día para hacer cosas increíbles', 'Estoy aquí contigo, poquito a poquito', '¿Un aguita y empezamos?', 'Progreso, no perfección']
 
 export function petState() {
   const k = dayKey()
@@ -155,13 +155,13 @@ export function petState() {
   const away = state.profile.prevVisit ? -daysUntil(state.profile.prevVisit) : 0
   const stuck = open.find((t) => (t.postponed || 0) >= 2)
   let s
-  if (ui.focus) s = { pose: ui.focus.category === 'trabajo' ? 'laptop' : 'study', msg: 'Shhh… estamos concentradas 🤓' }
-  else if (away >= 2 && !state.daily?.[k]?.welcomed) s = { pose: 'wait', msg: `Holiii… te estaba esperando 🐮💗 ¿Volvemos poquito a poquito?` }
-  else if (h >= 22 || h < 5) s = { pose: 'sleep', msg: 'Ya es hora de descansar. Mañana seguimos 🌙' }
-  else if (dueSoon >= 3 || open.length >= 10) s = { pose: 'tired', msg: 'Respiremos 😭💗 Vamos una por una.' }
+  if (ui.focus) s = { pose: ui.focus.category === 'trabajo' ? 'laptop' : 'study', msg: 'Shhh… estamos concentradas' }
+  else if (away >= 2 && !state.daily?.[k]?.welcomed) s = { pose: 'wait', msg: `Holiii… te estaba esperando. ¿Volvemos poquito a poquito?` }
+  else if (h >= 22 || h < 5) s = { pose: 'sleep', msg: 'Ya es hora de descansar. Mañana seguimos.' }
+  else if (dueSoon >= 3 || open.length >= 10) s = { pose: 'tired', msg: 'Respiremos. Vamos una por una.' }
   else if (stuck) s = { pose: 'motivate', msg: 'No necesitamos terminarlo ahora… solo empecemos 5 minuticos.' }
-  else if (c.active >= 5) s = { pose: 'celebrate', msg: 'Mira todo lo que has avanzado 🥹✨' }
-  else if (h < 9) s = { pose: 'coffee', msg: `Buenos días, ${name} ☀️ ¿Empezamos con calma?` }
+  else if (c.active >= 5) s = { pose: 'celebrate', msg: 'Mira todo lo que has avanzado' }
+  else if (h < 9) s = { pose: 'coffee', msg: `Buenos días, ${name}. ¿Empezamos con calma?` }
   else s = { pose: 'happy', msg: HAPPY[(new Date().getDate() + h) % HAPPY.length] }
   s.leo = h >= 21 || h < 7 || s.pose === 'sleep' ? 'sleep' : 'sit'
   s.negra = lifeToday ? 'happy' : 'sit'

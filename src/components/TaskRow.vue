@@ -13,7 +13,7 @@ const subj = computed(() => state.subjects.find((s) => s.id === t.value.subjectI
 const proj = computed(() => state.projects.find((p) => p.id === t.value.projectId))
 const prio = computed(() => effectivePriority(t.value))
 const d = computed(() => daysUntil(t.value.due))
-const SRC = { aula: '🎓 Aula', gmail: '📧 Gmail', classroom: '🏫 Classroom', calendar: '🗓️', manual: '' }
+const SRC = { aula: ['cap', 'Aula'], gmail: ['mail', 'Gmail'], classroom: ['book', 'Classroom'], calendar: ['calendar', ''] }
 const toggle = () => (done.value ? reopenTask(t.value.id) : completeTask(t.value.id))
 const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filter((s) => s.done).length}/${t.value.subtasks.length}` : '')
 </script>
@@ -28,12 +28,12 @@ const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filte
         <span v-if="!compact">· {{ fmtDur(t.estimate) }}</span>
         <span v-if="subj">· {{ subj.short }}</span>
         <span v-else-if="proj">· {{ proj.name }}</span>
-        <span v-if="subs">· ☑ {{ subs }}</span>
-        <span v-if="SRC[t.source] && !compact">· {{ SRC[t.source] }}</span>
+        <span v-if="subs" class="wi" style="gap:3px">· <Icon name="check" :size="12" />{{ subs }}</span>
+        <span v-if="SRC[t.source] && !compact" class="wi" style="gap:3px" :aria-label="SRC[t.source][1] || 'Google Calendar'">· <Icon :name="SRC[t.source][0]" :size="12" />{{ SRC[t.source][1] }}</span>
         <span v-if="t.demo" class="badge demo">ejemplo</span>
       </div>
     </button>
-    <span v-if="t.grade != null" class="badge" :class="t.grade >= 4 ? 'green' : t.grade >= 3 ? '' : 'pink'">🎯 {{ (+t.grade).toFixed(1) }}</span>
+    <span v-if="t.grade != null" class="badge" :class="t.grade >= 4 ? 'green' : t.grade >= 3 ? '' : 'pink'"><Icon name="target" :size="12" />{{ (+t.grade).toFixed(1) }}</span>
     <span v-if="!done && prio === 'alta'" class="badge red">alta</span>
     <span v-if="t.status === 'en progreso'" class="badge">en curso</span>
   </div>

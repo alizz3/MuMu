@@ -5,7 +5,8 @@ import * as A from '../store/actions'
 import { insights, series } from '../engine/insights'
 import { habitStats, overallConsistency } from '../engine/game'
 import { fmtDur, WEEKDAYS } from '../engine/time'
-import { Pet, Ring, Bar, Chip } from '../components/ui'
+import { Icon, Pet, Ring, Bar, Chip } from '../components/ui'
+import { habitIcon } from '../components/iconFor'
 
 const range = ref(14)
 const s = computed(() => series(range.value))
@@ -25,9 +26,9 @@ const CHARTS = [
 
 <template>
   <div class="stack">
-    <div class="card pink row"><Pet pose="calc" :size="86" /><div class="grow"><h2 style="font-size:17px">Detecté algo 👀</h2><p class="tiny muted">Observaciones sobre tus datos, nunca diagnósticos.</p></div></div>
+    <div class="card pink row"><Pet pose="calc" :size="86" /><div class="grow"><h2 style="font-size:17px">Detecté algo</h2><p class="tiny muted">Observaciones sobre tus datos, nunca diagnósticos.</p></div></div>
     <div v-for="i in ins" :key="i.id" class="card tight row" style="align-items:flex-start">
-      <span class="ico" style="font-size:18px">{{ i.emoji }}</span><div class="grow small">{{ i.text }}<div class="tiny muted">Basado en {{ i.basis }}</div></div>
+      <span class="ico"><Icon :name="i.icon" :size="18" /></span><div class="grow small">{{ i.text }}<div class="tiny muted">Basado en {{ i.basis }}</div></div>
     </div>
     <p v-if="!ins.length" class="small muted">Aún no hay suficientes datos. Con unos días de registros aparecerán patrones.</p>
 
@@ -50,7 +51,7 @@ const CHARTS = [
     <div class="card">
       <h3>Cumplimiento de hábitos (24 días)</h3>
       <div v-for="h in state.habits" :key="h.id" style="margin-top:10px">
-        <div class="row between small"><span>{{ h.emoji }} {{ h.name }}</span><span class="muted">{{ habitStats(h).done }}/24</span></div>
+        <div class="row between small"><span class="wi"><Icon :name="habitIcon(h)" :size="14" />{{ h.name }}</span><span class="muted">{{ habitStats(h).done }}/24</span></div>
         <Bar :value="habitStats(h).done / 24 * 100" :color="h.color" style="margin-top:4px" />
       </div>
     </div>
@@ -60,7 +61,7 @@ const CHARTS = [
       <div class="grid2" style="margin-top:10px">
         <div v-for="g in state.goals" :key="g.id" class="row"><Ring :value="A.goalProgress(g)" :size="42" /><span class="small">{{ g.name }}</span></div>
       </div>
-      <div v-for="p in state.projects" :key="p.id" style="margin-top:10px"><div class="row between small"><span>📁 {{ p.name }}</span><span class="muted">{{ A.projectProgress(p) }}%</span></div><Bar :value="A.projectProgress(p)" :color="p.color" style="margin-top:4px" /></div>
+      <div v-for="p in state.projects" :key="p.id" style="margin-top:10px"><div class="row between small"><span class="wi"><Icon name="folder" :size="14" />{{ p.name }}</span><span class="muted">{{ A.projectProgress(p) }}%</span></div><Bar :value="A.projectProgress(p)" :color="p.color" style="margin-top:4px" /></div>
     </div>
   </div>
 </template>

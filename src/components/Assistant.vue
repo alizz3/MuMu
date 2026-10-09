@@ -38,7 +38,7 @@ const contextual = computed(() => {
   const b = freeBlocks(dayKey(), ctx.m).find((x) => x.minutes >= 45)
   if (b) out.push({ text: `Tu calendario está libre entre ${b.label.replace(' – ', ' y ')} ¿Quieres que usemos ese bloque?`, icon: 'calendar', block: b })
   const ins = insights()[0]
-  if (ins) out.push({ text: `Detecté algo 👀 ${ins.text}`, icon: 'sparkles' })
+  if (ins) out.push({ text: `Detecté algo: ${ins.text}`, icon: ins.icon || 'eye' })
   return out.slice(0, 4)
 })
 
@@ -47,7 +47,7 @@ function useBlock(b) {
   if (!t) return
   const len = Math.min(50, b.minutes)
   t.blocks = [...(t.blocks || []), { date: dayKey(), start: toHM(b.start), end: toHM(b.start + len), minutes: len, done: false }]
-  say(`Listo 💗 Reservé ${len} min de ${b.label.split(' – ')[0]} para "${t.title}".`)
+  say(`Listo. Reservé ${len} min de ${b.label.split(' – ')[0]} para "${t.title}".`)
 }
 
 function startRec() {
@@ -83,20 +83,20 @@ async function send() {
   say(text, 'me')
   const s = text.toLowerCase()
   const mm = s.match(/(\d+)\s*(min|minutos|h|hora)/)
-  if (/no quiero|procrastin|me da pereza|no puedo empezar/.test(s)) { say('Te entiendo 😭💗 Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
+  if (/no quiero|procrastin|me da pereza|no puedo empezar/.test(s)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
   if (mm) {
     const mins = Number(mm[1]) * (mm[2].startsWith('h') ? 60 : 1)
     const t = rankedTasks().map((r) => r.t).find((x) => (x.estimate - (x.spent || 0)) <= mins + 10) || rankedTasks()[0]?.t
-    say(t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro 💗'); return
+    say(t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro.'); return
   }
   if (/qu[eé] hago|ahora|recomi/.test(s)) { say(shown.value.reason); return }
-  if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); say(b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta 🌙'); return }
-  if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); say(p.length ? `Te faltan: ${p.map((h) => h.emoji + ' ' + h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos! 🥹✨'); return }
-  if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); say(d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días ✨'); return }
+  if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); say(b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.'); return }
+  if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); say(p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!'); return }
+  if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); say(d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.'); return }
   if (canUseBackend()) {
     busy.value = true
-    try { const r = await askAssistant(text, summary()); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy 💗`) } finally { busy.value = false }
-  } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Y desde cualquier pantalla puedes tocarme para ver qué te recomiendo 💗')
+    try { const r = await askAssistant(text, summary()); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) } finally { busy.value = false }
+  } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Y desde cualquier pantalla puedes tocarme para ver qué te recomiendo.')
 }
 
 watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.value.length) say(pet.value.msg) } })
@@ -116,7 +116,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
         <div class="tiny b" style="color:var(--pink-700)">¿QUÉ DEBERÍA HACER AHORA?</div>
         <h3 style="margin:4px 0 6px;font-size:16px">{{ shown.title }}</h3>
         <p class="small">{{ shown.reason }}</p>
-        <p v-if="shown.principle" class="tiny muted" style="margin-top:6px">💡 {{ shown.principle.author }}: “{{ shown.principle.text }}”</p>
+        <p v-if="shown.principle" class="tiny muted" style="margin-top:6px"><Icon name="bulb" :size="13" class="inl" /> {{ shown.principle.author }}: “{{ shown.principle.text }}”</p>
         <div class="row wrap" style="margin-top:12px;gap:6px">
           <button class="btn sm primary" @click="startRec"><Icon name="play" :size="14" />Empezar</button>
           <button v-if="shown.task" class="btn sm ghost" @click="postpone">Posponer</button>
@@ -141,7 +141,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
 
       <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:30dvh;overflow-y:auto">
         <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight" :class="{ pink: mm.from === 'me' }">{{ mm.text }}</div>
-        <div v-if="busy" class="small muted">La vaquita está pensando… 🐮💭</div>
+        <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
       <form class="row" style="margin-top:10px" @submit.prevent="send">
         <input class="input" v-model="input" placeholder="Pregúntame: ¿qué hago ahora? / tengo 30 min…" aria-label="Mensaje al asistente" />

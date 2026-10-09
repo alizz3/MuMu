@@ -103,7 +103,7 @@ const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))
       </button>
       <div v-if="!folded[g.key]" class="list"><TaskRow v-for="t in g.v" :key="t.id" :task="t" /></div>
     </section>
-    <Empty v-if="!list.length" pose="celebrate" :text="q ? 'No encontré tareas con eso 🔍' : 'Nada por aquí. ¡Disfruta ese espacio! ✨'" />
+    <Empty v-if="!list.length" pose="celebrate" :text="q ? 'No encontré tareas con eso' : 'Nada por aquí. ¡Disfruta ese espacio!'" />
   </div>
 </template>
 

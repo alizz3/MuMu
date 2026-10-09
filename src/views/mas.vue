@@ -10,7 +10,7 @@ import { Icon, Pet } from '../components/ui'
   <div class="stack">
     <div class="card pink row">
       <Pet pose="agenda" :size="84" />
-      <div class="grow"><div class="b">{{ state.settings.appName }}</div><div class="small muted">Nivel {{ level().n }} · 🪙 {{ state.game.coins }}</div><div class="tiny muted">Todo está conectado: tareas, agenda, hábitos, aprendizaje y la casita.</div></div>
+      <div class="grow"><div class="b">{{ state.settings.appName }}</div><div class="small muted wi" style="gap:4px">Nivel {{ level().n }} · <Icon name="coin" :size="13" />{{ state.game.coins }}</div><div class="tiny muted">Todo está conectado: tareas, agenda, hábitos, aprendizaje y la casita.</div></div>
     </div>
     <template v-for="g in NAV" :key="g.group">
       <div class="sec-title"><h2>{{ g.group }}</h2></div>

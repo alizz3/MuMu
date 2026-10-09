@@ -54,8 +54,8 @@ export function initAndroidUso() {
     if (!ready || done) return
     done = true
     const n = importUso(data)
-    if (!data.permiso) toast('Para leer tu tiempo de pantalla, dale permiso a MuMu en Celular y redes 📱')
-    else if (n) toast(`Tiempo de pantalla actualizado (${n} días) 📱`)
+    if (!data.permiso) toast('Para leer tu tiempo de pantalla, dale permiso a MuMu en Celular y redes.')
+    else if (n) toast(`Tiempo de pantalla actualizado (${n} días)`)
   }, { immediate: true })
   setTimeout(() => { if (!done && ui.authReady) { done = true; importUso(data) } }, 16000)
 }

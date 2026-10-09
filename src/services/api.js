@@ -64,7 +64,7 @@ export async function syncGmail() {
     }
   }
   state.emails = state.emails.slice(0, 250)
-  toast(n ? `${n} correos nuevos clasificados 📧` : 'Correo al día ✨')
+  toast(n ? `${n} correos nuevos clasificados` : 'Correo al día')
 }
 
 export const canOrganize = (accountId) => !!state.integrations.google.find((a) => a.id === accountId)?.services.includes('gmail-organize')
@@ -116,7 +116,7 @@ export async function syncCalendar() {
       state.events.push({ ...e, source: `google:${a.id}`, account: a.label, readonly: true })
     }
   }
-  toast(`Calendario sincronizado 🗓️${skipped ? ` · ${skipped} repetidos omitidos` : ''}`)
+  toast(`Calendario sincronizado${skipped ? ` · ${skipped} repetidos omitidos` : ''}`)
 }
 export async function createCalendarBlock(accountId, ev) { return call('calendar/events', { method: 'POST', body: { account: accountId, ...ev } }) }
 
@@ -140,7 +140,7 @@ export async function connectAula(payload) {
   state.aula = state.aula.filter((a) => !a.demo)
   state.tasks = state.tasks.filter((t) => !(t.demo && t.source === 'aula' && t.status !== 'completada'))
   state.integrations.aula = { ...state.integrations.aula, status: 'conectado', method: r.method, site: payload.site, siteName: r.siteName, lastSync: null }
-  toast(`Tu Aula conectada (${r.method === 'webservice' ? 'servicio web de Moodle' : 'calendario iCal'}) 🎓`)
+  toast(`Tu Aula conectada (${r.method === 'webservice' ? 'servicio web de Moodle' : 'calendario iCal'})`)
   return r
 }
 export async function syncAula() {
@@ -258,7 +258,7 @@ export async function syncGTasks({ quiet = false } = {}) {
       if (goneIds.size) { state.tasks = state.tasks.filter((x) => !goneIds.has(x.id)); borradas += goneIds.size }
     }
     await pushNewGTasks(true)
-    if (!quiet || nuevas || hechas || borradas) toast(`Google Tasks: ${nuevas} nuevas${unidas ? `, ${unidas} unidas sin duplicar` : ''}${hechas ? `, ${hechas} hechas` : ''}${borradas ? `, ${borradas} borradas` : ''} ✅`)
+    if (!quiet || nuevas || hechas || borradas) toast(`Google Tasks: ${nuevas} nuevas${unidas ? `, ${unidas} unidas sin duplicar` : ''}${hechas ? `, ${hechas} hechas` : ''}${borradas ? `, ${borradas} borradas` : ''}`)
     state.integrations.gtasksLast = new Date().toISOString()
   } finally { gtBusy = false }
 }

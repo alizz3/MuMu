@@ -11,6 +11,7 @@ import * as A from '../store/actions'
 import { planTask, remaining } from '../engine/planner'
 import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
+import { goalIcon } from './iconFor'
 import { toast, ask } from '../engine/game'
 
 const m = computed(() => ui.modal)
@@ -38,7 +39,7 @@ const SCHEMAS = {
     ],
   }),
   goal: () => ({ title: 'Objetivo', coll: 'goals', fields: [
-    { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'emoji', l: 'Emoji', t: 'text' }, { k: 'description', l: 'Descripción', t: 'textarea' },
+    { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'description', l: 'Descripción', t: 'textarea' },
     { k: 'category', l: 'Categoría', t: 'select', o: ['carrera', 'universidad', 'trabajo', 'dinero', 'aprendizaje', 'inglés', 'vida personal', 'familia', 'espiritualidad', 'proyectos', 'bienestar'] },
     { k: 'due', l: 'Fecha', t: 'date' }, { k: 'progress', l: 'Progreso manual (%)', t: 'number' }, { k: 'manual', l: 'Usar progreso manual', t: 'bool' },
   ] }),
@@ -50,7 +51,7 @@ const SCHEMAS = {
     { k: 'skills', l: 'Habilidades (coma)', t: 'tags' }, { k: 'resources', l: 'Recursos / links (coma)', t: 'tags' }, { k: 'color', l: 'Color', t: 'color' },
   ] }),
   habit: () => ({ title: 'Hábito', coll: 'habits', fields: [
-    { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'emoji', l: 'Emoji', t: 'text' },
+    { k: 'name', l: 'Nombre', t: 'text', req: true },
     { k: 'when', l: 'Momento', t: 'select', o: ['mañana', 'tarde', 'noche', 'cualquiera'] },
     { k: 'target', l: 'Días por semana', t: 'number' }, { k: 'gtList', l: 'Lista en Google Tasks (opcional)', t: 'text' }, { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) }, { k: 'color', l: 'Color', t: 'color' },
   ] }),
@@ -165,7 +166,7 @@ const ev = computed(() => (m.value?.type === 'eventView' ? m.value.ev : null))
 const evKey = computed(() => (ev.value ? `${ev.value.id}|${m.value.date}` : ''))
 const evMark = computed(() => (evKey.value ? state.eventMarks?.[evKey.value] || null : null))
 const evDate = computed(() => { if (!m.value?.date) return ''; const d = parseDay(m.value.date); return `${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}` })
-const MARKS = [['yo', '🙋 Voy yo'], ['otro', '👥 Va alguien más'], ['recordatorio', '📌 Solo recordatorio'], ['hecho', '✅ Ya pasó']]
+const MARKS = [['yo', 'Voy yo', 'user'], ['otro', 'Va alguien más', 'users'], ['recordatorio', 'Solo recordatorio', 'pin'], ['hecho', 'Ya pasó', 'check']]
 const who = ref('')
 watch(evKey, () => { who.value = evMark.value?.who || '' }, { immediate: true })
 function setMark(status) {
@@ -206,9 +207,9 @@ const taskLink = computed(() => {
 const chain = computed(() => {
   const t = task.value; if (!t) return []
   const out = []
-  const s = state.subjects.find((x) => x.id === t.subjectId); if (s) out.push(`🎓 ${s.name}`)
-  const p = state.projects.find((x) => x.id === t.projectId); if (p) out.push(`📁 ${p.name}`)
-  const g = state.goals.find((x) => x.id === (t.goalId || p?.goalId)); if (g) out.push(`${g.emoji || '🎯'} ${g.name}`)
+  const s = state.subjects.find((x) => x.id === t.subjectId); if (s) out.push({ icon: 'cap', text: s.name })
+  const p = state.projects.find((x) => x.id === t.projectId); if (p) out.push({ icon: 'folder', text: p.name })
+  const g = state.goals.find((x) => x.id === (t.goalId || p?.goalId)); if (g) out.push({ icon: goalIcon(g), text: g.name })
   return out
 })
 const plan = computed(() => (task.value ? planTask(task.value) : []))
@@ -253,7 +254,7 @@ const prettyVal = (f, v) => {
 
       <!-- Búsqueda y captura rápida -->
       <template v-if="m.type === 'search'">
-        <h2 style="margin-bottom:10px">Buscar o capturar ✨</h2>
+        <h2 style="margin-bottom:10px">Buscar o capturar</h2>
         <input class="input" v-model="q" placeholder="Escribe una tarea, idea o busca algo…" autofocus aria-label="Buscar o capturar" @keyup.enter="quick('task')" />
         <div class="row" style="margin:10px 0">
           <button class="btn sm primary" :disabled="!q.trim()" @click="quick('task')"><Icon name="plus" :size="15" />Crear tarea</button>
@@ -280,15 +281,15 @@ const prettyVal = (f, v) => {
         </div>
         <h2 style="margin:8px 0 4px;overflow-wrap:anywhere">{{ ev.title }}</h2>
         <div class="stack small muted" style="gap:2px">
-          <span>📅 {{ evDate }}</span>
-          <span>🕒 {{ ev.allDay ? 'Todo el día' : `${fmt12s(ev.start)} – ${fmt12s(ev.end)}` }}</span>
-          <span v-if="ev.location" style="overflow-wrap:anywhere">📍 {{ ev.location }}</span>
-          <span v-if="ev.account" style="overflow-wrap:anywhere">👤 {{ ev.account }}</span>
+          <span class="wi"><Icon name="calendar" :size="14" />{{ evDate }}</span>
+          <span class="wi"><Icon name="clock" :size="14" />{{ ev.allDay ? 'Todo el día' : `${fmt12s(ev.start)} – ${fmt12s(ev.end)}` }}</span>
+          <span v-if="ev.location" class="wi" style="overflow-wrap:anywhere"><Icon name="pin" :size="14" />{{ ev.location }}</span>
+          <span v-if="ev.account" class="wi" style="overflow-wrap:anywhere"><Icon name="user" :size="14" />{{ ev.account }}</span>
         </div>
         <p v-if="ev.description || ev.notes" class="small" style="margin-top:8px;white-space:pre-line;overflow-wrap:anywhere">{{ ev.description || ev.notes }}</p>
         <template v-if="ev.kind === 'event'">
           <h3 style="margin-top:14px">¿Quién va?</h3>
-          <div class="row wrap" style="margin-top:6px;gap:6px"><button v-for="mk in MARKS" :key="mk[0]" class="chip" :class="{ on: evMark?.status === mk[0] }" @click="setMark(mk[0])">{{ mk[1] }}</button></div>
+          <div class="row wrap" style="margin-top:6px;gap:6px"><button v-for="mk in MARKS" :key="mk[0]" class="chip" :class="{ on: evMark?.status === mk[0] }" @click="setMark(mk[0])"><Icon :name="mk[2]" :size="14" />{{ mk[1] }}</button></div>
           <div v-if="evMark?.status === 'otro'" class="row" style="margin-top:8px"><input class="input" v-model="who" placeholder="¿Quién? ej. mi prima" aria-label="Quién va" @change="saveWho" @keyup.enter="saveWho" /></div>
           <p class="tiny muted" style="margin-top:6px">Si va alguien más o es solo un recordatorio, no te quita tiempo libre.</p>
         </template>
@@ -311,17 +312,17 @@ const prettyVal = (f, v) => {
         </div>
         <h2 style="margin:8px 0 4px">{{ task.title }}</h2>
         <div class="stack small muted" style="gap:2px">
-          <span>📅 {{ dueText(task) }}</span>
-          <span v-if="task.estimate">⏱ {{ task.spent ? `Llevas ${fmtDur(task.spent)} de unas ${fmtDur(task.estimate)}` : `Te puede tomar unas ${fmtDur(task.estimate)}` }}</span>
-          <span v-if="task.postponed">↪️ La has pospuesto {{ task.postponed }} {{ task.postponed === 1 ? 'vez' : 'veces' }}</span>
+          <span class="wi"><Icon name="calendar" :size="14" />{{ dueText(task) }}</span>
+          <span v-if="task.estimate" class="wi"><Icon name="timer" :size="14" />{{ task.spent ? `Llevas ${fmtDur(task.spent)} de unas ${fmtDur(task.estimate)}` : `Te puede tomar unas ${fmtDur(task.estimate)}` }}</span>
+          <span v-if="task.postponed" class="wi"><Icon name="refresh" :size="14" />La has pospuesto {{ task.postponed }} {{ task.postponed === 1 ? 'vez' : 'veces' }}</span>
           <span v-if="task.demo" class="badge demo">ejemplo</span>
         </div>
         <div v-if="chain.length" class="row wrap" style="gap:6px;margin-top:10px">
-          <span v-for="(c, i) in chain" :key="i" class="badge">{{ c }}</span>
+          <span v-for="(c, i) in chain" :key="i" class="badge"><Icon :name="c.icon" :size="13" />{{ c.text }}</span>
         </div>
         <p v-if="task.notes && !/^Materia: [^\n]*$/.test(task.notes)" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
         <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft row wrap" style="gap:8px;margin-top:10px">
-          <b class="small">🎯 Nota</b>
+          <b class="small wi"><Icon name="target" :size="14" />Nota</b>
           <input class="input" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="0.0 – 5.0" style="width:110px" :value="task.grade ?? ''" @change="setGrade(task, 'grade', $event.target.value, 5)" aria-label="Nota de la tarea" />
           <span class="small muted">vale</span>
           <input class="input" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="%" style="width:80px" :value="task.weight ?? ''" @change="setGrade(task, 'weight', $event.target.value, 100)" aria-label="Porcentaje que vale" />
@@ -345,7 +346,7 @@ const prettyVal = (f, v) => {
 
         <div class="grid2" style="margin-top:14px">
           <button class="btn primary" @click="start(25)"><Icon name="play" :size="16" />Empezar 25 min</button>
-          <button class="btn lav" @click="start(5, 'empezar')">😭 Solo 5 min</button>
+          <button class="btn lav" @click="start(5, 'empezar')"><Icon name="sprout" :size="16" />Solo 5 min</button>
           <button class="btn ghost" @click="A.postponeTask(task.id); close()">Posponer</button>
           <button v-if="task.status !== 'completada'" class="btn ghost" @click="A.completeTask(task.id); close()"><Icon name="check" :size="16" />Completar</button>
           <button v-else class="btn ghost" @click="A.reopenTask(task.id)">Reabrir</button>

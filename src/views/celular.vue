@@ -50,7 +50,7 @@ async function fromShots(ev) {
       if (APPS.some((a) => a[0] === k)) { sc.apps[k] = showMin(m); n++ }
       else if (m >= 5 && !sc.extra.some((x) => x.name.toLowerCase() === (r.names[k] || k).toLowerCase())) { sc.extra.push({ name: r.names[k] || k, min: showMin(m) }); n++ }
     }
-    toast(n || r.total ? `Leí ${n} apps${r.total ? ' y el total' : ''} ✨ Revisa y dale Guardar` : 'No pude leer la captura 😿 Prueba con una más nítida')
+    toast(n || r.total ? `Leí ${n} apps${r.total ? ' y el total' : ''}. Revisa y dale Guardar` : 'No pude leer la captura. Prueba con una más nítida')
   } catch (e) { console.warn(e); toast('No pude leer la captura (¿sin internet la primera vez?)') } finally { ocr.value.busy = false }
 }
 // Llegaron capturas desde "Compartir → MuMu": se leen solas
@@ -201,7 +201,7 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
       <h3>Patrones (para entenderte, no para castigarte)</h3>
       <p class="small" style="margin-top:6px">Intenciones registradas: {{ state.intentions.length }} · lograste {{ stats.ok }} de {{ stats.total }}</p>
       <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="[r, n] in stats.by" :key="r" class="pill"><Icon :name="REASONS.find((x) => x[0] === r)?.[2] || 'sparkles'" :size="12" />{{ REASONS.find((x) => x[0] === r)?.[1] || r }} · {{ n }}</span></div>
-      <p v-for="i in ins" :key="i.id" class="small row" style="margin-top:8px;gap:8px;align-items:flex-start"><Icon name="sparkles" :size="16" style="flex:none;margin-top:2px" />{{ i.text }}</p>
+      <p v-for="i in ins" :key="i.id" class="small row" style="margin-top:8px;gap:8px;align-items:flex-start"><Icon :name="i.icon || 'sparkles'" :size="16" style="flex:none;margin-top:2px" />{{ i.text }}</p>
     </div>
   </div>
 </template>

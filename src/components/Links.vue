@@ -5,24 +5,24 @@ import { uid } from '../engine/time'
 import { Icon } from './ui'
 
 // Enlaces guardados (carpeta de Drive, chat con Claude, Tu Aula…): se pega el enlace y MuMu reconoce qué es
-const props = defineProps({ target: { type: Object, required: true }, field: { type: String, default: 'links' }, title: { type: String, default: 'Enlaces' }, hint: { type: String, default: '' } })
+const props = defineProps({ target: { type: Object, required: true }, field: { type: String, default: 'links' }, title: { type: String, default: 'Enlaces' }, hint: { type: String, default: '' }, icon: { type: String, default: '' } })
 const list = computed(() => props.target[props.field] || [])
 const KINDS = [
-  [/drive\.google\.com\/drive\/(u\/\d+\/)?folders/, '📁', 'Carpeta de Drive'],
-  [/drive\.google\.com|docs\.google\.com\/(document|spreadsheets|presentation)/, '📄', 'Archivo de Drive'],
-  [/claude\.ai\/(chat|project)/, '🤖', 'Chat con Claude'],
-  [/tuaulavirtual|moodle/, '🎓', 'Tu Aula'],
-  [/classroom\.google\.com/, '🏫', 'Classroom'],
-  [/meet\.google\.com|zoom\.us|teams\.microsoft/, '🎥', 'Videollamada'],
-  [/youtube\.com|youtu\.be/, '▶️', 'Video'],
+  [/drive\.google\.com\/drive\/(u\/\d+\/)?folders/, 'folder', 'Carpeta de Drive'],
+  [/drive\.google\.com|docs\.google\.com\/(document|spreadsheets|presentation)/, 'note', 'Archivo de Drive'],
+  [/claude\.ai\/(chat|project)/, 'robot', 'Chat con Claude'],
+  [/tuaulavirtual|moodle/, 'cap', 'Tu Aula'],
+  [/classroom\.google\.com/, 'book', 'Classroom'],
+  [/meet\.google\.com|zoom\.us|teams\.microsoft/, 'video', 'Videollamada'],
+  [/youtube\.com|youtu\.be/, 'play', 'Video'],
 ]
-const kindOf = (url) => KINDS.find(([re]) => re.test(url)) || [null, '🔗', 'Enlace']
+const kindOf = (url) => KINDS.find(([re]) => re.test(url)) || [null, 'link', 'Enlace']
 const adding = ref(false), url = ref(''), label = ref('')
 function add() {
   let u = url.value.trim()
   if (!u) return
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u
-  if (!/^https?:\/\/[^\s]+$/i.test(u)) return toast('Ese enlace no se ve bien 🤔')
+  if (!/^https?:\/\/[^\s]+$/i.test(u)) return toast('Ese enlace no se ve bien')
   props.target[props.field] = [...list.value, { id: uid('l'), url: u, label: label.value.trim() || kindOf(u)[2] }]
   url.value = ''; label.value = ''; adding.value = false
 }
@@ -31,10 +31,10 @@ async function remove(l) { if (await ask(`¿Quitar "${l.label}"?`)) props.target
 
 <template>
   <div class="stack" style="gap:8px">
-    <div class="row between"><h3>{{ title }}</h3><button class="link" @click="adding = !adding">{{ adding ? 'Cancelar' : '+ Enlace' }}</button></div>
+    <div class="row between"><h3 class="wi"><Icon v-if="icon" :name="icon" :size="16" />{{ title }}</h3><button class="link" @click="adding = !adding">{{ adding ? 'Cancelar' : '+ Enlace' }}</button></div>
     <div v-if="list.length" class="row wrap" style="gap:6px">
       <span v-for="l in list" :key="l.id" class="lk">
-        <a :href="l.url" target="_blank" rel="noopener">{{ kindOf(l.url)[1] }} {{ l.label }}</a>
+        <a :href="l.url" target="_blank" rel="noopener"><Icon :name="kindOf(l.url)[1]" :size="14" class="inl" /> {{ l.label }}</a>
         <button type="button" class="x" :aria-label="`Quitar ${l.label}`" @click="remove(l)"><Icon name="x" :size="12" /></button>
       </span>
     </div>

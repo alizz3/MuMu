@@ -11,7 +11,7 @@ import Contact from '../components/Contact.vue'
 
 const cat = ref('importante')
 const acc = ref('todas')
-const CATS = [['importante', '⭐ Importante'], ['revisar', '👀 Para revisar'], ['informativo', 'ℹ️ Informativo'], ['promos', '🗑️ Promos y redes'], ['ignorado', '🙈 Ignorados']]
+const CATS = [['importante', 'Importante', 'star'], ['revisar', 'Para revisar', 'eye'], ['informativo', 'Informativo', 'info'], ['promos', 'Promos y redes', 'trash'], ['ignorado', 'Ignorados', 'eyeoff']]
 const NAMES = { importante: 'Importante', revisar: 'Para revisar', informativo: 'Informativo', promos: 'Promos' }
 const inCat = (e, c) => (c === 'ignorado' ? e.status === 'ignorado' : e.category === c && e.status !== 'ignorado')
 const scoped = computed(() => state.emails.filter((e) => inScope('email', e)))
@@ -42,7 +42,7 @@ async function run(action, emails = chosen(), label) {
     const { done, skipped } = await gmailAction(emails, action, label)
     if (action === 'trash') { const ids = new Set(emails.filter((e) => canOrganize(e.accountId)).map((e) => e.id)); state.emails = state.emails.filter((e) => !ids.has(e.id)) }
     if (action === 'read') emails.forEach((e) => (e.unread = false))
-    toast(`${done} listo${done === 1 ? '' : 's'} en Gmail${skipped ? ` · ${skipped} sin permiso de organizar` : ''} ✨`)
+    toast(`${done} listo${done === 1 ? '' : 's'} en Gmail${skipped ? ` · ${skipped} sin permiso de organizar` : ''}`)
     sel.value = []
   } catch (e) { toast(e.message) } finally { busy.value = false }
 }
@@ -57,9 +57,9 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
       <button v-if="gmailOn && canUseBackend()" class="btn sm primary" :disabled="busy" @click="sync"><Icon name="refresh" :size="14" />{{ busy ? '…' : 'Revisar' }}</button>
       <button v-else class="btn sm lav" @click="A.go('ajustes')">Conectar</button>
     </div>
-    <p v-if="gmailOn && !organizeOn" class="notice">🧹 Para mandar a la papelera y crear etiquetas en tu Gmail, dale a tu cuenta el permiso <b>"Organizar Gmail"</b> en Configuración → Cuentas.</p>
-    <p v-if="state.emails.some((e) => e.demo)" class="notice">🧪 Los correos marcados “ejemplo” no son reales: muestran cómo se verán tus correos clasificados.</p>
-    <div class="chips"><Chip v-for="c in CATS" :key="c[0]" :active="cat === c[0]" @click="cat = c[0]">{{ c[1] }} · {{ scoped.filter((e) => inCat(e, c[0])).length }}</Chip></div>
+    <p v-if="gmailOn && !organizeOn" class="notice"><Icon name="lock" :size="14" class="inl" /> Para mandar a la papelera y crear etiquetas en tu Gmail, dale a tu cuenta el permiso <b>"Organizar Gmail"</b> en Configuración → Cuentas.</p>
+    <p v-if="state.emails.some((e) => e.demo)" class="notice"><Icon name="flask" :size="14" class="inl" /> Los correos marcados “ejemplo” no son reales: muestran cómo se verán tus correos clasificados.</p>
+    <div class="chips"><Chip v-for="c in CATS" :key="c[0]" :active="cat === c[0]" @click="cat = c[0]"><Icon :name="c[2]" :size="14" />{{ c[1] }} · {{ scoped.filter((e) => inCat(e, c[0])).length }}</Chip></div>
     <div class="chips"><Chip v-for="a in accounts" :key="a" :active="acc === a" @click="acc = a">{{ a }}</Chip></div>
 
     <!-- Acciones en grupo -->
@@ -76,18 +76,18 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
         <div class="row" style="gap:8px">
           <input v-if="organizeOn && canOrganize(e.accountId)" type="checkbox" :checked="sel.includes(e.id)" @change="toggle(e.id)" :aria-label="`Seleccionar ${e.subject}`" />
           <span class="badge" :class="{ pink: e.account === 'universidad' }">{{ e.account }}</span>
-          <span v-if="e.profe" class="badge green">👩‍🏫 {{ e.profe }}</span>
+          <span v-if="e.profe" class="badge green"><Icon name="user" :size="12" />{{ e.profe }}</span>
         </div>
         <span class="tiny muted">{{ relDay(e.date) }}</span>
       </div>
       <div class="b small" style="margin-top:6px">{{ e.subject }}</div>
       <div class="tiny muted row wrap" style="gap:2px 6px">De: {{ e.fromEmail ? String(e.from).replace(/<[^>]*>/, '').replace(/"/g, '').trim() || e.fromEmail : e.from }} <Contact v-if="e.fromEmail" :value="e.fromEmail" kind="email" :label="e.fromEmail" :as="state.integrations.google.find((g) => g.id === e.accountId)?.email || ''" /> <span v-if="e.demo" class="badge demo">ejemplo</span></div>
       <p class="small" style="margin-top:6px">{{ e.snippet }}</p>
-      <p v-if="e.note" class="tiny" style="margin-top:6px">📝 {{ e.note }}</p>
+      <p v-if="e.note" class="tiny wi" style="margin-top:6px;align-items:flex-start"><Icon name="note" :size="13" />{{ e.note }}</p>
       <div class="row wrap" style="gap:6px;margin-top:10px">
-        <button v-if="!e.taskId" class="btn sm primary" @click="A.emailToTask(e.id)">→ Tarea</button>
+        <button v-if="!e.taskId" class="btn sm primary" @click="A.emailToTask(e.id)"><Icon name="plus" :size="14" />Tarea</button>
         <button v-else class="btn sm ghost" @click="ui.modal = { type: 'task', id: e.taskId }">Ver tarea</button>
-        <button class="btn sm lav" @click="evFor = evFor === e.id ? null : e.id">→ Evento</button>
+        <button class="btn sm lav" @click="evFor = evFor === e.id ? null : e.id"><Icon name="calendar" :size="14" />Evento</button>
         <a v-if="e.url" class="btn sm ghost" :href="e.url" target="_blank" rel="noopener">Abrir en Gmail</a>
         <button v-if="canOrganize(e.accountId)" class="btn sm ghost" :disabled="busy" @click="run('trash', [e])"><Icon name="trash" :size="14" />Papelera</button>
         <button class="btn sm ghost" @click="A.setEmailStatus(e.id, e.status === 'ignorado' ? 'nuevo' : 'ignorado')">{{ e.status === 'ignorado' ? 'Restaurar' : 'Ignorar' }}</button>
@@ -100,6 +100,6 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
       </div>
       <input v-if="noteFor === e.id" class="input" v-model="e.note" placeholder="Nota para ti…" style="margin-top:8px" aria-label="Nota" />
     </div>
-    <Empty v-if="!list.length" pose="happy" text="Nada por aquí 💌" />
+    <Empty v-if="!list.length" pose="happy" text="Nada por aquí." />
   </div>
 </template>
