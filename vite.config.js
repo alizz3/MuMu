@@ -23,8 +23,11 @@ const pwa = VitePWA({
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
       { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    // Aparece en "Compartir" de Android: mandas la captura de Bienestar digital y MuMu la lee
+    share_target: { action: '/compartir', method: 'POST', enctype: 'multipart/form-data', params: { files: [{ name: 'shots', accept: ['image/*'] }] } },
   },
   workbox: {
+    importScripts: ['share-target.js'],
     globPatterns: ['**/*.{js,css,html,png,jpg,svg,webmanifest}'],
     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
     navigateFallback: '/index.html',

@@ -51,6 +51,20 @@ async function fromShots(ev) {
     toast(n || r.total ? `Leí ${n} apps${r.total ? ' y el total' : ''} ✨ Revisa y dale Guardar` : 'No pude leer la captura 😿 Prueba con una más nítida')
   } catch (e) { console.warn(e); toast('No pude leer la captura (¿sin internet la primera vez?)') } finally { ocr.value.busy = false }
 }
+// Llegaron capturas desde "Compartir → MuMu": se leen solas
+async function readShared(n) {
+  try {
+    const cache = await caches.open('mumu-compartido')
+    const files = []
+    for (let i = 0; i < n; i++) { const r = await cache.match(`/compartido/${i}`); if (r) files.push(new File([await r.blob()], `captura-${i}.png`, { type: r.headers.get('content-type') || 'image/png' })) }
+    for (const k of await cache.keys()) await cache.delete(k)
+    if (files.length) await fromShots({ target: { files, value: '' } })
+  } catch (e) { console.warn(e) }
+}
+{
+  const n = Number(new URLSearchParams(location.search).get('compartido') || 0)
+  if (n) { history.replaceState(null, '', location.pathname); scDate.value = dayKey(); readShared(n) }
+}
 const daysBack = computed(() => Array.from({ length: 7 }, (_, i) => keyPlus(-i)))
 const week = computed(() => Array.from({ length: 7 }, (_, i) => { const k = keyPlus(-6 + i); const s = state.screen.find((x) => x.date === k); return { k, social: socialMinutes(s), total: s?.total || 0 } }))
 const max = computed(() => Math.max(60, ...week.value.map((w) => w.total)))
