@@ -65,6 +65,8 @@ const groups = computed(() => {
 // Grupos plegables
 const folded = computed(() => (state.settings.taskFolded ||= {}))
 const toggle = (k) => { folded.value[k] = !folded.value[k] }
+const allFolded = computed(() => groups.value.length > 0 && groups.value.every((g) => folded.value[g.key]))
+const foldAll = () => { const v = !allFolded.value; groups.value.forEach((g) => (folded.value[g.key] = v)) }
 const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))`, color: 'var(--ink)' })
 </script>
 
@@ -82,8 +84,11 @@ const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))
 
     <div class="row between">
       <span class="small muted">{{ list.length }} {{ list.length === 1 ? 'tarea' : 'tareas' }}</span>
+      <div class="row" style="gap:6px">
+      <button v-if="groups.length > 1" class="fold" :aria-label="allFolded ? 'Expandir todo' : 'Contraer todo'" :title="allFolded ? 'Expandir todo' : 'Contraer todo'" @click="foldAll"><Icon :name="allFolded ? 'expand' : 'collapse'" :size="16" /></button>
       <div class="views" role="radiogroup" aria-label="Agrupar">
         <button v-for="v in VIEWS" :key="v[0]" role="radio" :aria-checked="group === v[0]" :class="{ on: group === v[0] }" :title="`Agrupar por ${v[1].toLowerCase()}`" @click="group = v[0]"><Icon :name="v[2]" :size="14" /><span>{{ v[1] }}</span></button>
+      </div>
       </div>
     </div>
 
@@ -107,6 +112,8 @@ const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))
 .views { display: inline-flex; background: var(--surface-3); border-radius: 12px; padding: 3px; gap: 2px; }
 .views button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; cursor: pointer; }
 .views button.on { background: var(--surface); color: var(--pink-700); font-weight: 600; box-shadow: var(--shadow); }
+.fold { width: 32px; height: 32px; border-radius: 10px; border: 0; background: var(--surface-3); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; }
+.fold:hover { color: var(--pink-700); }
 .grp { padding-top: 12px; padding-bottom: 12px; }
 .grp-head { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
 .grp-head h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
