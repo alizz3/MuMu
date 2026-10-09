@@ -187,11 +187,14 @@ function listFor(a, t) {
   if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const l = p && c.lists.find((l) => normT(l.title) === normT(p.name)); if (l) return l.id }
   return c.defaultList || '@default'
 }
+// Huella de lo editable: si cambia en MuMu, se manda a Google
+const ownNotes = (t) => t.source === 'gtasks' || t.source === 'manual'
+const gsig = (t) => `${t.title}|${t.due || ''}|${ownNotes(t) ? t.notes || '' : ''}`
 let gtBusy = false
 export async function syncGTasks({ quiet = false } = {}) {
   const accs = gtAccounts(); if (!accs.length || gtBusy) return
   gtBusy = true
-  let nuevas = 0, unidas = 0, hechas = 0
+  let nuevas = 0, unidas = 0, hechas = 0, borradas = 0
   try {
     state.integrations.gtasksSince ||= dayKey()
     for (const a of accs) {
@@ -213,12 +216,13 @@ export async function syncGTasks({ quiet = false } = {}) {
             t = state.tasks.find((x) => !x.gtask && x.status !== 'cancelada' && sameTitle(x.title, g.title) && (!subj || !x.subjectId || x.subjectId === subj.id) && (!proj || !x.projectId || x.projectId === proj.id))
             if (t) {
               // Al unirlas, si está hecha en cualquiera de los dos lados, queda hecha en ambos
-              t.gtask = { acc: a.id, list: l.id, id: g.id, done: g.done }
+              t.gtask = { acc: a.id, list: l.id, id: g.id, done: g.done, updated: g.updated, sig: gsig(t) }
               if (g.done && t.status !== 'completada') { t.status = 'completada'; t.completedAt = (g.completed || '').slice(0, 10) || dayKey() }
               unidas++
             }
             else if (!g.done) {
-              t = addTask({ title: g.title, notes: g.notes, due: g.due, url: g.url, source: 'gtasks', category: proj ? 'trabajo' : conf.role === 'universidad' ? 'universidad' : 'personal', projectId: proj?.id || null, subjectId: subj?.id || null, goalId: subj ? 'g1' : null, estimate: 30, gtask: { acc: a.id, list: l.id, id: g.id, done: false } }, { quiet: true })
+              t = addTask({ title: g.title, notes: g.notes, due: g.due, url: g.url, source: 'gtasks', category: proj ? 'trabajo' : conf.role === 'universidad' ? 'universidad' : 'personal', projectId: proj?.id || null, subjectId: subj?.id || null, goalId: subj ? 'g1' : null, estimate: 30, gtask: { acc: a.id, list: l.id, id: g.id, done: false, updated: g.updated } }, { quiet: true })
+              t.gtask.sig = gsig(t)
               nuevas++
             } else continue
           }
@@ -234,20 +238,23 @@ export async function syncGTasks({ quiet = false } = {}) {
             await call('gtasks/sync', { method: 'PATCH', body: { account: a.id, list: l.id, id: g.id, done: mumuDone } }).then(() => { t.gtask.done = mumuDone }).catch(() => {})
           }
           if (g.updated && g.updated !== t.gtask.updated) {
-            if (t.gtask.updated) { if (g.title && g.title !== t.title) t.title = g.title; if (g.due !== undefined && g.due !== t.due && !(t.source === 'aula' || t.source === 'classroom')) t.due = g.due }
+            // Lo editaste en Google: manda Google
+            if (t.gtask.updated) { if (g.title && g.title !== t.title) t.title = g.title; if (g.due !== undefined && g.due !== t.due && !(t.source === 'aula' || t.source === 'classroom')) t.due = g.due; if (g.notes !== (t.notes || '') && t.source === 'gtasks') t.notes = g.notes }
             t.gtask.updated = g.updated
-          }
+            t.gtask.sig = gsig(t)
+          } else if (t.gtask.sig && t.gtask.sig !== gsig(t)) {
+            // Lo editaste en MuMu: se lleva a Google
+            await call('gtasks/sync', { method: 'PATCH', body: { account: a.id, list: l.id, id: g.id, title: t.title, due: t.due || null, notes: ownNotes(t) ? t.notes || '' : undefined } }).then((r) => { t.gtask.updated = r.task.updated; t.gtask.sig = gsig(t) }).catch(() => {})
+          } else if (!t.gtask.sig) t.gtask.sig = gsig(t)
           if (g.url && !t.url) t.url = g.url
         }
       }
-      // Pendientes que ya no están en Google: si las creó Google Tasks se quitan; si no, solo se desvinculan
-      for (const t of state.tasks.filter((x) => x.gtask?.acc === a.id && x.status !== 'completada' && !seen.has(x.gtask.id))) {
-        if (t.source === 'gtasks') state.tasks = state.tasks.filter((x) => x.id !== t.id)
-        else delete t.gtask
-      }
+      // Pendientes que borraste en Google Tasks: también se borran de MuMu
+      const goneIds = new Set(state.tasks.filter((x) => x.gtask?.acc === a.id && x.status !== 'completada' && !seen.has(x.gtask.id)).map((x) => x.id))
+      if (goneIds.size) { state.tasks = state.tasks.filter((x) => !goneIds.has(x.id)); borradas += goneIds.size }
     }
     await pushNewGTasks(true)
-    if (!quiet || nuevas || hechas) toast(`Google Tasks: ${nuevas} nuevas${unidas ? `, ${unidas} unidas sin duplicar` : ''}${hechas ? `, ${hechas} hechas` : ''} ✅`)
+    if (!quiet || nuevas || hechas || borradas) toast(`Google Tasks: ${nuevas} nuevas${unidas ? `, ${unidas} unidas sin duplicar` : ''}${hechas ? `, ${hechas} hechas` : ''}${borradas ? `, ${borradas} borradas` : ''} ✅`)
     state.integrations.gtasksLast = new Date().toISOString()
   } finally { gtBusy = false }
 }
@@ -268,9 +275,13 @@ async function doPush() {
     const list = listFor(a, t)
     try {
       const r = await call('gtasks/sync', { method: 'POST', body: { account: a.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
-      t.gtask = { acc: a.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated }
+      t.gtask = { acc: a.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(t) }
       if (r.task.url && !t.url) t.url = r.task.url
     } catch { /* se reintenta en la próxima sincronización */ }
+  }
+  // Editadas en MuMu (título, fecha, notas)
+  for (const t of state.tasks.filter((x) => x.gtask?.sig && x.gtask.sig !== gsig(x))) {
+    try { const r = await call('gtasks/sync', { method: 'PATCH', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id, title: t.title, due: t.due || null, notes: ownNotes(t) ? t.notes || '' : undefined } }); t.gtask.updated = r.task.updated; t.gtask.sig = gsig(t) } catch { /* luego */ }
   }
   // Completadas en MuMu que Google aún no sabe
   for (const t of state.tasks.filter((x) => x.gtask && (x.status === 'completada') !== x.gtask.done)) {

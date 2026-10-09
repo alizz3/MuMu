@@ -177,6 +177,13 @@ function dueText(t) {
   const cuando = n === 0 ? 'hoy' : n === 1 ? 'mañana' : n === -1 ? 'ayer' : n < 0 ? `hace ${-n} días` : `en ${n} días`
   return `${n < 0 ? 'Venció' : 'Vence'} el ${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}${hora} (${cuando})`
 }
+const SRC_NAME = { classroom: 'Classroom', gmail: 'Gmail', aula: 'Tu Aula', gtasks: 'Google Tasks' }
+const linkLabel = computed(() => {
+  const l = taskLink.value, t = task.value; if (!l || !t) return ''
+  if (t.urlManual && t.url) return 'Abrir enlace'
+  const src = SRC_NAME[l.src] || (/tasks\.google\.com/.test(l.url) ? 'Google Tasks' : /drive|docs\.google/.test(l.url) ? 'Drive' : null)
+  return src ? `${l.generic ? 'Ir a' : 'Abrir en'} ${src}` : 'Abrir enlace'
+})
 const taskLink = computed(() => {
   const t = task.value; if (!t) return null
   if (t.urlManual && t.url) return { url: t.url, src: t.source }
@@ -313,7 +320,7 @@ const prettyVal = (f, v) => {
           <input class="input" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="%" style="width:80px" :value="task.weight ?? ''" @change="setGrade(task, 'weight', $event.target.value, 100)" aria-label="Porcentaje que vale" />
           <span class="small muted">%</span>
         </div>
-        <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ task.urlManual && task.url ? 'Abrir enlace' : (taskLink.generic ? 'Ir a ' : 'Abrir en ') + (taskLink.src === 'classroom' ? 'Classroom' : taskLink.src === 'gmail' ? 'Gmail' : 'Tu Aula') }}</a>
+        <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ linkLabel }}</a>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>
