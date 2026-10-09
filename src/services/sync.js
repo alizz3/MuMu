@@ -10,6 +10,7 @@ import { toast } from '../engine/game'
 
 const last = {}
 let uid = null, ready = false
+let unsubs = []
 
 export async function initSync() {
   markVisit()
@@ -20,7 +21,7 @@ export async function initSync() {
   fb.authMod.onAuthStateChanged(fb.auth, async (user) => {
     ui.user = user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null
     // Al cerrar sesión se borra la copia local para que nadie más vea tus datos en este equipo
-    if (!user && uid) { ready = false; resetToSeed() }
+    if (!user && uid) { ready = false; unsubs.forEach((u) => u()); unsubs = []; resetToSeed() }
     uid = user?.uid || null
     ready = false
     ui.synced = false
@@ -51,6 +52,7 @@ export async function initSync() {
     }
     ready = true
     ui.synced = true
+    listen(fb, uid)
     markVisit()
     dropSena()
     cleanTitles()
@@ -59,6 +61,22 @@ export async function initSync() {
     if (!anyRemote) push(fb, doc, setDoc)
   })
   onPersist(() => { if (ready && uid) push(fb, doc, setDoc) })
+}
+
+// En vivo: si cambias algo en otra pestaña o en el celular, esta pestaña se actualiza sola.
+// Así una pestaña vieja no vuelve a subir tareas que ya borraste.
+function listen(fb, id) {
+  unsubs.forEach((u) => u()); unsubs = []
+  const { doc, onSnapshot } = fb.fs
+  for (const k of Object.keys(state)) {
+    unsubs.push(onSnapshot(doc(fb.db, 'users', id, 'data', k), (s) => {
+      if (!s.exists() || s.metadata.hasPendingWrites) return
+      const json = JSON.stringify(s.data().items)
+      if (json === last[k]) return
+      last[k] = json
+      state[k] = JSON.parse(json)
+    }, () => { /* sin conexión: se reintenta solo */ }))
+  }
 }
 
 async function push(fb, doc, setDoc) {
@@ -95,7 +113,12 @@ let gtStarted = false
 function startGTasks() {
   if (gtStarted) return
   gtStarted = true
-  const run = () => { if (gtAccounts().length && document.visibilityState !== 'hidden') syncGTasks({ quiet: true }).catch(() => {}) }
+  // Con varias pestañas abiertas, solo una habla con Google Tasks (evita tareas repetidas)
+  if (navigator.locks?.request) { navigator.locks.request('mumu-gtasks', () => new Promise(() => runGTasks())).catch(() => {}); return }
+  runGTasks()
+}
+function runGTasks() {
+  const run = () => { if (gtAccounts().length) syncGTasks({ quiet: true }).catch(() => {}) }
   setTimeout(run, 3000)
   setInterval(run, 20 * 60e3)
   document.addEventListener('visibilitychange', () => { const l = state.integrations.gtasksLast; if (document.visibilityState === 'visible' && (!l || Date.now() - new Date(l).getTime() > 5 * 60e3)) run() })
