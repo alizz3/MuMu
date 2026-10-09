@@ -275,8 +275,11 @@ async function doPush() {
     const list = listFor(a, t)
     try {
       const r = await call('gtasks/sync', { method: 'POST', body: { account: a.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
-      t.gtask = { acc: a.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(t) }
-      if (r.task.url && !t.url) t.url = r.task.url
+      // Si la borraste mientras se creaba en Google, también se borra allá
+      if (!state.tasks.some((x) => x.id === t.id)) { await call('gtasks/sync', { method: 'DELETE', body: { account: a.id, list: r.list, id: r.task.id } }).catch(() => {}); continue }
+      const live = state.tasks.find((x) => x.id === t.id)
+      live.gtask = { acc: a.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(live) }
+      if (r.task.url && !live.url) live.url = r.task.url
     } catch { /* se reintenta en la próxima sincronización */ }
   }
   // Editadas en MuMu (título, fecha, notas)
