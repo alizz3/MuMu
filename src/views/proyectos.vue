@@ -5,6 +5,7 @@ import * as A from '../store/actions'
 import { shortDate } from '../engine/time'
 import { Icon, Ring, Chip, Bar } from '../components/ui'
 import { ask } from '../engine/game'
+import { resumen, f1 } from '../engine/notas'
 import TaskRow from '../components/TaskRow.vue'
 
 const FLOW = [['idea', 'Idea 💭'], ['plan', 'Plan 📝'], ['progreso', 'En progreso 🚀'], ['pausado', 'Pausado ⏸️'], ['completado', 'Completado ✨']]
@@ -23,6 +24,12 @@ const gtList = (p) => { const n = normName(p.name); for (const c of Object.value
 const normName = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo']
 const COL = { idea: { name: 'Idea', icon: 'sparkles', color: '#FFE29A' }, plan: { name: 'Plan', icon: 'list', color: '#BFD7F0' }, progreso: { name: 'En progreso', icon: 'rocket', color: '#F7B6C2' }, pausado: { name: 'Pausado', icon: 'pause', color: '#D9D5E0' }, completado: { name: 'Completado', icon: 'check', color: '#B9DCCB' } }
+const pickSubj = ref(false)
+const subjTasks = (s) => state.tasks.filter((t) => t.subjectId === s.id && t.status !== 'cancelada')
+const isOpenT = (t) => t.status !== 'completada'
+const subjPct = (s) => { const ts = subjTasks(s); return ts.length ? Math.round(ts.filter((t) => t.status === 'completada').length / ts.length * 100) : 0 }
+const notaOf = (s) => { const r = resumen(subjTasks(s)); return r ? f1(r.promedio) : null }
+const openSubject = (s) => { ui.params = {}; A.go('universidad'); ui.openSubject = s.id }
 const byStatus = (st) => projects.value.filter((p) => p.status === st)
 const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))`, color: 'var(--ink)' })
 // Arrastrar y soltar entre columnas (en celular: flechitas en cada tarjeta)
@@ -45,6 +52,20 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
           <span v-for="s in sel.skills || []" :key="s" class="badge green">{{ s }}</span>
         </div>
         <div class="row" style="gap:6px;margin-top:10px"><button class="btn sm ghost" @click="move(sel, -1)">← Etapa</button><button class="btn sm lav" @click="move(sel, 1)">Siguiente etapa →</button></div>
+      </div>
+      <div v-if="sel.area === 'universidad'" class="card">
+        <div class="row between"><h3>Materias</h3><button class="link" @click="pickSubj = !pickSubj">{{ pickSubj ? 'Listo' : 'Unir materias' }}</button></div>
+        <template v-if="pickSubj">
+          <label v-for="s in state.subjects" :key="s.id" class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="s.projectId === sel.id" @change="s.projectId = s.projectId === sel.id ? null : sel.id" /> <span class="grow">{{ s.name }}</span></label>
+        </template>
+        <template v-else>
+          <button v-for="s in A.subjectsOfProject(sel)" :key="s.id" class="subj" @click="openSubject(s)">
+            <span class="gico" :style="tint(s.color || '#C3B3D4')"><Icon name="cap" :size="15" /></span>
+            <div class="grow" style="min-width:0"><div class="small b">{{ s.name }}</div><div class="tiny muted">{{ subjTasks(s).filter(isOpenT).length }} pendientes{{ notaOf(s) ? ' · nota ' + notaOf(s) : '' }}</div></div>
+            <Ring :value="subjPct(s)" :size="36" :color="s.color" />
+          </button>
+          <p v-if="!A.subjectsOfProject(sel).length" class="tiny muted" style="margin-top:6px">Toca "Unir materias" para conectar las materias de este semestre. Su avance y sus notas se suman aquí.</p>
+        </template>
       </div>
       <div class="card">
         <div class="row between"><h3>Tareas</h3><div class="row" style="gap:14px"><button v-if="tasksOf(sel).length" class="link" @click="picking = !picking; picked = []">{{ picking ? 'Listo' : 'Seleccionar' }}</button><button class="link" @click="ui.modal = { type: 'task', prefill: { projectId: sel.id, goalId: sel.goalId, category: 'trabajo' } }">+ Tarea</button></div></div>
@@ -131,5 +152,7 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
 .mini { width: 26px; height: 26px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .mini:hover:not(:disabled) { background: var(--surface-3); color: var(--pink-700); }
 .mini:disabled { opacity: .3; cursor: default; }
+.subj { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; padding: 10px 2px; cursor: pointer; }
+.subj:last-child { border-bottom: 0; }
 .empty-col { text-align: center; padding: 18px 6px; border: 1.5px dashed var(--line); border-radius: 12px; }
 </style>
