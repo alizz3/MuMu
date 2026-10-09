@@ -63,13 +63,14 @@ export default handler(async (req, res) => {
     const t = await send(token, 'POST', `${API}/lists/${encodeURIComponent(list)}/tasks/${encodeURIComponent(id)}/move?destinationTasklist=${encodeURIComponent(to)}`, {})
     return res.json({ task: shape(t), list: to })
   }
-  if (req.method === 'POST') {
+  if (req.method === 'POST' && !b.op) {
     const t = await send(token, 'POST', `${API}/lists/${encodeURIComponent(list)}/tasks`, { title: str(b.title, 'título', { max: 300 }), notes: str(b.notes, 'notas', { max: 4000, required: false }) || undefined, due: isoDue(b.due) })
     return res.json({ task: shape(t), list })
   }
   const id = str(b.id, 'tarea', { max: 200 })
   if (!ID.test(id)) throw new HttpError(400, 'Tarea inválida')
-  if (req.method === 'DELETE') {
+  // Borrar (POST con op 'delete': algunos servidores no leen el cuerpo de un DELETE)
+  if (req.method === 'DELETE' || (req.method === 'POST' && b.op === 'delete')) {
     const r = await fetch(`${API}/lists/${encodeURIComponent(list)}/tasks/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
     if (!r.ok && r.status !== 404 && r.status !== 410) throw new HttpError(502, `Google Tasks respondió ${r.status} al borrar`)
     return res.json({ ok: true })
