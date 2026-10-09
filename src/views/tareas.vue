@@ -14,7 +14,7 @@ const gtBusy = ref(false)
 async function gtSync() { gtBusy.value = true; try { await syncGTasks() } catch (e) { toast(e.message) } finally { gtBusy.value = false } }
 
 // Qué ver (pestañas) y cómo agrupar. Se recuerda lo que elijas.
-const TABS = [['abiertas', 'Pendientes'], ['hoy', 'Hoy'], ['semana', 'Semana'], ['completadas', 'Hechas']]
+const TABS = [['abiertas', 'Pendientes'], ['hoy', 'Hoy'], ['semana', 'Semana'], ['completadas', 'Hechas'], ['todas', 'Todas']]
 const VIEWS = [['lista', 'Listas', 'list'], ['fecha', 'Fecha', 'calendar'], ['prioridad', 'Prioridad', 'bolt']]
 const pref = (k, d) => computed({ get: () => state.settings[k] || d, set: (v) => (state.settings[k] = v) })
 const filter = pref('taskFilter', 'abiertas')
