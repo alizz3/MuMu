@@ -9,7 +9,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { planTask, remaining } from '../engine/planner'
-import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS } from '../engine/time'
+import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { toast, ask } from '../engine/game'
 
@@ -87,7 +87,9 @@ const SCHEMAS = {
   ] }),
   life: () => ({ title: 'Momento de vida', coll: 'life', fields: [
     { k: 'title', l: '¿Qué hiciste?', t: 'text', req: true }, { k: 'type', l: 'Tipo', t: 'select', o: ['familia', 'padres', 'mascotas', 'descanso', 'salir', 'música', 'películas', 'ocio', 'social', 'momento importante'] },
-    { k: 'minutes', l: 'Minutos', t: 'number' }, { k: 'feeling', l: '¿Cómo te sentiste? (1–5)', t: 'number' }, { k: 'date', l: 'Fecha', t: 'date' },
+    { k: 'date', l: 'Fecha', t: 'date' }, { k: 'start', l: 'Desde (opcional)', t: 'time' }, { k: 'end', l: 'Hasta (opcional)', t: 'time' },
+    { k: 'minutes', l: 'O cuántos minutos', t: 'number' }, { k: 'feeling', l: '¿Cómo te sentiste? (1–5)', t: 'number' },
+    { k: 'photos', l: 'Fotos (enlace a Google Fotos o al álbum)', t: 'url' }, { k: 'note', l: 'Nota', t: 'textarea' },
   ] }),
 }
 
@@ -126,6 +128,9 @@ function save() {
     data[f.k] = v
   })
   if (bad) return toast(`Revisa el enlace: ${bad}`)
+  // Momento con rango de horas: los minutos salen solos (si pasó la medianoche, también)
+  if (sc.coll === 'life' && data.start && data.end) { let m = hm(data.end) - hm(data.start); if (m <= 0) m += 1440; data.minutes = m }
+  if (sc.coll === 'life' && data.feeling != null) data.feeling = Math.min(5, Math.max(1, data.feeling))
   if (m.value.id) {
     const rec = state[sc.coll].find((x) => x.id === m.value.id)
     if ('url' in data && (data.url || null) !== (rec.url || null)) data.urlManual = true
