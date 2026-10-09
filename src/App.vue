@@ -82,6 +82,10 @@ const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dar
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
+// Aviso de "sin internet" (la app sigue funcionando con lo guardado en el equipo)
+const online = ref(navigator.onLine)
+window.addEventListener('offline', () => { online.value = false })
+window.addEventListener('online', () => { online.value = true; toast('Volvió el internet: subiendo lo que hiciste 💗') })
 // …/proyectos#importar=<datos>: espera a que carguen tus datos y pregunta antes de agregar el proyecto
 const pendingImport = (location.hash.match(/^#importar=([\w-]+)/) || [])[1]
 if (pendingImport) {
@@ -131,6 +135,7 @@ const fmtLeft = computed(() => {
     </aside>
 
     <main class="main" id="contenido">
+      <div v-if="!online" class="offline-bar" role="status"><Icon name="bolt" :size="14" /> Sin internet · todo lo que hagas se guarda aquí y se sube solito cuando vuelva la señal</div>
       <header class="top">
         <button v-if="ui.route === 'home'" class="iconbtn" aria-label="Ver todas las secciones" @click="go('mas')"><Icon name="menu" /></button>
         <button v-else class="iconbtn" aria-label="Volver" @click="back"><Icon name="back" /></button>
