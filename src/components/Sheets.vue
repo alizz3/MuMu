@@ -75,7 +75,7 @@ const SCHEMAS = {
   subject: () => ({ title: 'Materia', coll: 'subjects', fields: [
     { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'short', l: 'Nombre corto', t: 'text' },
     { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' }, { k: 'url', l: 'Enlace del curso (Tu Aula, Classroom…)', t: 'url' },
-    { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'semester', l: 'Semestre', t: 'text' },
+    { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'projectId', l: 'Semestre (proyecto)', t: 'select', o: opts(state.projects.filter((p) => p.area === 'universidad')) },
     { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
   ] }),
   course: () => ({ title: 'Curso', coll: 'courses', fields: [

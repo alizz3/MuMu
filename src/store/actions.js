@@ -79,8 +79,11 @@ export function scheduleTask(id) {
 
 export function intendTask(id) { const t = state.tasks.find((x) => x.id === id); if (t) { t.intendedAt = Date.now(); t.intendNotified = false } }
 
+// Un semestre es un proyecto con materias: su avance incluye las tareas de esas materias
+export const subjectsOfProject = (p) => state.subjects.filter((s) => s.projectId === p.id)
 export function projectProgress(p) {
-  const ts = state.tasks.filter((t) => t.projectId === p.id && t.status !== 'cancelada')
+  const subj = new Set(subjectsOfProject(p).map((s) => s.id))
+  const ts = state.tasks.filter((t) => (t.projectId === p.id || (t.subjectId && subj.has(t.subjectId))) && t.status !== 'cancelada')
   if (!ts.length) return p.status === 'completado' ? 100 : 0
   return Math.round((ts.filter((t) => t.status === 'completada').length / ts.length) * 100)
 }
@@ -373,8 +376,10 @@ export function importProject(data) {
     throw new Error('Enlace inválido')
   }
   const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']
-  const proj = { id: uid('p'), name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', goalId: null, due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: (Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
+  const proj = { id: uid('p'), goalId: state.goals.some((g) => g.id === p.goalId) ? p.goalId : null, name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: (Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
   state.projects.unshift(proj)
+  // Semestre: une las materias que pidas (o todas las de la U) a este proyecto
+  if (data.linkSubjects === 'all') state.subjects.forEach((x) => { if (!x.projectId) x.projectId = proj.id })
   const CATS = ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas']
   ;(Array.isArray(data.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => {
     if (!s(t?.title)) return

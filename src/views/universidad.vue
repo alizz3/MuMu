@@ -18,7 +18,8 @@ import { semesterFolder, subjectFolder, driveAccount, linkSubjectFolders } from 
 import { resumen, f1, tono, PASA } from '../engine/notas'
 
 const tab = ref('cursos')
-const sel = ref(null)
+const sel = ref(ui.openSubject || null)
+ui.openSubject = null
 const inst = ref('todas')
 const subjects = computed(() => state.subjects.filter((s) => inst.value === 'todas' || s.institution === inst.value).map((s) => {
   const ts = state.tasks.filter((t) => t.subjectId === s.id && t.status !== 'cancelada')
