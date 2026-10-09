@@ -1,0 +1,4 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": { "namespace": "android_app", "package_name": "co.alizz.mumu", "sha256_cert_fingerprints": ["3E:2E:51:3E:5A:00:37:43:0A:B5:5F:58:C8:EB:F2:C4:B5:88:83:AD:57:8A:94:FC:67:A3:23:CC:3D:96:10:57"] }
+}]

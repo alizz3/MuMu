@@ -1,0 +1,38 @@
+// MuMu para Android: abre la misma MuMu de la web (Trusted Web Activity) y le pasa el uso del celular.
+plugins { id 'com.android.application' }
+
+def code = (System.getenv('VERSION_CODE') ?: '1') as int
+
+android {
+    namespace 'co.alizz.mumu'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'co.alizz.mumu'
+        minSdk 24
+        targetSdk 34
+        versionCode code
+        versionName "1.0.${code}"
+    }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KEYSTORE_PATH') ?: 'sin-llave.jks')
+            storePassword System.getenv('KEYSTORE_PASS')
+            keyAlias 'mumu'
+            keyPassword System.getenv('KEYSTORE_PASS')
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Tema.MuMu" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/crema</item>
+        <item name="android:statusBarColor">@color/rosa</item>
+        <item name="android:navigationBarColor">@color/crema</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
