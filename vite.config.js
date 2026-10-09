@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 // `npm run build`          → build normal para Vercel (dist/), instalable como app (PWA)
 // `npm run build:preview`  → un solo HTML autocontenido (dist-preview/) para vista previa en modo local
 const pwa = VitePWA({
-  registerType: 'prompt', // avisa "hay nueva versión" en vez de quedarse con una vieja
+  registerType: 'prompt', // la app decide cuándo aplicar la versión nueva (sola, sin botón, cuando no estás en medio de algo)
   includeAssets: ['apple-touch-icon.png', 'favicon-32.png', 'og-mumu.jpg'],
   manifest: {
     name: 'MuMu',
