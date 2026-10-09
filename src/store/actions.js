@@ -361,7 +361,17 @@ import { ROOMS } from '../engine/rooms'
 export function importProject(data) {
   const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
   const p = data?.project
-  if (!p || !s(p.name)) throw new Error('Enlace de proyecto inválido')
+  // Hábitos que vengan en el enlace
+  ;(Array.isArray(data?.habits) ? data.habits : []).slice(0, 10).forEach((h) => {
+    if (!s(h?.name)) return
+    const x = { id: uid('h'), name: s(h.name, 80), emoji: s(h.emoji, 8) || '✨', when: ['mañana', 'tarde', 'noche', 'cualquiera'].includes(h.when) ? h.when : 'cualquiera', target: Math.min(7, Math.max(1, Number(h.target) || 3)), goalId: null, color: /^#[0-9a-f]{6}$/i.test(h.color || '') ? h.color : '#B9DCCB' }
+    state.habits.push(x); state.habitLogs[x.id] = {}
+  })
+  if (!p || !s(p.name)) {
+    ;(Array.isArray(data?.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => { if (s(t?.title)) addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), category: ['personal', 'vida', 'trabajo', 'universidad', 'aprendizaje'].includes(t.category) ? t.category : 'personal', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 30)), subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true }) })
+    if (data?.habits?.length || data?.tasks?.length) return null
+    throw new Error('Enlace inválido')
+  }
   const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']
   const proj = { id: uid('p'), name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', goalId: null, due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: (Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
   state.projects.unshift(proj)
