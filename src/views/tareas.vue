@@ -3,77 +3,115 @@ import { computed, ref } from 'vue'
 import { state, ui } from '../store'
 import { isOpen, effectivePriority, scoreTask, currentContext } from '../engine/planner'
 import { daysUntil } from '../engine/time'
-import { Chip, Empty, Icon } from '../components/ui'
+import { Empty, Icon } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
 import { gtAccounts, syncGTasks } from '../services/api'
 import { toast } from '../engine/game'
+
 const gtOn = computed(() => gtAccounts().length > 0)
 const gtBusy = ref(false)
 async function gtSync() { gtBusy.value = true; try { await syncGTasks() } catch (e) { toast(e.message) } finally { gtBusy.value = false } }
 
-// Vistas tipo base de datos: mismo set de tareas, diferentes filtros y agrupaciones
-const filter = ref('abiertas')
-// Se recuerda cómo te gusta verlas
-const group = computed({ get: () => state.settings.taskGroup || 'fecha', set: (v) => (state.settings.taskGroup = v) })
-const gtListName = (t) => { if (!t.gtask) return null; const c = state.integrations.gtasks?.[t.gtask.acc]; return c?.lists?.find((l) => l.id === t.gtask.list)?.title || null }
-const cat = ref('todas')
+// Qué ver (pestañas) y cómo agrupar. Se recuerda lo que elijas.
+const TABS = [['abiertas', 'Pendientes'], ['hoy', 'Hoy'], ['semana', 'Semana'], ['completadas', 'Hechas']]
+const VIEWS = [['lista', 'Listas', 'list'], ['fecha', 'Fecha', 'calendar'], ['prioridad', 'Prioridad', 'bolt']]
+const pref = (k, d) => computed({ get: () => state.settings[k] || d, set: (v) => (state.settings[k] = v) })
+const filter = pref('taskFilter', 'abiertas')
+const group = pref('taskGroup', 'lista')
+if (!VIEWS.some((v) => v[0] === group.value)) group.value = 'lista'
 const q = ref('')
-// Filtro por proyecto o materia (como las listas de Google Tasks)
-const where = ref('todos')
-const LISTS = computed(() => [...state.projects.filter((p) => state.tasks.some((t) => t.projectId === p.id)).map((p) => ({ v: 'p:' + p.id, l: '📁 ' + p.name })), ...state.subjects.filter((x) => state.tasks.some((t) => t.subjectId === x.id)).map((x) => ({ v: 's:' + x.id, l: '📚 ' + x.name }))])
-const CATS = ['todas', 'universidad', 'trabajo', 'aprendizaje', 'personal', 'vida']
+
 const list = computed(() => {
-  let ts = state.tasks.filter((t) => inScope('task', t))
+  let ts = state.tasks.filter((t) => inScope('task', t) && t.status !== 'cancelada')
   if (filter.value === 'abiertas') ts = ts.filter(isOpen)
   if (filter.value === 'hoy') ts = ts.filter((t) => isOpen(t) && t.due && daysUntil(t.due) <= 0)
   if (filter.value === 'semana') ts = ts.filter((t) => isOpen(t) && t.due && daysUntil(t.due) <= 7)
-  if (filter.value === 'pospuestas') ts = ts.filter((t) => isOpen(t) && (t.postponed || 0) > 0)
   if (filter.value === 'completadas') ts = ts.filter((t) => t.status === 'completada')
-  if (cat.value !== 'todas') ts = ts.filter((t) => t.category === cat.value)
-  if (where.value !== 'todos') { const [k, id] = where.value.split(':'); ts = ts.filter((t) => (k === 'p' ? t.projectId : t.subjectId) === id) }
   if (q.value) ts = ts.filter((t) => t.title.toLowerCase().includes(q.value.toLowerCase()))
   return ts
 })
+
+// Cada grupo trae su ícono y su color, del mismo estilo que el resto de MuMu
+const gtListName = (t) => { if (!t.gtask) return null; const c = state.integrations.gtasks?.[t.gtask.acc]; return c?.lists?.find((l) => l.id === t.gtask.list)?.title || null }
+function meta(t) {
+  if (group.value === 'lista') {
+    const p = state.projects.find((x) => x.id === t.projectId)
+    if (p) return { key: 'p' + p.id, order: 1, label: p.name, icon: 'folder', color: p.color || '#C3B3D4' }
+    const s = state.subjects.find((x) => x.id === t.subjectId)
+    if (s) return { key: 's' + s.id, order: 2, label: s.name, icon: 'cap', color: s.color || '#C3B3D4' }
+    const g = gtListName(t)
+    if (g) return { key: 'g' + g, order: 0, label: g, icon: 'check', color: '#BFD7F0' }
+    return { key: 'none', order: 3, label: 'Sin lista', icon: 'list', color: '#E7E1EE' }
+  }
+  if (group.value === 'fecha') {
+    const d = daysUntil(t.due)
+    if (!t.due) return { key: 'f5', order: 5, label: 'Sin fecha', icon: 'list', color: '#E7E1EE' }
+    if (d < 0) return { key: 'f0', order: 0, label: 'Atrasadas (sin culpa)', icon: 'clock', color: '#F7B6C2' }
+    if (d === 0) return { key: 'f1', order: 1, label: 'Hoy', icon: 'sun', color: '#FFE29A' }
+    if (d === 1) return { key: 'f2', order: 2, label: 'Mañana', icon: 'calendar', color: '#C3B3D4' }
+    if (d <= 7) return { key: 'f3', order: 3, label: 'Esta semana', icon: 'calendar', color: '#BFD7F0' }
+    return { key: 'f4', order: 4, label: 'Más adelante', icon: 'calendar', color: '#B9DCCB' }
+  }
+  const p = effectivePriority(t)
+  return { alta: { key: 'a', order: 0, label: 'Alta', icon: 'bolt', color: '#F7B6C2' }, media: { key: 'm', order: 1, label: 'Media', icon: 'bolt', color: '#FFE29A' }, baja: { key: 'b', order: 2, label: 'Baja', icon: 'bolt', color: '#B9DCCB' } }[p]
+}
 const groups = computed(() => {
   const ctx = currentContext()
   const g = {}
-  const key = (t) => {
-    if (group.value === 'fecha') { const d = daysUntil(t.due); return !t.due ? '5 Sin fecha' : d < 0 ? '0 Atrasadas (sin culpa)' : d === 0 ? '1 Hoy' : d === 1 ? '2 Mañana' : d <= 7 ? '3 Esta semana' : '4 Más adelante' }
-    if (group.value === 'prioridad') return { alta: '0 Alta', media: '1 Media', baja: '2 Baja' }[effectivePriority(t)]
-    if (group.value === 'proyecto') return state.projects.find((p) => p.id === t.projectId)?.name || state.subjects.find((s) => s.id === t.subjectId)?.name || 'Sin proyecto'
-    if (group.value === 'lista') return state.projects.find((p) => p.id === t.projectId)?.name ? '📁 ' + state.projects.find((p) => p.id === t.projectId).name : state.subjects.find((x) => x.id === t.subjectId)?.name ? '📚 ' + state.subjects.find((x) => x.id === t.subjectId).name : gtListName(t) ? '✅ ' + gtListName(t) : '~Sin lista'
-    if (group.value === 'estado') return t.status
-    if (group.value === 'fuente') return t.source
-  }
-  ;[...list.value].sort((a, b) => scoreTask(b, ctx) - scoreTask(a, ctx)).forEach((t) => (g[key(t)] = g[key(t)] || []).push(t))
-  return Object.entries(g).sort((a, b) => (a[0] > b[0] ? 1 : -1)).map(([k, v]) => ({ k: k.replace(/^\d /, '').replace(/^~/, ''), v }))
+  ;[...list.value].sort((a, b) => scoreTask(b, ctx) - scoreTask(a, ctx)).forEach((t) => { const m = meta(t); (g[m.key] ||= { ...m, v: [] }).v.push(t) })
+  return Object.values(g).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
 })
+// Grupos plegables
+const folded = computed(() => (state.settings.taskFolded ||= {}))
+const toggle = (k) => { folded.value[k] = !folded.value[k] }
+const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))`, color: 'var(--ink)' })
 </script>
 
 <template>
   <div class="stack">
     <div class="row">
-      <input class="input grow" v-model="q" placeholder="Buscar tareas…" aria-label="Buscar tareas" />
-      <button v-if="gtOn" class="iconbtn" :aria-label="gtBusy ? 'Sincronizando con Google Tasks' : 'Sincronizar con Google Tasks'" title="Sincronizar con Google Tasks" :disabled="gtBusy" @click="gtSync"><Icon name="refresh" /></button>
+      <label class="search grow"><Icon name="search" :size="16" /><input v-model="q" placeholder="Buscar tareas…" aria-label="Buscar tareas" /></label>
+      <button v-if="gtOn" class="iconbtn" :aria-label="gtBusy ? 'Sincronizando con Google Tasks' : 'Sincronizar con Google Tasks'" title="Sincronizar con Google Tasks" :disabled="gtBusy" @click="gtSync"><Icon name="refresh" :class="{ spinning: gtBusy }" /></button>
       <button class="iconbtn add" aria-label="Nueva tarea" @click="ui.modal = { type: 'task' }"><Icon name="plus" /></button>
     </div>
-    <div class="chips"><Chip v-for="f in ['abiertas', 'hoy', 'semana', 'pospuestas', 'completadas', 'todas']" :key="f" :active="filter === f" @click="filter = f">{{ f }}</Chip></div>
-    <div class="chips"><Chip v-for="c in CATS" :key="c" :active="cat === c" @click="cat = c">{{ c }}</Chip></div>
-    <div class="row wrap small muted" style="gap:8px 14px">
-      <label class="row" style="gap:6px">Lista
-        <select class="input" style="width:auto;max-width:220px;padding:6px 10px" v-model="where" aria-label="Filtrar por proyecto o materia">
-          <option value="todos">Todas</option><option v-for="o in LISTS" :key="o.v" :value="o.v">{{ o.l }}</option>
-        </select></label>
-      <label class="row" style="gap:6px">Agrupar por
-        <select class="input" style="width:auto;padding:6px 10px" v-model="group" aria-label="Agrupar por">
-          <option value="lista">lista (como Google Tasks)</option><option value="fecha">fecha</option><option value="prioridad">prioridad</option><option value="proyecto">proyecto / materia</option><option value="estado">estado</option><option value="fuente">fuente</option>
-        </select></label>
+
+    <div class="seg" role="tablist" aria-label="Qué tareas ver">
+      <button v-for="t in TABS" :key="t[0]" role="tab" :aria-selected="filter === t[0]" :class="{ on: filter === t[0] }" @click="filter = t[0]">{{ t[1] }}</button>
     </div>
-    <div v-for="g in groups" :key="g.k" class="card">
-      <div class="row between"><h3>{{ g.k }}</h3><span class="badge">{{ g.v.length }}</span></div>
-      <div class="list"><TaskRow v-for="t in g.v" :key="t.id" :task="t" /></div>
+
+    <div class="row between">
+      <span class="small muted">{{ list.length }} {{ list.length === 1 ? 'tarea' : 'tareas' }}</span>
+      <div class="views" role="radiogroup" aria-label="Agrupar">
+        <button v-for="v in VIEWS" :key="v[0]" role="radio" :aria-checked="group === v[0]" :class="{ on: group === v[0] }" :title="`Agrupar por ${v[1].toLowerCase()}`" @click="group = v[0]"><Icon :name="v[2]" :size="14" /><span>{{ v[1] }}</span></button>
+      </div>
     </div>
-    <Empty v-if="!list.length" pose="celebrate" text="Nada por aquí. ¡Disfruta ese espacio! ✨" />
+
+    <section v-for="g in groups" :key="g.key" class="card grp">
+      <button class="grp-head" :aria-expanded="!folded[g.key]" @click="toggle(g.key)">
+        <span class="gico" :style="tint(g.color)"><Icon :name="g.icon" :size="16" /></span>
+        <h3 class="grow">{{ g.label }}</h3>
+        <span class="badge">{{ g.v.length }}</span>
+        <Icon name="chev" :size="16" class="muted" :style="{ transform: folded[g.key] ? 'none' : 'rotate(90deg)', transition: 'transform .2s' }" />
+      </button>
+      <div v-if="!folded[g.key]" class="list"><TaskRow v-for="t in g.v" :key="t.id" :task="t" /></div>
+    </section>
+    <Empty v-if="!list.length" pose="celebrate" :text="q ? 'No encontré tareas con eso 🔍' : 'Nada por aquí. ¡Disfruta ese espacio! ✨'" />
   </div>
 </template>
+
+<style scoped>
+.search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px; color: var(--muted); min-width: 0; }
+.search input { border: 0; background: transparent; color: var(--ink); font: inherit; padding: 11px 0; width: 100%; outline: none; }
+.search:focus-within { border-color: var(--pink-300); }
+.views { display: inline-flex; background: var(--surface-3); border-radius: 12px; padding: 3px; gap: 2px; }
+.views button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; cursor: pointer; }
+.views button.on { background: var(--surface); color: var(--pink-700); font-weight: 600; box-shadow: var(--shadow); }
+.grp { padding-top: 12px; padding-bottom: 12px; }
+.grp-head { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.grp-head h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gico { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.grp .list { margin-top: 6px; }
+.spinning { animation: spin .8s linear infinite; }
+@media (max-width: 380px) { .views button span { display: none; } }
+</style>
