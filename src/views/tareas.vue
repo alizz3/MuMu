@@ -14,7 +14,9 @@ async function gtSync() { gtBusy.value = true; try { await syncGTasks() } catch 
 
 // Vistas tipo base de datos: mismo set de tareas, diferentes filtros y agrupaciones
 const filter = ref('abiertas')
-const group = ref('fecha')
+// Se recuerda cómo te gusta verlas
+const group = computed({ get: () => state.settings.taskGroup || 'fecha', set: (v) => (state.settings.taskGroup = v) })
+const gtListName = (t) => { if (!t.gtask) return null; const c = state.integrations.gtasks?.[t.gtask.acc]; return c?.lists?.find((l) => l.id === t.gtask.list)?.title || null }
 const cat = ref('todas')
 const q = ref('')
 // Filtro por proyecto o materia (como las listas de Google Tasks)
@@ -40,11 +42,12 @@ const groups = computed(() => {
     if (group.value === 'fecha') { const d = daysUntil(t.due); return !t.due ? '5 Sin fecha' : d < 0 ? '0 Atrasadas (sin culpa)' : d === 0 ? '1 Hoy' : d === 1 ? '2 Mañana' : d <= 7 ? '3 Esta semana' : '4 Más adelante' }
     if (group.value === 'prioridad') return { alta: '0 Alta', media: '1 Media', baja: '2 Baja' }[effectivePriority(t)]
     if (group.value === 'proyecto') return state.projects.find((p) => p.id === t.projectId)?.name || state.subjects.find((s) => s.id === t.subjectId)?.name || 'Sin proyecto'
+    if (group.value === 'lista') return state.projects.find((p) => p.id === t.projectId)?.name ? '📁 ' + state.projects.find((p) => p.id === t.projectId).name : state.subjects.find((x) => x.id === t.subjectId)?.name ? '📚 ' + state.subjects.find((x) => x.id === t.subjectId).name : gtListName(t) ? '✅ ' + gtListName(t) : '~Sin lista'
     if (group.value === 'estado') return t.status
     if (group.value === 'fuente') return t.source
   }
   ;[...list.value].sort((a, b) => scoreTask(b, ctx) - scoreTask(a, ctx)).forEach((t) => (g[key(t)] = g[key(t)] || []).push(t))
-  return Object.entries(g).sort((a, b) => (a[0] > b[0] ? 1 : -1)).map(([k, v]) => ({ k: k.replace(/^\d /, ''), v }))
+  return Object.entries(g).sort((a, b) => (a[0] > b[0] ? 1 : -1)).map(([k, v]) => ({ k: k.replace(/^\d /, '').replace(/^~/, ''), v }))
 })
 </script>
 
@@ -64,7 +67,7 @@ const groups = computed(() => {
         </select></label>
       <label class="row" style="gap:6px">Agrupar por
         <select class="input" style="width:auto;padding:6px 10px" v-model="group" aria-label="Agrupar por">
-          <option value="fecha">fecha</option><option value="prioridad">prioridad</option><option value="proyecto">proyecto / materia</option><option value="estado">estado</option><option value="fuente">fuente</option>
+          <option value="lista">lista (como Google Tasks)</option><option value="fecha">fecha</option><option value="prioridad">prioridad</option><option value="proyecto">proyecto / materia</option><option value="estado">estado</option><option value="fuente">fuente</option>
         </select></label>
     </div>
     <div v-for="g in groups" :key="g.k" class="card">
