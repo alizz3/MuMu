@@ -36,6 +36,8 @@ const list = computed(() => {
 const gtListName = (t) => { if (!t.gtask) return null; const c = state.integrations.gtasks?.[t.gtask.acc]; return c?.lists?.find((l) => l.id === t.gtask.list)?.title || null }
 function meta(t) {
   if (group.value === 'lista') {
+    const h = t.habitId && state.habits.find((x) => x.id === t.habitId)
+    if (h) return { key: 'h' + h.id, order: 1, label: h.name, icon: 'heart', color: h.color || '#F7B6C2' }
     const p = state.projects.find((x) => x.id === t.projectId)
     if (p) return { key: 'p' + p.id, order: 1, label: p.name, icon: 'folder', color: p.color || '#C3B3D4' }
     const s = state.subjects.find((x) => x.id === t.subjectId)

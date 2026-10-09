@@ -309,6 +309,11 @@ export function subjectByName(name) {
   const c = canon(name); if (!c) return null
   return state.subjects.find((s) => canon(s.name) === c) || state.subjects.find((s) => { const k = canon(s.name); return k && (c.includes(k) || k.includes(c)) }) || null
 }
+// Las dos tareas de arranque del ejercicio viven en el hábito "Ejercicio en casa"
+export function linkHabitTasks() {
+  const h = state.habits.find((x) => /ejercicio en casa/i.test(x.name)); if (!h) return
+  state.tasks.forEach((t) => { if (!t.habitId && /^(Elegir una rutina gratis para hacer en casa|Primera sesión: 10 minuticos)$/.test(t.title)) { t.habitId = h.id; t.category = 'vida' } })
+}
 export function cleanTitles() {
   const re = /\s+(est[aá] pendiente|pendiente|debe entregarse|is due)\s*$/i
   state.tasks.forEach((t) => { if (['aula', 'classroom'].includes(t.source) && re.test(t.title)) t.title = t.title.replace(re, '') })
@@ -371,7 +376,8 @@ export function importProject(data) {
     state.habits.push(x); state.habitLogs[x.id] = {}
   })
   if (!p || !s(p.name)) {
-    ;(Array.isArray(data?.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => { if (s(t?.title)) addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), category: ['personal', 'vida', 'trabajo', 'universidad', 'aprendizaje'].includes(t.category) ? t.category : 'personal', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 30)), subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true }) })
+    const hab = state.habits.find((x) => x.name === s(data?.habits?.[0]?.name, 80))
+    ;(Array.isArray(data?.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => { if (s(t?.title)) addTask({ habitId: hab?.id || null, title: s(t.title, 200), notes: s(t.notes, 1500), category: ['personal', 'vida', 'trabajo', 'universidad', 'aprendizaje'].includes(t.category) ? t.category : 'personal', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 30)), subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true }) })
     if (data?.habits?.length || data?.tasks?.length) return null
     throw new Error('Enlace inválido')
   }
