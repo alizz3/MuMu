@@ -92,10 +92,11 @@ if (pendingImport) {
     history.replaceState(null, '', location.pathname)
     try {
       const data = JSON.parse(decodeURIComponent(escape(atob(pendingImport.replace(/-/g, '+').replace(/_/g, '/')))))
-      if (!(await ask(`¿Agregar el proyecto "${data.project?.name}" con ${data.tasks?.length || 0} tareas?`))) return
+      const parts = [data.project?.name && `el proyecto "${data.project.name}"`, data.habits?.length && `${data.habits.length} hábito${data.habits.length === 1 ? '' : 's'}`, data.tasks?.length && `${data.tasks.length} tarea${data.tasks.length === 1 ? '' : 's'}`].filter(Boolean)
+      if (!(await ask(`¿Agregar ${parts.join(', ')}?`))) return
       const p = importProject(data)
-      go('proyectos', { id: p.id })
-      toast(`Proyecto ${p.name} agregado 📁`)
+      if (p) { go('proyectos', { id: p.id }); toast(`Proyecto ${p.name} agregado 📁`) }
+      else { go(data.habits?.length ? 'habitos' : 'tareas'); toast('Listo, agregado 💪') }
     } catch (e) { toast('Ese enlace de proyecto no se pudo leer') }
   }, { immediate: true })
 }
