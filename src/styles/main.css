@@ -246,3 +246,4 @@ textarea.input { min-height: 80px; resize: vertical; }
 .wk-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
 .badge.dim { opacity: .55; }
 a.btn, a.btn:hover { text-decoration: none; }
+.offline-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--lav-100); color: var(--lav-700); font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 0 0 12px 12px; text-align: center; }

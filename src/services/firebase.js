@@ -16,7 +16,10 @@ export async function getFirebase() {
   if (cached) return cached
   const [{ initializeApp }, auth, fs] = await Promise.all([import('firebase/app'), import('firebase/auth'), import('firebase/firestore')])
   const app = initializeApp(firebaseConfig)
-  cached = { app, auth: auth.getAuth(app), authMod: auth, db: fs.getFirestore(app), fs }
+  // Caché local de Firestore: sin internet la app lee tus datos guardados y lo que hagas se sube al volver
+  let db
+  try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }) } catch { db = fs.getFirestore(app) }
+  cached = { app, auth: auth.getAuth(app), authMod: auth, db, fs }
   return cached
 }
 

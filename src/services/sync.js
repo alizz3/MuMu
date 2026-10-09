@@ -27,13 +27,17 @@ export async function initSync() {
     ui.synced = false
     if (!uid) { ui.authReady = true; return }
     // Solo la dueña: si el servidor dice que esta cuenta no tiene acceso, se muestra la pantalla de "casita de Alizz"
+    const dkey = `mumu:dataUid:${user.uid}`
     if (location.protocol.startsWith('http')) {
       try {
         const r = await fetch('/api/me', { headers: { Authorization: `Bearer ${await idToken()}` } })
         if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
         const j = await r.json().catch(() => ({}))
-        if (j.dataUid) uid = j.dataUid // la cuenta de la U usa los mismos datos que tu Gmail
-      } catch { /* sin servidor: se permite (modo local) */ }
+        if (j.dataUid) { uid = j.dataUid; try { localStorage.setItem(dkey, uid) } catch {} } // la cuenta de la U usa los mismos datos que tu Gmail
+      } catch {
+        // Sin internet: se usa la última cuenta de datos conocida
+        try { uid = localStorage.getItem(dkey) || uid } catch {}
+      }
     }
     ui.blocked = false
     ui.demo = false
@@ -81,11 +85,12 @@ function listen(fb, id) {
 }
 
 async function push(fb, doc, setDoc) {
+  // Sin await: sin internet la escritura queda guardada en el equipo y Firebase la sube sola al volver
   for (const k of Object.keys(state)) {
     const json = JSON.stringify(state[k])
     if (last[k] === json) continue
     last[k] = json
-    try { await setDoc(doc(fb.db, 'users', uid, 'data', k), { items: JSON.parse(json), updatedAt: Date.now() }) } catch (e) { console.warn('sync', k, e.message) }
+    setDoc(doc(fb.db, 'users', uid, 'data', k), { items: JSON.parse(json), updatedAt: Date.now() }).catch((e) => console.warn('sync', k, e.message))
   }
 }
 
@@ -101,7 +106,7 @@ function processInbox() {
 
 // Si Tu Aula está conectada y no se revisa hace más de 3 horas, se revisa al abrir
 function autoSync() {
-  if (!ui.backend) return
+  if (!ui.backend || !navigator.onLine) return
   const old = (iso) => !iso || Date.now() - new Date(iso).getTime() > 3 * 3600e3
   const a = state.integrations.aula
   if (a?.status === 'conectado' && old(a.lastSync)) syncAula().catch(() => {})
@@ -119,7 +124,7 @@ function startGTasks() {
   runGTasks()
 }
 function runGTasks() {
-  const run = () => { if (gtAccounts().length) syncGTasks({ quiet: true }).catch(() => {}) }
+  const run = () => { if (navigator.onLine && gtAccounts().length) syncGTasks({ quiet: true }).catch(() => {}) }
   setTimeout(run, 3000)
   setInterval(run, 20 * 60e3)
   document.addEventListener('visibilitychange', () => { const l = state.integrations.gtasksLast; if (document.visibilityState === 'visible' && (!l || Date.now() - new Date(l).getTime() > 5 * 60e3)) run() })
