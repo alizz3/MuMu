@@ -6,6 +6,7 @@ import { recommend, itemsOn, isOpen, dayLoad, rankedTasks } from '../engine/plan
 import { petState, missions, claimMission, daily, streakMessage, habitStats } from '../engine/game'
 import { greeting, longDate, dayKey, fmt12, fmt12s, hm, fmtDur, nowMin, relDay, daysUntil } from '../engine/time'
 import { Icon, Pet, Ring } from '../components/ui'
+import { habitIcon, goalIcon } from '../components/iconFor'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
 
@@ -48,7 +49,7 @@ const welcome = () => { d.value.welcomed = true }
     <section class="cols">
       <div class="stack">
         <div>
-          <div class="hero-greet">{{ greeting(ui.now) }}, {{ state.settings.ownerName }}! <span aria-hidden="true">{{ ui.now.getHours() < 18 ? '☀️' : '🌙' }}</span></div>
+          <div class="hero-greet">{{ greeting(ui.now) }}, {{ state.settings.ownerName }}! <Icon :name="ui.now.getHours() < 18 ? 'sun' : 'moon'" :size="20" class="inl" /></div>
           <div class="muted">{{ longDate(ui.now) }} · {{ fmt12(nowMin(ui.now)) }}</div>
         </div>
         <div class="row" style="align-items:center">
@@ -62,7 +63,7 @@ const welcome = () => { d.value.welcomed = true }
         <div class="tiny b" style="color:var(--pink-700);letter-spacing:.06em">¿QUÉ DEBERÍA HACER AHORA?</div>
         <h2 style="margin:6px 0 6px;font-size:18px;max-width:80%">{{ rec.title }}</h2>
         <p class="small" style="max-width:74%">{{ rec.reason }}</p>
-        <p v-if="rec.principle" class="tiny muted" style="margin-top:6px;max-width:74%">💡 {{ rec.principle.author }} · “{{ rec.principle.text }}”</p>
+        <p v-if="rec.principle" class="tiny muted" style="margin-top:6px;max-width:74%"><Icon name="bulb" :size="13" class="inl" /> {{ rec.principle.author }} · “{{ rec.principle.text }}”</p>
         <div class="row" style="margin-top:14px;gap:8px">
           <button class="btn primary big" @click="startNow"><Icon name="play" :size="18" />EMPEZAR</button>
           <button class="btn ghost sm" @click="ui.assistantOpen = true">Otras opciones</button>
@@ -81,9 +82,9 @@ const welcome = () => { d.value.welcomed = true }
         <div class="kpi"><b>{{ fmtDur(rec.ctx.freeToday) }}</b><span>tiempo libre</span></div>
       </div>
       <div class="row wrap small muted" style="margin-top:12px;gap:14px">
-        <span v-if="sleepToday">😴 Dormiste {{ fmtDur(sleepToday.minutes) }} · despertaste {{ fmt12s(sleepToday.wake) }}</span>
-        <button v-else class="link" style="padding:0" @click="A.go('sueno')">😴 ¿Cómo dormiste? Regístralo</button>
-        <span>📚 Estudio {{ fmtDur(load.study) }}</span><span>💻 Trabajo {{ fmtDur(load.work) }}</span>
+        <span v-if="sleepToday" class="wi"><Icon name="bed" :size="15" />Dormiste {{ fmtDur(sleepToday.minutes) }} · despertaste {{ fmt12s(sleepToday.wake) }}</span>
+        <button v-else class="link" style="padding:0" @click="A.go('sueno')"><Icon name="bed" :size="15" class="inl" /> ¿Cómo dormiste? Regístralo</button>
+        <span class="wi"><Icon name="book" :size="15" />Estudio {{ fmtDur(load.study) }}</span><span class="wi"><Icon name="laptop" :size="15" />Trabajo {{ fmtDur(load.work) }}</span>
       </div>
       <p class="tiny muted" style="margin-top:8px">{{ streakMessage() }}</p>
     </section>
@@ -92,7 +93,7 @@ const welcome = () => { d.value.welcomed = true }
       <div class="stack">
         <!-- Prioridad del día -->
         <section class="card soft">
-          <div class="row between"><h3>⭐ Mi prioridad de hoy</h3><button class="link" @click="pickPriority = !pickPriority">{{ priorityTask ? 'Cambiar' : 'Elegir' }}</button></div>
+          <div class="row between"><h3 class="wi"><Icon name="star" :size="17" />Mi prioridad de hoy</h3><button class="link" @click="pickPriority = !pickPriority">{{ priorityTask ? 'Cambiar' : 'Elegir' }}</button></div>
           <p v-if="priorityTask && !pickPriority" class="small" style="margin-top:6px"><b>{{ priorityTask.title }}</b> <span class="muted">· {{ priorityTask.due ? relDay(priorityTask.due) : 'sin fecha' }}</span></p>
           <p v-else-if="!pickPriority" class="small muted" style="margin-top:6px">Elige UNA cosa que haría que hoy valga la pena.</p>
           <div v-if="pickPriority" class="stack" style="gap:6px;margin-top:8px">
@@ -108,7 +109,7 @@ const welcome = () => { d.value.welcomed = true }
               <span class="ico" :class="{ lav: i.type === 'clase', mint: i.type === 'familia' || i.type === 'vida', cream: i.type === 'bloque' }"><Icon :name="i.type === 'clase' ? 'cap' : i.type === 'bloque' ? 'timer' : i.type === 'familia' || i.type === 'vida' ? 'heart' : 'calendar'" :size="18" /></span>
               <div class="grow"><div class="title-line">{{ i.title }}</div><div class="tiny muted">{{ fmt12s(i.start) }} – {{ fmt12s(i.end) }}</div></div>
             </div>
-            <p v-if="!upcoming.length" class="small muted" style="padding:8px 0">No tienes más eventos hoy. Tiempo para ti 🤍</p>
+            <p v-if="!upcoming.length" class="small muted" style="padding:8px 0">No tienes más eventos hoy. Tiempo para ti.</p>
           </div>
         </section>
 
@@ -116,12 +117,12 @@ const welcome = () => { d.value.welcomed = true }
         <section class="card">
           <div class="row between"><h3>Próximos vencimientos</h3><button class="link" @click="A.go('tareas')">Todas</button></div>
           <div class="list"><TaskRow v-for="t in dueSoon" :key="t.id" :task="t" compact /></div>
-          <p v-if="!dueSoon.length" class="small muted" style="padding:8px 0">Nada vence en 3 días ✨</p>
+          <p v-if="!dueSoon.length" class="small muted" style="padding:8px 0">Nada vence en 3 días.</p>
         </section>
 
         <!-- Universidad + correo -->
         <section class="card">
-          <div class="row between"><h3>🎓 Universidad y correo</h3><button class="link" @click="A.go('universidad')">Abrir</button></div>
+          <div class="row between"><h3 class="wi"><Icon name="cap" :size="17" />Universidad y correo</h3><button class="link" @click="A.go('universidad')">Abrir</button></div>
           <div class="list">
             <div v-for="a in aulaNew" :key="a.id" class="item">
               <span class="ico lav"><Icon name="cap" :size="18" /></span>
@@ -142,7 +143,8 @@ const welcome = () => { d.value.welcomed = true }
           <div class="list">
             <div v-for="h in state.habits.filter((x) => inScope('habit', x))" :key="h.id" class="item">
               <button class="check" :class="{ on: state.habitLogs[h.id]?.[k]?.done }" :aria-label="`Marcar ${h.name}`" @click="A.toggleHabit(h.id)"><Icon v-if="state.habitLogs[h.id]?.[k]?.done" name="check" :size="15" :stroke="3" /></button>
-              <div class="grow"><div class="title-line">{{ h.emoji }} {{ h.name }}</div><div class="tiny muted">{{ habitStats(h).weekDone }} de los últimos 7 días</div></div>
+              <span class="gico" :style="{ background: `color-mix(in srgb, ${h.color || '#B9DCCB'} 40%, var(--surface))`, color: 'var(--ink)' }"><Icon :name="habitIcon(h)" :size="15" /></span>
+              <div class="grow"><div class="title-line">{{ h.name }}</div><div class="tiny muted">{{ habitStats(h).weekDone }} de los últimos 7 días</div></div>
             </div>
           </div>
         </section>
@@ -153,7 +155,7 @@ const welcome = () => { d.value.welcomed = true }
           <div class="grid2" style="margin-top:10px">
             <button v-for="g in goals" :key="g.id" class="row card tight" style="text-align:left;box-shadow:none" @click="A.go('objetivos')">
               <Ring :value="g.p" :size="46" :label="g.name" />
-              <span class="small" style="line-height:1.25">{{ g.emoji }} {{ g.name }}</span>
+              <span class="small" style="line-height:1.25"><Icon :name="goalIcon(g)" :size="14" class="inl" /> {{ g.name }}</span>
             </button>
           </div>
         </section>
@@ -162,22 +164,22 @@ const welcome = () => { d.value.welcomed = true }
         <section class="card">
           <h3>Misiones de hoy</h3>
           <div v-for="mi in mis" :key="mi.id" style="margin-top:10px">
-            <div class="row between small"><span class="b">{{ mi.emoji }} {{ mi.title }}</span><span class="muted">{{ mi.progress }}/{{ mi.steps.length }} · 🪙{{ mi.reward }}</span></div>
+            <div class="row between small"><span class="b wi"><Icon :name="mi.icon" :size="15" />{{ mi.title }}</span><span class="muted wi" style="gap:3px">{{ mi.progress }}/{{ mi.steps.length }} · <Icon name="coin" :size="13" />{{ mi.reward }}</span></div>
             <div class="bar" style="margin:6px 0"><i :style="{ width: (mi.progress / mi.steps.length * 100) + '%', background: 'var(--lav-500)' }"></i></div>
             <div class="row wrap" style="gap:4px">
-              <button v-for="s in mi.steps" :key="s.t" class="chip" :class="{ on: s.done }" @click="A.go(s.go)">{{ s.done ? '✓ ' : '' }}{{ s.t }}</button>
+              <button v-for="s in mi.steps" :key="s.t" class="chip" :class="{ on: s.done }" @click="A.go(s.go)"><Icon v-if="s.done" name="check" :size="12" />{{ s.t }}</button>
             </div>
-            <button v-if="mi.complete && !mi.claimed" class="btn sm primary" style="margin-top:8px" @click="claimMission(mi)">🎁 Reclamar recompensa</button>
+            <button v-if="mi.complete && !mi.claimed" class="btn sm primary" style="margin-top:8px" @click="claimMission(mi)"><Icon name="gift" :size="15" />Reclamar recompensa</button>
           </div>
         </section>
 
         <!-- Recomendación de lo que aprendo -->
         <section v-if="principle" class="card soft now-card" style="min-height:150px">
-          <div class="tiny b muted">RECOMENDACIÓN PARA TI 💡</div>
+          <div class="tiny b muted wi"><Icon name="bulb" :size="13" />RECOMENDACIÓN PARA TI</div>
           <h3 style="margin:4px 0;max-width:70%">{{ principle.text }}</h3>
           <p class="small muted" style="max-width:68%">{{ principle.author }} · {{ principle.action }}</p>
           <div class="row" style="margin-top:10px;gap:6px">
-            <button v-if="activeExp && activeExp.principleId === principle.id" class="btn sm lav" @click="A.go('experimentos')">🧪 Registrar experimento</button>
+            <button v-if="activeExp && activeExp.principleId === principle.id" class="btn sm lav" @click="A.go('experimentos')"><Icon name="flask" :size="15" />Registrar experimento</button>
             <button v-else class="btn sm lav" @click="A.startExperiment(principle.id); A.go('experimentos')">Probarlo 7 días</button>
           </div>
           <Pet pose="read" :size="96" :bob="false" />
@@ -185,8 +187,8 @@ const welcome = () => { d.value.welcomed = true }
 
         <!-- Intención con el celular -->
         <section class="card row">
-          <span class="ico cream" style="font-size:20px">📱</span>
-          <div class="grow"><div class="small b">Hey {{ state.settings.ownerName }} 💗 ¿Qué venías a hacer?</div><div class="tiny muted">Registra tu intención antes de abrir otra app</div></div>
+          <span class="ico cream"><Icon name="phone" :size="19" /></span>
+          <div class="grow"><div class="small b">Hey {{ state.settings.ownerName }}, ¿qué venías a hacer?</div><div class="tiny muted">Registra tu intención antes de abrir otra app</div></div>
           <button class="btn sm lav" @click="A.go('celular')">Registrar</button>
         </section>
 
@@ -194,8 +196,8 @@ const welcome = () => { d.value.welcomed = true }
         <section class="card row" style="cursor:pointer" @click="A.go('casa')">
           <div class="grow">
             <h3>Energía de la vaquita</h3>
-            <div style="font-size:22px;margin:6px 0;letter-spacing:2px" :aria-label="`${pet.hearts} de 5 corazones`">{{ '💗'.repeat(pet.hearts) }}{{ '🤍'.repeat(5 - pet.hearts) }}</div>
-            <div class="tiny muted">🪙 {{ state.game.coins }} monedas · toca para ir a la casita</div>
+            <div class="hearts" role="img" :aria-label="`${pet.hearts} de 5 corazones`"><Icon v-for="n in 5" :key="n" name="heart" :size="20" :class="{ on: n <= pet.hearts }" /></div>
+            <div class="tiny muted wi" style="gap:4px"><Icon name="coin" :size="13" />{{ state.game.coins }} monedas · toca para ir a la casita</div>
           </div>
           <Pet kind="negra" :pose="pet.negra" :size="64" :bob="false" /><Pet kind="leo" :pose="pet.leo" :size="64" :bob="false" />
         </section>

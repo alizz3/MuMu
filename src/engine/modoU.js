@@ -1,5 +1,5 @@
 // Modo U: muestra solo lo de la universidad. Se activa solo al entrar con la cuenta de la U
-// (o con el botón 🎓), y la elección se recuerda por cuenta en este dispositivo.
+// (o con el botón de la gorra), y la elección se recuerda por cuenta en este dispositivo.
 import { state, ui } from '../store'
 import { BRAND } from '../config/brand'
 

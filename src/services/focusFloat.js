@@ -7,11 +7,11 @@ import { endFocus } from '../store/actions'
 import { cow } from '../components/art'
 
 const MSGS = [
-  (t) => `Sigues en “${t}”. Lo estás haciendo bien 💗`,
-  () => 'Hombros abajo, respira hondo 🌿',
-  (t, m) => `Ya casi: quedan ${m} minutos ✨`,
-  () => 'Si te distrajiste, no pasa nada: vuelve suavecito 🐮',
-  () => 'Un sorbito de agua y seguimos 💧',
+  (t) => `Sigues en “${t}”. Lo estás haciendo bien.`,
+  () => 'Hombros abajo, respira hondo.',
+  (t, m) => `Ya casi: quedan ${m} minutos.`,
+  () => 'Si te distrajiste, no pasa nada: vuelve suavecito.',
+  () => 'Un sorbito de agua y seguimos.',
 ]
 let pip = null, timer = null, lastMsg = 0, msgIdx = 0, ended = false
 
@@ -25,14 +25,14 @@ const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.flo
 
 function notify(text) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || !document.hidden) return
-  try { new Notification('MuMu 🐮', { body: text, icon: '/icons/icon-192.png', silent: true, tag: 'mumu-focus' }) } catch { /* móvil sin SW */ }
+  try { new Notification('MuMu', { body: text, icon: '/icons/icon-192.png', silent: true, tag: 'mumu-focus' }) } catch { /* móvil sin SW */ }
 }
 
 function tick() {
   const f = ui.focus
   if (!f) { stop(); return }
   const ms = left()
-  document.title = `${f.paused ? '⏸' : '⏱'} ${mmss(ms)} · ${f.title}`
+  document.title = `${f.paused ? 'En pausa · ' : ''}${mmss(ms)} · ${f.title}`
   const mins = Math.ceil(ms / 60000)
   // un mensajito cada ~8 minutos (no antes de 3 min de empezar)
   if (!f.paused && Date.now() - lastMsg > 8 * 60000 && f.elapsed + (Date.now() - f.startedAt) > 3 * 60000 && ms > 60000) {
@@ -41,14 +41,14 @@ function tick() {
     ui.focusMsg = text
     notify(text)
   }
-  if (ms === 0 && !ended) { ended = true; ui.focusMsg = '¡Tiempo! Lo lograste 🥹 Descansa 5 minutos ☕'; notify(ui.focusMsg) }
+  if (ms === 0 && !ended) { ended = true; ui.focusMsg = '¡Tiempo! Lo lograste. Descansa 5 minutos.'; notify(ui.focusMsg) }
   renderPip(ms)
 }
 
 export function startFocusCompanion() {
   if (timer) return
   lastMsg = Date.now(); msgIdx = 0; ended = false
-  ui.focusMsg = 'Empezamos. Yo te acompaño desde aquí 💗'
+  ui.focusMsg = 'Empezamos. Yo te acompaño desde aquí.'
   timer = setInterval(tick, 1000)
   tick()
 }

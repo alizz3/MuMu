@@ -8,6 +8,7 @@ import { petState, level, awardOnce, toast } from '../engine/game'
 import { dayKey } from '../engine/time'
 import { cow } from '../components/art'
 import { Icon, Chip, Pet } from '../components/ui'
+import { roomIcon, stripEmoji } from '../components/iconFor'
 
 // ---------- Cuartos: pestañas arriba, flechas y deslizar de lado ----------
 const roomId = ref(state.game.lastRoom || 'dormitorio')
@@ -38,7 +39,7 @@ const svg = computed(() => (roomId.value === 'dormitorio' ? scene(state.game.pla
 
 // ---------- Cuidarlos ----------
 const NAMES = { leo: 'Leo', negra: 'Negra' }
-const ACTIONS = [['comida', '🍗', 'Comer'], ['baño', '🛁', 'Bañar'], ['juego', '🎾', 'Jugar']]
+const ACTIONS = [['comida', 'pan', 'Comer'], ['baño', 'bath', 'Bañar'], ['juego', 'star', 'Jugar']]
 let fxTimer = null
 const wrap = ref(null)
 function show(kind, what, text) {
@@ -48,19 +49,19 @@ function show(kind, what, text) {
   fxTimer = setTimeout(() => { fx.value = null; bubble.value = null }, 1800)
 }
 function doCare(kind, what) {
-  if (pet.value[kind] === 'sleep' && what !== 'cariño') return toast(`${NAMES[kind]} está dormid${kind === 'leo' ? 'o' : 'a'} 😴 Déjal${kind === 'leo' ? 'o' : 'a'} descansar`)
+  if (pet.value[kind] === 'sleep' && what !== 'cariño') return toast(`${NAMES[kind]} está dormid${kind === 'leo' ? 'o' : 'a'}. Déjal${kind === 'leo' ? 'o' : 'a'} descansar`)
   // Cada cuidado pasa en su cuarto: comer en la cocina, bañarse en el baño, jugar en el patio
   const where = { comida: 'cocina', baño: 'bano', juego: 'patio' }[what]
   if (where && where !== roomId.value) {
     const r = ROOMS.find((x) => x.id === where)
     if (unlocked(r)) goRoom(where)
-    else toast(`Desbloquea ${r.id === 'bano' ? 'el' : 'la'} ${r.name.toLowerCase()} para hacerlo allá ${r.emoji}`)
+    else toast(`Desbloquea ${r.id === 'bano' ? 'el' : 'la'} ${r.name.toLowerCase()} para hacerlo allá`)
   }
   wrap.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
   careAction(state.game, kind, what)
   const s = SOUNDS[kind]
-  show(kind, what, what === 'comida' ? (kind === 'leo' ? '¡Ñam ñam! 🐟' : '¡Ñam! 🦴') : what === 'baño' ? 'Blub blub… ✨' : s[Math.floor(Math.random() * s.length)])
-  if (what !== 'cariño') awardOnce(`care:${kind}:${what}:${dayKey()}`, 2, 3, `Cuidaste a ${NAMES[kind]} 💗`)
+  show(kind, what, what === 'comida' ? (kind === 'leo' ? '¡Ñam ñam!' : '¡Ñam!') : what === 'baño' ? 'Blub blub…' : s[Math.floor(Math.random() * s.length)])
+  if (what !== 'cariño') awardOnce(`care:${kind}:${what}:${dayKey()}`, 2, 3, `Cuidaste a ${NAMES[kind]}`)
 }
 // Tocar a Leo o a Negra en el dibujo = cariñitos
 function onSceneClick(e) {
@@ -68,7 +69,7 @@ function onSceneClick(e) {
   if (g) doCare(g.dataset.pet, 'cariño')
 }
 const bubblePos = (k) => (roomId.value === 'dormitorio' ? (k === 'leo' ? 78 : 22) : { cocina: { leo: 80, negra: 18 }, patio: { leo: 80, negra: 14 }, bano: { leo: 14, negra: 80 }, estudio: { leo: 13, negra: 82 } }[roomId.value][k])
-const careMsg = (k) => { const c = care.value[k]; const low = Object.entries({ comida: 'tiene hambre', limpio: 'necesita un bañito', juego: 'quiere jugar' }).find(([x]) => c[x] < 35); return low ? `${NAMES[k]} ${low[1]}` : c.animo >= 70 ? `${NAMES[k]} está feliz 💗` : `${NAMES[k]} está tranqui` }
+const careMsg = (k) => { const c = care.value[k]; const low = Object.entries({ comida: 'tiene hambre', limpio: 'necesita un bañito', juego: 'quiere jugar' }).find(([x]) => c[x] < 35); return low ? `${NAMES[k]} ${low[1]}` : c.animo >= 70 ? `${NAMES[k]} está feliz` : `${NAMES[k]} está tranqui` }
 
 // ---------- Tienda del cuarto ----------
 const catsOf = (r) => (r === 'dormitorio' ? ['Decoración', 'Muebles', 'Mascotas', 'Accesorios', 'Fondos', 'Temporadas', 'Ropita'] : ['Muebles', 'Decoración', 'Leo y Negra', 'Fondos', 'Ropita'])
@@ -92,12 +93,12 @@ const lockedPreview = computed(() => !unlocked(cur.value))
 <template>
   <div class="stack">
     <div class="row between">
-      <div><div class="b">La casita de la vaquita 🐮🏡</div><div class="tiny muted">Nivel {{ lvl.n }} · {{ lvl.into }}/{{ lvl.need }} XP</div></div>
-      <span class="badge yellow" style="font-size:14px;padding:6px 12px">🪙 {{ state.game.coins }}</span>
+      <div><div class="b">La casita de la vaquita</div><div class="tiny muted">Nivel {{ lvl.n }} · {{ lvl.into }}/{{ lvl.need }} XP</div></div>
+      <span class="badge yellow" style="font-size:14px;padding:6px 12px" :aria-label="`${state.game.coins} monedas`"><Icon name="coin" :size="15" />{{ state.game.coins }}</span>
     </div>
 
     <div class="chips" role="tablist" aria-label="Cuartos">
-      <Chip v-for="r in ROOMS" :key="r.id" :active="roomId === r.id" role="tab" :aria-selected="roomId === r.id" @click="goRoom(r.id)">{{ r.emoji }} {{ r.name }}{{ unlocked(r) ? '' : ' 🔒' }}</Chip>
+      <Chip v-for="r in ROOMS" :key="r.id" :active="roomId === r.id" role="tab" :aria-selected="roomId === r.id" @click="goRoom(r.id)"><Icon :name="roomIcon(r)" :size="14" />{{ r.name }}<Icon v-if="!unlocked(r)" name="lock" :size="13" /><span v-if="!unlocked(r)" class="sr">(bloqueado)</span></Chip>
     </div>
 
     <div ref="wrap" class="room-wrap" @pointerdown="onDown" @pointerup="onUp" @touchstart.passive="onDown" @touchend="onUp">
@@ -107,10 +108,10 @@ const lockedPreview = computed(() => !unlocked(cur.value))
       <div v-if="bubble" class="bubble" :style="{ left: bubblePos(bubble.pet) + '%' }">{{ bubble.text }}</div>
       <div v-if="lockedPreview" class="lock">
         <div class="lock-card">
-          <div style="font-size:30px">{{ cur.emoji }}</div>
+          <span class="gico" style="width:44px;height:44px;border-radius:14px;background:color-mix(in srgb, #FFE29A 45%, var(--surface));color:var(--ink)"><Icon :name="roomIcon(cur)" :size="24" /></span>
           <b>{{ cur.name }}</b>
           <span class="small muted">Desbloquéala y decórala a tu gusto</span>
-          <button class="btn primary sm" @click.stop="A.unlockRoom(cur.id)">Desbloquear · 🪙 {{ cur.price }}</button>
+          <button class="btn primary sm" @click.stop="A.unlockRoom(cur.id)">Desbloquear · <Icon name="coin" :size="14" />{{ cur.price }}</button>
         </div>
       </div>
     </div>
@@ -128,27 +129,27 @@ const lockedPreview = computed(() => !unlocked(cur.value))
           <div class="bar"><i :style="{ width: care[k][key] + '%', background: care[k][key] < 35 ? 'var(--pink-300)' : 'var(--mint)' }"></i></div>
         </div>
         <div class="row" style="gap:6px">
-          <button v-for="[w, e, l] in ACTIONS" :key="w" class="btn sm ghost grow" :aria-label="`${l} a ${NAMES[k]}`" @click="doCare(k, w)">{{ e }} <span class="hide-xs">{{ l }}</span></button>
+          <button v-for="[w, e, l] in ACTIONS" :key="w" class="btn sm ghost grow" :aria-label="`${l} a ${NAMES[k]}`" @click="doCare(k, w)"><Icon :name="e" :size="15" /><span class="hide-xs">{{ l }}</span></button>
         </div>
       </div>
     </div>
 
     <!-- Tienda -->
-    <div class="chips"><Chip v-for="c in catsOf(roomId)" :key="c" :active="cat === c" @click="cat = c">{{ c === 'Ropita' ? '👕 Ropita' : c }}</Chip></div>
-    <p v-if="lockedPreview && cat !== 'Ropita'" class="notice">🔒 Desbloquea la {{ cur.name.toLowerCase() }} para comprar sus cosas.</p>
+    <div class="chips"><Chip v-for="c in catsOf(roomId)" :key="c" :active="cat === c" @click="cat = c"><Icon v-if="c === 'Ropita'" name="shirt" :size="14" />{{ c }}</Chip></div>
+    <p v-if="lockedPreview && cat !== 'Ropita'" class="notice"><Icon name="lock" :size="14" class="inl" /> Desbloquea la {{ cur.name.toLowerCase() }} para comprar sus cosas.</p>
     <div class="shop">
       <button v-for="d in items" :key="d.id" :class="{ owned: owned(d), placed: placed(d) }" @click="tap(d)" :aria-pressed="placed(d)">
         <svg class="thumb" :viewBox="box(d)" preserveAspectRatio="xMidYMid meet" v-html="thumb(d)" aria-hidden="true"></svg>
         <span style="line-height:1.2">{{ d.name }}</span>
-        <span v-if="!owned(d)" class="badge yellow">🪙 {{ d.price }}</span>
-        <span v-else class="badge" :class="placed(d) ? 'pink' : ''">{{ placed(d) ? 'Puesto ✓' : 'Poner' }}</span>
+        <span v-if="!owned(d)" class="badge yellow"><Icon name="coin" :size="13" />{{ d.price }}</span>
+        <span v-else class="badge" :class="placed(d) ? 'pink' : ''"><Icon v-if="placed(d)" name="check" :size="12" />{{ placed(d) ? 'Puesto' : 'Poner' }}</span>
       </button>
     </div>
 
     <div class="card soft">
-      <h3>¿Cómo gano monedas? 🪙</h3>
-      <p class="small" style="margin-top:6px">Completando tareas, hábitos, sesiones de enfoque, experimentos, misiones y momentos de vida. Cuidar a Leo y a Negra también da un poquito cada día. Nada se compra con dinero real, y nada se pierde si fallas un día 💗</p>
-      <div v-for="hh in state.game.history.slice(0, 6)" :key="hh.at" class="row between tiny muted" style="margin-top:6px"><span>{{ hh.reason }}</span><span>+{{ hh.coins }}</span></div>
+      <h3 class="wi"><Icon name="coin" :size="17" />¿Cómo gano monedas?</h3>
+      <p class="small" style="margin-top:6px">Completando tareas, hábitos, sesiones de enfoque, experimentos, misiones y momentos de vida. Cuidar a Leo y a Negra también da un poquito cada día. Nada se compra con dinero real, y nada se pierde si fallas un día.</p>
+      <div v-for="hh in state.game.history.slice(0, 6)" :key="hh.at" class="row between tiny muted" style="margin-top:6px"><span>{{ stripEmoji(hh.reason) }}</span><span>+{{ hh.coins }}</span></div>
     </div>
   </div>
 </template>

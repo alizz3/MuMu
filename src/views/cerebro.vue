@@ -5,12 +5,12 @@ import * as A from '../store/actions'
 import { isOpen } from '../engine/planner'
 import { dayKey, uid, shortDate } from '../engine/time'
 import { Icon, Pet, Chip, Bar } from '../components/ui'
+import { RESOURCE_ICON } from '../components/iconFor'
 
 const type = ref('todos')
 const q = ref('')
 const open = ref(null)
 const TYPES = [['todos', 'Todos'], ['libro', 'Libros'], ['podcast', 'Podcasts'], ['video', 'Videos'], ['conferencia', 'Conferencias'], ['nota', 'Notas'], ['idea', 'Ideas']]
-const EMO = { libro: '📖', podcast: '🎧', video: '🎬', conferencia: '🎤', nota: '📝', idea: '💡' }
 const list = computed(() => state.resources.filter((r) => (type.value === 'todos' || r.type === type.value) && (!q.value || (r.title + r.author + r.notes + r.concepts.join(' ')).toLowerCase().includes(q.value.toLowerCase()))))
 const continuing = computed(() => state.resources.filter((r) => ['leyendo', 'escuchando', 'viendo'].includes(r.status)))
 
@@ -39,7 +39,7 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
     <div class="chips"><Chip v-for="t in TYPES" :key="t[0]" :active="type === t[0]" @click="type = t[0]">{{ t[1] }}</Chip></div>
 
     <div class="card pink now-card" style="min-height:150px">
-      <div class="tiny b muted">PARA LO QUE ESTÁS VIVIENDO HOY 💡 · {{ today.why }}</div>
+      <div class="tiny b muted"><Icon name="bulb" :size="13" class="inl" /> PARA LO QUE ESTÁS VIVIENDO HOY · {{ today.why }}</div>
       <div v-for="p in today.pr" :key="p.id" style="margin-top:8px;max-width:72%">
         <div class="small b">“{{ p.text }}”</div><div class="tiny muted">{{ p.author }} → {{ p.action }}</div>
       </div>
@@ -52,7 +52,7 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
     <div v-if="continuing.length" class="card">
       <h3>Continuar aprendiendo</h3>
       <div class="list"><div v-for="r in continuing" :key="r.id" class="item" @click="open = r.id" style="cursor:pointer">
-        <span class="ico lav" style="font-size:18px">{{ EMO[r.type] }}</span>
+        <span class="ico lav"><Icon :name="RESOURCE_ICON[r.type] || 'pin'" :size="18" /></span>
         <div class="grow"><div class="title-line">{{ r.title }}</div><div class="tiny muted">{{ r.author }} · {{ r.type }}</div><Bar :value="r.progress" color="var(--lav-500)" style="margin-top:5px" /></div>
         <Icon name="chev" :size="16" />
       </div></div>
@@ -61,7 +61,7 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
     <div class="sec-title"><h2>Biblioteca viva</h2><span class="tiny muted">Contenido → Concepto → Principio → Acción → Experimento</span></div>
     <div v-for="r in list" :key="r.id" class="card">
       <button class="row" style="all:unset;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer" @click="open = open === r.id ? null : r.id" :aria-expanded="open === r.id">
-        <span class="ico" style="font-size:18px">{{ EMO[r.type] || '📌' }}</span>
+        <span class="ico"><Icon :name="RESOURCE_ICON[r.type] || 'pin'" :size="18" /></span>
         <div class="grow"><div class="b small">{{ r.title }}</div><div class="tiny muted">{{ r.author }} · {{ r.status }}{{ r.minutes ? ' · ' + r.minutes + ' min' : '' }}</div></div>
         <span class="badge">{{ principlesOf(r).length }} principios</span>
       </button>
@@ -70,7 +70,7 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
         <p v-if="r.notes" class="quote small">{{ r.notes }}</p>
         <div v-for="p in principlesOf(r)" :key="p.id" class="card tight soft">
           <div class="small b">{{ p.text }}</div><div class="tiny muted">→ {{ p.action }} · <span class="badge">{{ p.status }}</span></div>
-          <button v-if="p.status !== 'probando'" class="btn sm lav" style="margin-top:6px" @click="A.startExperiment(p.id); A.go('experimentos')">🧪 Probar 7 días</button>
+          <button v-if="p.status !== 'probando'" class="btn sm lav" style="margin-top:6px" @click="A.startExperiment(p.id); A.go('experimentos')"><Icon name="flask" :size="14" />Probar 7 días</button>
         </div>
         <p class="tiny muted">Son ideas y perspectivas para probar, no verdades absolutas.</p>
         <div class="row" style="gap:6px">

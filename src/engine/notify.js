@@ -33,7 +33,7 @@ export function tick() {
     if (diff > 0 && diff <= 30) push(`class:${ctx.next.id}`, `Tu próxima clase (${ctx.next.title.replace('Clase: ', '')}) empieza en ${diff} minutos.`, { go: 'agenda' })
   }
   if (n.freeTime && ctx.freeNow && ctx.freeNow.minutes >= 30 && ctx.freeNow.minutes <= 180 && m % 60 < 2) {
-    push(`free:${Math.floor(m / 60)}`, `Tienes ${fmtDur(ctx.freeNow.minutes)} libres. ¿Los usamos? 💗`, { go: 'home' })
+    push(`free:${Math.floor(m / 60)}`, `Tienes ${fmtDur(ctx.freeNow.minutes)} libres. ¿Los usamos?`, { go: 'home' })
   }
   if (n.aula) {
     const fresh = state.aula.filter((a) => !a.notified)
@@ -50,14 +50,14 @@ export function tick() {
     imp.forEach((e) => { e.notified = true; push(`mail:${e.id}`, `Tu correo tiene algo que requiere atención: ${e.subject}`, { go: 'correo' }) })
   }
   const stuck = state.tasks.find((t) => isOpen(t) && t.intendedAt && Date.now() - t.intendedAt > 45 * 60 * 1000 && !t.intendNotified)
-  if (stuck) { stuck.intendNotified = true; push(`intent:${stuck.id}`, `Hace rato dijiste que querías hacer "${stuck.title}" 👀 ¿Hacemos primero esos 10 minutos?`, { go: 'tareas', open: { type: 'task', id: stuck.id } }) }
+  if (stuck) { stuck.intendNotified = true; push(`intent:${stuck.id}`, `Hace rato dijiste que querías hacer "${stuck.title}". ¿Hacemos primero esos 10 minutos?`, { go: 'tareas', open: { type: 'task', id: stuck.id } }) }
 
   if (n.habits && m >= 20 * 60 && m < 20 * 60 + 2) {
     const pend = state.habits.filter((h) => !state.habitLogs[h.id]?.[ctx.k]?.done).length
-    if (pend) push('habits:evening', `Te quedan ${pend} hábitos de hoy. Con uno chiquito ya cuenta 💗`, { go: 'habitos' })
+    if (pend) push('habits:evening', `Te quedan ${pend} hábitos de hoy. Con uno chiquito ya cuenta.`, { go: 'habitos' })
   }
   const due = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) === 0)
-  if (due.length && m >= 9 * 60 && m < 9 * 60 + 2) push('due:today', `Hoy vencen ${due.length} pendientes. Vamos una por una 🐮`, { go: 'tareas' })
+  if (due.length && m >= 9 * 60 && m < 9 * 60 + 2) push('due:today', `Hoy vencen ${due.length} pendientes. Vamos una por una.`, { go: 'tareas' })
 }
 
 export async function askBrowserPermission() {

@@ -37,6 +37,13 @@ a { color: var(--pink-700); }
 h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.01em; }
 p { margin: 0; }
 .icon { flex: none; display: block; }
+/* Icono en línea con texto (reemplazo de emojis) */
+.icon.inl { display: inline-block; vertical-align: -0.16em; }
+.wi { display: inline-flex; align-items: center; gap: 6px; }
+.hearts { display: flex; gap: 4px; margin: 6px 0; color: var(--pink-300); }
+.hearts .on { color: var(--pink-500); }
+.hearts .on path { fill: currentColor; }
+.gico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; }
 :focus-visible { outline: 3px solid var(--lav-300); outline-offset: 2px; border-radius: 10px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
@@ -108,7 +115,7 @@ p { margin: 0; }
 .btn.big { padding: 14px 22px; font-size: 16px; border-radius: 18px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
-.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
 .chip.on { background: var(--pink-100); border-color: transparent; color: var(--pink-700); font-weight: 600; }
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }

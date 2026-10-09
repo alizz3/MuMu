@@ -11,7 +11,7 @@ export function initPWA() {
   const apply = () => { if (!pending) return; if (busy() && document.visibilityState === 'visible') return; pending = false; try { sessionStorage.setItem('mumu-updated', '1') } catch {} ; updateSW(true) }
   const updateSW = registerSW({
     onNeedRefresh() { pending = true; apply() },
-    onOfflineReady() { toast('MuMu ya funciona sin internet 🐮') },
+    onOfflineReady() { toast('MuMu ya funciona sin internet') },
     onRegisteredSW(_url, reg) {
       // Busca versiones nuevas cada 30 min y al volver a la app
       if (!reg) return
@@ -22,9 +22,9 @@ export function initPWA() {
   // Si estabas ocupada, se aplica apenas termines (o cuando dejes la app en segundo plano)
   setInterval(apply, 3000)
   document.addEventListener('visibilitychange', apply)
-  try { if (sessionStorage.getItem('mumu-updated')) { sessionStorage.removeItem('mumu-updated'); setTimeout(() => toast('MuMu se actualizó ✨'), 1200) } } catch {}
+  try { if (sessionStorage.getItem('mumu-updated')) { sessionStorage.removeItem('mumu-updated'); setTimeout(() => toast('MuMu se actualizó'), 1200) } } catch {}
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); ui.installPrompt = e })
-  window.addEventListener('appinstalled', () => { ui.installPrompt = null; ui.installed = true; toast('¡MuMu quedó instalada! 💗') })
+  window.addEventListener('appinstalled', () => { ui.installPrompt = null; ui.installed = true; toast('¡MuMu quedó instalada!') })
   ui.installed = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
   ui.isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
 }

@@ -6,6 +6,7 @@ import { toast } from '../engine/game'
 import { relDay } from '../engine/time'
 import { go } from '../store/actions'
 import { Icon, Pet, Bar, Ring } from '../components/ui'
+import { goalIcon } from '../components/iconFor'
 
 const f = computed(() => state.finance)
 const s = computed(() => f.value.summary)
@@ -26,7 +27,7 @@ const g = computed(() => state.goals.find((x) => x.category === 'dinero'))
       <div class="grow"><h2 style="font-size:17px">Finanzas</h2>
         <p class="small">Los detalles viven en <b>{{ state.settings.financeAppName }}</b>. Aquí ves solo el resumen que necesitas para decidir tu día.</p></div>
     </div>
-    <p v-if="!f.connected" class="notice">🧪 {{ state.settings.financeAppName }} todavía no existe/está conectada. Los números de abajo son de ejemplo para mostrar el diseño.</p>
+    <p v-if="!f.connected" class="notice"><Icon name="flask" :size="14" class="inl" /> {{ state.settings.financeAppName }} todavía no existe/está conectada. Los números de abajo son de ejemplo para mostrar el diseño.</p>
 
     <div v-if="s" class="card">
       <div class="row between"><h3>Resumen · {{ s.month }}</h3><span v-if="f.demo" class="badge demo">ejemplo</span></div>
@@ -42,7 +43,7 @@ const g = computed(() => state.goals.find((x) => x.category === 'dinero'))
     <div v-if="s?.nextPayments?.length" class="card">
       <h3>Próximos pagos</h3>
       <div v-for="p in s.nextPayments" :key="p.name" class="item small"><span class="grow">{{ p.name }}</span><span class="muted">{{ relDay(p.due) }}</span><b>{{ money(p.amount) }}</b>
-        <button class="btn sm ghost" @click="ui.modal = { type: 'task', prefill: { title: `Pagar ${p.name}`, due: p.due, category: 'finanzas', estimate: 10 } }">→ Tarea</button></div>
+        <button class="btn sm ghost" @click="ui.modal = { type: 'task', prefill: { title: `Pagar ${p.name}`, due: p.due, category: 'finanzas', estimate: 10 } }"><Icon name="plus" :size="14" />Tarea</button></div>
     </div>
 
     <div class="card stack">
@@ -53,7 +54,7 @@ const g = computed(() => state.goals.find((x) => x.category === 'dinero'))
         <button v-if="canUseBackend()" class="btn lav" :disabled="busy" @click="refresh"><Icon name="refresh" :size="15" />Sincronizar</button>
         <button class="btn ghost" @click="go('ajustes')">Configurar</button>
       </div>
-      <p v-if="g" class="tiny muted">Conectado con tu objetivo: {{ g.emoji }} {{ g.name }}</p>
+      <p v-if="g" class="tiny muted">Conectado con tu objetivo: <Icon :name="goalIcon(g)" :size="13" class="inl" /> {{ g.name }}</p>
     </div>
   </div>
 </template>

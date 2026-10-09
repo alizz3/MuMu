@@ -23,7 +23,7 @@ export function setUrl(push) {
 export function addTask(data, { quiet = false } = {}) {
   const t = { id: uid('t'), status: 'pendiente', priority: 'media', tags: [], subtasks: [], notes: '', postponed: 0, createdAt: dayKey(), source: 'manual', estimate: 30, category: 'personal', due: null, ...data }
   state.tasks.unshift(t)
-  if (!quiet) toast('Tarea creada 📝')
+  if (!quiet) toast('Tarea creada')
   return t
 }
 export function updateTask(id, patch) { const t = state.tasks.find((x) => x.id === id); if (t) Object.assign(t, patch); return t }
@@ -47,7 +47,7 @@ export function completeTask(id) {
   if (p && projectProgress(p) === 100 && p.status !== 'completado') {
     p.status = 'completado'
     awardOnce(`project:${p.id}`, 40, 80, `Proyecto completado: ${p.name}`)
-    ui.celebrate = { title: '¡Proyecto completado!', text: `${p.name} ✨ Ganaste una decoración sorpresa.`, pose: 'celebrate' }
+    ui.celebrate = { title: '¡Proyecto completado!', text: `${p.name}: ganaste una decoración sorpresa.`, pose: 'celebrate' }
     giftDecor()
   }
 }
@@ -58,7 +58,7 @@ export function postponeTask(id, days = 1) {
   if (!t) return
   t.postponed = (t.postponed || 0) + 1
   if (t.due && daysUntil(t.due) < days) t.due = keyPlus(days)
-  toast(t.postponed >= 2 ? 'Pospuesta. La próxima vez probamos 5 minuticos 💗' : 'Pospuesta, sin culpa 🤍')
+  toast(t.postponed >= 2 ? 'Pospuesta. La próxima vez probamos 5 minuticos.' : 'Pospuesta, sin culpa.')
 }
 
 export function toggleSubtask(taskId, subId) {
@@ -76,7 +76,7 @@ export function scheduleTask(id) {
   if (!t) return []
   const plan = planTask(t)
   t.blocks = plan.map((b) => ({ ...b, done: false }))
-  toast(plan.length ? `Agendé ${plan.length} bloques para "${t.title}" 🗓️` : 'No encontré bloques libres antes de la fecha 😥')
+  toast(plan.length ? `Agendé ${plan.length} bloques para "${t.title}"` : 'No encontré bloques libres antes de la fecha')
   return plan
 }
 
@@ -111,7 +111,7 @@ export function toggleHabit(hid, k = dayKey(), note) {
   if (log[k]?.done) { markRewarded(`habit:${hid}:${k}`); delete log[k]; return }
   log[k] = { done: true, note: note || '', at: toHM(nowMin()) }
   const h = state.habits.find((x) => x.id === hid)
-  awardOnce(`habit:${hid}:${k}`, 4, 8, `${h?.emoji || '✔️'} ${h?.name || 'Hábito'}`)
+  awardOnce(`habit:${hid}:${k}`, 4, 8, h?.name || 'Hábito')
 }
 
 // ---------- Enfoque ----------
@@ -134,7 +134,7 @@ export function endFocus(outcome, feeling = 3, note = '') {
     const x = state.experiments.find((e) => e.status === 'activo' && state.principles.find((p) => p.id === e.principleId)?.tags.includes('empezar'))
     if (x) { x.logs[dayKey()] = { did: true, felt: feeling, note: note || `Empecé "${f.title}" (${mins} min)` } }
   }
-  award(Math.max(2, Math.round(mins / 5)), mins, outcome === 'logrado' ? 'Sesión de enfoque ✨' : 'Empezaste, y eso cuenta 💗')
+  award(Math.max(2, Math.round(mins / 5)), mins, outcome === 'logrado' ? 'Sesión de enfoque' : 'Empezaste, y eso cuenta')
   ui.focus = null
 }
 
@@ -145,13 +145,13 @@ export function logSleep(entry) {
   const date = entry.date || dayKey()
   state.sleep = state.sleep.filter((s) => s.date !== date)
   state.sleep.unshift({ id: uid('sl'), date, ...entry, minutes })
-  awardOnce(`sleep:${date}`, 3, 6, 'Registraste tu sueño 🌙')
+  awardOnce(`sleep:${date}`, 3, 6, 'Registraste tu sueño')
 }
 export function logScreen(entry) {
   const date = entry.date || dayKey()
   state.screen = state.screen.filter((s) => s.date !== date)
   state.screen.unshift({ id: uid('sc'), date, ...entry })
-  toast('Tiempo de pantalla guardado 📱')
+  toast('Tiempo de pantalla guardado')
 }
 export function addIntention(want, minutes, reason) {
   const i = { id: uid('i'), date: dayKey(), at: toHM(nowMin()), want, minutes, reason, result: null }
@@ -162,30 +162,30 @@ export function resolveIntention(id, result, endedIn) {
   const i = state.intentions.find((x) => x.id === id)
   if (!i) return
   i.result = result; i.endedIn = endedIn || null
-  if (result === 'logrado') awardOnce(`intent:${id}`, 3, 5, 'Usaste el celular con intención 💗')
-  else toast('Gracias por ser honesta. Esto nos ayuda a entender el patrón 🤍')
+  if (result === 'logrado') awardOnce(`intent:${id}`, 3, 5, 'Usaste el celular con intención')
+  else toast('Gracias por ser honesta. Esto nos ayuda a entender el patrón.')
 }
 
 // ---------- Agenda ----------
-export function addEvent(e) { const ev = { id: uid('e'), source: 'manual', type: 'evento', ...e }; state.events.push(ev); toast('Agregado a tu agenda 🗓️'); return ev }
+export function addEvent(e) { const ev = { id: uid('e'), source: 'manual', type: 'evento', ...e }; state.events.push(ev); toast('Agregado a tu agenda'); return ev }
 export function deleteEvent(id) { state.events = state.events.filter((e) => e.id !== id) }
 
 // ---------- Conocimiento ----------
-export function addResource(r) { const x = { id: uid('r'), status: 'pendiente', progress: 0, concepts: [], notes: '', ...r }; state.resources.unshift(x); award(2, 4, 'Nuevo aprendizaje guardado 🧠'); return x }
+export function addResource(r) { const x = { id: uid('r'), status: 'pendiente', progress: 0, concepts: [], notes: '', ...r }; state.resources.unshift(x); award(2, 4, 'Nuevo aprendizaje guardado'); return x }
 export function addPrinciple(p) { const x = { id: uid('pr'), status: 'idea', tags: [], ...p }; state.principles.unshift(x); return x }
 export function startExperiment(principleId, days = 7, extra = {}) {
   const p = state.principles.find((x) => x.id === principleId)
   const x = { id: uid('x'), title: extra.title || p?.text || 'Experimento', principleId, hypothesis: extra.hypothesis || (p ? `Si aplico "${p.text}", me irá mejor.` : ''), days, start: dayKey(), status: 'activo', logs: {}, result: null, conclusion: '' }
   state.experiments.unshift(x)
   if (p) p.status = 'probando'
-  award(5, 10, 'Nuevo experimento 🧪')
+  award(5, 10, 'Nuevo experimento')
   return x
 }
 export function logExperiment(id, did, felt, note) {
   const x = state.experiments.find((e) => e.id === id)
   if (!x) return
   x.logs[dayKey()] = { did, felt, note }
-  award(3, 6, 'Registro de experimento 🧪')
+  award(3, 6, 'Registro de experimento')
 }
 export function finishExperiment(id, result, conclusion, difficulty, learnings) {
   const x = state.experiments.find((e) => e.id === id)
@@ -193,8 +193,8 @@ export function finishExperiment(id, result, conclusion, difficulty, learnings) 
   Object.assign(x, { status: 'terminado', result, conclusion, difficulty, learnings: learnings.filter(Boolean), end: dayKey() })
   const p = state.principles.find((pp) => pp.id === x.principleId)
   if (p) p.status = result === 'funcionó' ? 'validado' : result === 'no funcionó' ? 'descartado' : 'probando'
-  award(20, 40, 'Terminaste un experimento 🧪✨')
-  ui.celebrate = { title: 'Aprendiste algo sobre ti', text: 'Se agregó a "Mi propio método" 💗', pose: 'think' }
+  award(20, 40, 'Terminaste un experimento')
+  ui.celebrate = { title: 'Aprendiste algo sobre ti', text: 'Se agregó a "Mi propio método".', pose: 'think' }
 }
 
 // ---------- Correo / Aula ----------
@@ -356,12 +356,12 @@ export function addLife(m) {
   state.life.unshift({ id: uid('l'), ...m, date: m.date || dayKey() })
   // Hasta 3 momentos premiados por día
   const n = state.life.filter((l) => l.date === dayKey()).length
-  if (n <= 3) awardOnce(`life:${dayKey()}:${n}`, 4, 6, 'Un momento que importa 🤍'); else toast('Guardado 🤍')
+  if (n <= 3) awardOnce(`life:${dayKey()}:${n}`, 4, 6, 'Un momento que importa'); else toast('Guardado')
 }
 export function saveGod(entry, k = dayKey()) {
   const first = !state.god.entries[k]
   state.god.entries[k] = { ...(state.god.entries[k] || {}), ...entry }
-  if (first) toast('Guardado en tu espacio con Dios 🕊️')
+  if (first) toast('Guardado en tu espacio con Dios')
 }
 
 // ---------- Casa de la vaquita ----------
@@ -376,7 +376,7 @@ export function importProject(data) {
   // Hábitos que vengan en el enlace
   ;(Array.isArray(data?.habits) ? data.habits : []).slice(0, 10).forEach((h) => {
     if (!s(h?.name)) return
-    const x = { id: uid('h'), name: s(h.name, 80), emoji: s(h.emoji, 8) || '✨', when: ['mañana', 'tarde', 'noche', 'cualquiera'].includes(h.when) ? h.when : 'cualquiera', target: Math.min(7, Math.max(1, Number(h.target) || 3)), goalId: null, color: /^#[0-9a-f]{6}$/i.test(h.color || '') ? h.color : '#B9DCCB' }
+    const x = { id: uid('h'), name: s(h.name, 80), emoji: s(h.emoji, 8) || '', when: ['mañana', 'tarde', 'noche', 'cualquiera'].includes(h.when) ? h.when : 'cualquiera', target: Math.min(7, Math.max(1, Number(h.target) || 3)), goalId: null, color: /^#[0-9a-f]{6}$/i.test(h.color || '') ? h.color : '#B9DCCB' }
     state.habits.push(x); state.habitLogs[x.id] = {}
   })
   if (!p || !s(p.name)) {
@@ -409,17 +409,17 @@ export function roomOf(roomId) {
 export function unlockRoom(roomId) {
   const r = ROOMS.find((x) => x.id === roomId); const st = roomOf(roomId)
   if (!r || st.unlocked) return
-  if (state.game.coins < r.price) { toast(`Te faltan ${r.price - state.game.coins} monedas para la ${r.name.toLowerCase()} 🪙`); return }
+  if (state.game.coins < r.price) { toast(`Te faltan ${r.price - state.game.coins} monedas para la ${r.name.toLowerCase()}`); return }
   state.game.coins -= r.price
   st.unlocked = true
   DECOR.filter((d) => d.room === roomId && d.price === 0).forEach((d) => { if (!state.game.owned.includes(d.id)) state.game.owned.push(d.id) })
-  toast(`¡Nuevo cuarto: ${r.emoji} ${r.name}!`, 'coin')
+  toast(`¡Nuevo cuarto: ${r.name}!`, 'coin')
 }
 export function buyDecor(id) {
   const d = DECOR.find((x) => x.id === id)
   if (!d || state.game.owned.includes(id)) return
-  if (d.room && !['dormitorio', 'ropita'].includes(d.room) && !roomOf(d.room).unlocked) { toast('Primero desbloquea ese cuarto 🔒'); return }
-  if (state.game.coins < d.price) { toast('Te faltan monedas. ¡Cada pasito suma! 🪙'); return }
+  if (d.room && !['dormitorio', 'ropita'].includes(d.room) && !roomOf(d.room).unlocked) { toast('Primero desbloquea ese cuarto'); return }
+  if (state.game.coins < d.price) { toast('Te faltan monedas. ¡Cada pasito suma!'); return }
   state.game.coins -= d.price
   state.game.owned.push(id)
   placeDecor(id)
@@ -445,6 +445,6 @@ export function markVisit() {
     state.profile.prevVisit = state.profile.lastVisit
     state.profile.lastVisit = k
     const away = -daysUntil(state.profile.prevVisit)
-    if (away >= 2) award(10, 10, 'Volviste 💗 Eso es lo que importa')
+    if (away >= 2) award(10, 10, 'Volviste. Eso es lo que importa')
   }
 }

@@ -5,6 +5,7 @@ import * as A from '../store/actions'
 import { award } from '../engine/game'
 import { dayKey, shortDate } from '../engine/time'
 import { Icon, Pet, Ring, Bar } from '../components/ui'
+import { goalIcon } from '../components/iconFor'
 
 const courses = computed(() => state.courses)
 const totalH = computed(() => courses.value.reduce((a, c) => a + (c.hours || 0), 0))
@@ -31,16 +32,16 @@ function startCourse(c) { const t = A.addTask({ title: `Estudiar: ${c.title}`, c
         <div class="grow"><div class="b small">{{ c.title }}</div><div class="tiny muted">{{ c.platform }} · {{ c.skill }} · {{ c.hours }} h · {{ (c.sessions || []).length }} sesiones</div></div>
         <button class="iconbtn" aria-label="Editar curso" @click="ui.modal = { type: 'course', id: c.id }"><Icon name="edit" :size="16" /></button></div>
       <div class="stack" style="gap:4px;margin-top:10px">
-        <div class="small" v-if="goal(c)">🎯 <b>Objetivo:</b> {{ goal(c).name }}</div>
-        <div class="small" v-if="proj(c)">📁 <b>Proyecto:</b> {{ proj(c).name }}</div>
-        <div class="small" v-if="c.practice">🛠️ <b>Práctica real:</b> {{ c.practice }}</div>
+        <div class="small" v-if="goal(c)"><Icon :name="goalIcon(goal(c))" :size="14" class="inl" /> <b>Objetivo:</b> {{ goal(c).name }}</div>
+        <div class="small" v-if="proj(c)"><Icon name="folder" :size="14" class="inl" /> <b>Proyecto:</b> {{ proj(c).name }}</div>
+        <div class="small" v-if="c.practice"><Icon name="tool" :size="14" class="inl" /> <b>Práctica real:</b> {{ c.practice }}</div>
       </div>
       <div class="row" style="gap:6px;margin-top:10px" v-if="c.status !== 'completado'">
         <button class="btn sm primary" @click="startCourse(c)"><Icon name="play" :size="14" />Estudiar 25 min</button>
         <button class="btn sm ghost" @click="session(c)">+ Registrar sesión</button>
         <button class="btn sm ghost" @click="c.progress = Math.min(100, c.progress + 10)">+10%</button>
       </div>
-      <span v-else class="badge green" style="margin-top:8px">Completado ✨</span>
+      <span v-else class="badge green" style="margin-top:8px"><Icon name="check" :size="13" />Completado</span>
     </div>
     <p class="notice"><Icon name="link" :size="18" />Platzi no ofrece una API pública para leer tu progreso, así que aquí se registra a mano (o lo actualizas cuando terminas una clase). Nada se inventa.</p>
   </div>

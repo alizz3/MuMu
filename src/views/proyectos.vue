@@ -4,11 +4,12 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { shortDate } from '../engine/time'
 import { Icon, Ring, Chip, Bar } from '../components/ui'
+import { goalIcon } from '../components/iconFor'
 import { ask } from '../engine/game'
 import { resumen, f1 } from '../engine/notas'
 import TaskRow from '../components/TaskRow.vue'
 
-const FLOW = [['idea', 'Idea 💭'], ['plan', 'Plan 📝'], ['progreso', 'En progreso 🚀'], ['pausado', 'Pausado ⏸️'], ['completado', 'Completado ✨']]
+const FLOW = [['idea', 'Idea'], ['plan', 'Plan'], ['progreso', 'En progreso'], ['pausado', 'Pausado'], ['completado', 'Completado']]
 const view = ref('tablero')
 const area = ref('todas')
 const sel = computed(() => state.projects.find((p) => p.id === ui.params.id))
@@ -46,12 +47,12 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
         <div class="row"><Ring :value="A.projectProgress(sel)" :size="60" :label="sel.name" /><div class="grow"><h2>{{ sel.name }}</h2><div class="small muted">{{ sel.description }}</div></div>
           <button class="iconbtn" aria-label="Editar proyecto" @click="ui.modal = { type: 'project', id: sel.id }"><Icon name="edit" :size="18" /></button></div>
         <div class="row wrap" style="gap:6px;margin-top:10px">
-          <span class="badge pink">{{ FLOW.find((f) => f[0] === sel.status)?.[1] }}</span>
-          <span v-if="goalOf(sel)" class="badge">🎯 {{ goalOf(sel).name }}</span>
-          <span v-if="sel.due" class="badge">📅 {{ shortDate(sel.due) }}</span>
+          <span class="badge pink"><Icon v-if="COL[sel.status]" :name="COL[sel.status].icon" :size="13" />{{ FLOW.find((f) => f[0] === sel.status)?.[1] }}</span>
+          <span v-if="goalOf(sel)" class="badge"><Icon :name="goalIcon(goalOf(sel))" :size="13" />{{ goalOf(sel).name }}</span>
+          <span v-if="sel.due" class="badge"><Icon name="calendar" :size="13" />{{ shortDate(sel.due) }}</span>
           <span v-for="s in sel.skills || []" :key="s" class="badge green">{{ s }}</span>
         </div>
-        <div class="row" style="gap:6px;margin-top:10px"><button class="btn sm ghost" @click="move(sel, -1)">← Etapa</button><button class="btn sm lav" @click="move(sel, 1)">Siguiente etapa →</button></div>
+        <div class="row" style="gap:6px;margin-top:10px"><button class="btn sm ghost" @click="move(sel, -1)"><Icon name="back" :size="14" />Etapa</button><button class="btn sm lav" @click="move(sel, 1)">Siguiente etapa<Icon name="chev" :size="14" /></button></div>
       </div>
       <div v-if="sel.area === 'universidad'" class="card">
         <div class="row between"><h3>Materias</h3><button class="link" @click="pickSubj = !pickSubj">{{ pickSubj ? 'Listo' : 'Unir materias' }}</button></div>
@@ -69,7 +70,7 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
       </div>
       <div class="card">
         <div class="row between"><h3>Tareas</h3><div class="row" style="gap:14px"><button v-if="tasksOf(sel).length" class="link" @click="picking = !picking; picked = []">{{ picking ? 'Listo' : 'Seleccionar' }}</button><button class="link" @click="ui.modal = { type: 'task', prefill: { projectId: sel.id, goalId: sel.goalId, category: 'trabajo' } }">+ Tarea</button></div></div>
-        <p v-if="gtList(sel)" class="tiny muted" style="margin-top:4px">✅ Unido con tu lista "{{ gtList(sel) }}" de Google Tasks</p>
+        <p v-if="gtList(sel)" class="tiny muted" style="margin-top:4px"><Icon name="check" :size="13" class="inl" /> Unido con tu lista "{{ gtList(sel) }}" de Google Tasks</p>
         <template v-if="picking">
           <label class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.length === tasksOf(sel).length" @change="picked = picked.length === tasksOf(sel).length ? [] : tasksOf(sel).map((t) => t.id)" /> <b>Todas</b></label>
           <label v-for="t in tasksOf(sel)" :key="t.id" class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.includes(t.id)" @change="picked = picked.includes(t.id) ? picked.filter((x) => x !== t.id) : [...picked, t.id]" /> <span class="grow" :class="{ 'done-txt': t.status === 'completada' }">{{ t.title }}</span><span v-if="t.gtask" class="tiny muted">Google</span></label>
@@ -79,8 +80,8 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
       </div>
       <div class="card" v-if="(sel.resources || []).length || coursesOf(sel).length">
         <h3>Recursos y aprendizaje</h3>
-        <div v-for="r in sel.resources" :key="r" class="small" style="padding:4px 0">🔗 {{ r }}</div>
-        <div v-for="c in coursesOf(sel)" :key="c.id" class="small" style="padding:4px 0">📘 {{ c.title }} — práctica: {{ c.practice }}</div>
+        <div v-for="r in sel.resources" :key="r" class="small wi" style="padding:4px 0;display:flex"><Icon name="link" :size="14" />{{ r }}</div>
+        <div v-for="c in coursesOf(sel)" :key="c.id" class="small wi" style="padding:4px 0;display:flex"><Icon name="book" :size="14" />{{ c.title }} — práctica: {{ c.practice }}</div>
       </div>
     </template>
 

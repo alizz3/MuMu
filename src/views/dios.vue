@@ -3,7 +3,7 @@ import { computed, ref, reactive, onUnmounted } from 'vue'
 import { state } from '../store'
 import * as A from '../store/actions'
 import { dayKey, longDate, parseDay } from '../engine/time'
-import { Pet, Chip } from '../components/ui'
+import { Icon, Pet, Chip } from '../components/ui'
 
 const VERSES = [
   ['Todo lo puedo en Cristo que me fortalece.', 'Filipenses 4:13'],
@@ -46,13 +46,13 @@ onUnmounted(() => clearInterval(t))
 
     <div class="card">
       <h3>Hoy</h3>
-      <label class="item"><input type="checkbox" v-model="e.prayers.morning" @change="save" /><span class="grow small">Hablé con Dios en la mañana ☀️</span></label>
-      <label class="item"><input type="checkbox" v-model="e.prayers.night" @change="save" /><span class="grow small">Hablé con Dios en la noche 🌙</span></label>
+      <label class="item"><input type="checkbox" v-model="e.prayers.morning" @change="save" /><span class="grow small">Hablé con Dios en la mañana <Icon name="sun" :size="14" class="inl" /></span></label>
+      <label class="item"><input type="checkbox" v-model="e.prayers.night" @change="save" /><span class="grow small">Hablé con Dios en la noche <Icon name="moon" :size="14" class="inl" /></span></label>
       <div class="row wrap" style="gap:6px;margin-top:10px">
         <span class="small">Un momento de silencio:</span>
         <Chip v-for="m in [1, 3, 5, 10]" :key="m" :active="silence === m" @click="quiet(m)">{{ m }} min</Chip>
       </div>
-      <p v-if="silence" class="small serif" style="margin-top:10px;text-align:center">Respira… {{ Math.floor(left / 60) }}:{{ String(left % 60).padStart(2, '0') }} 🤍</p>
+      <p v-if="silence" class="small serif" style="margin-top:10px;text-align:center">Respira… {{ Math.floor(left / 60) }}:{{ String(left % 60).padStart(2, '0') }}</p>
     </div>
 
     <div class="card">
@@ -64,7 +64,7 @@ onUnmounted(() => clearInterval(t))
       <h3>Lo que Dios me ha ido enseñando</h3>
       <div v-for="[d, x] in past" :key="d" class="item" style="align-items:flex-start">
         <div class="grow small"><div class="tiny muted">{{ longDate(parseDay(d)) }}</div>
-          <div v-if="x.teach">✨ {{ x.teach }}</div><div v-if="x.grateful">🙏 {{ x.grateful }}</div><div v-if="x.give">🤲 {{ x.give }}</div></div>
+          <div v-if="x.teach"><Icon name="sparkles" :size="13" class="inl" /> {{ x.teach }}</div><div v-if="x.grateful"><Icon name="heart" :size="13" class="inl" /> {{ x.grateful }}</div><div v-if="x.give"><Icon name="gift" :size="13" class="inl" /> {{ x.give }}</div></div>
       </div>
     </div>
   </div>

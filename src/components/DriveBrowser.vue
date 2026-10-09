@@ -4,7 +4,7 @@ import { listDrive, driveAccount } from '../services/api'
 import { Icon } from './ui'
 
 // Explorador de Drive dentro de MuMu: carpetas, archivos y vista previa sin salir de la app
-const props = defineProps({ root: { type: String, required: true }, height: { type: Number, default: 0 }, title: { type: String, default: '' } })
+const props = defineProps({ root: { type: String, required: true }, height: { type: Number, default: 0 }, title: { type: String, default: '' }, icon: { type: String, default: '' } })
 // Con título se ve plegado: solo el encabezado; al tocarlo se abre y al tocarlo otra vez se cierra
 const open = ref(!props.title)
 const rootName = ref('')
@@ -33,7 +33,7 @@ function openItem(f) {
 }
 function goTo(i) { path.value = path.value.slice(0, i + 1); load() }
 
-const ICON = (m) => (m.includes('folder') ? '📁' : m.includes('pdf') ? '📕' : m.includes('document') || m.includes('word') ? '📄' : m.includes('spreadsheet') || m.includes('excel') ? '📊' : m.includes('presentation') || m.includes('powerpoint') ? '📽️' : m.startsWith('image/') ? '🖼️' : m.startsWith('video/') ? '🎬' : m.startsWith('audio/') ? '🎧' : '📎')
+const ICON = (m) => (m.includes('folder') ? 'folder' : m.includes('pdf') ? 'book' : m.includes('document') || m.includes('word') ? 'note' : m.includes('spreadsheet') || m.includes('excel') ? 'chart' : m.includes('presentation') || m.includes('powerpoint') ? 'film' : m.startsWith('image/') ? 'image' : m.startsWith('video/') ? 'video' : m.startsWith('audio/') ? 'headphones' : 'clip')
 function previewUrl(f) {
   const q = au.value ? `?${au.value}` : ''
   if (f.mime === 'application/vnd.google-apps.document') return `https://docs.google.com/document/d/${f.id}/preview${q}`
@@ -49,7 +49,7 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
 <template>
   <div class="drv">
     <button v-if="title" type="button" class="drv-head" :aria-expanded="open" @click="open = !open">
-      <span class="grow" style="min-width:0"><b>{{ title }}</b><span v-if="rootName" class="drv-sub">{{ rootName }}</span></span>
+      <span class="grow" style="min-width:0"><b class="wi"><Icon v-if="icon" :name="icon" :size="16" />{{ title }}</b><span v-if="rootName" class="drv-sub">{{ rootName }}</span></span>
       <Icon name="chev" :size="18" :style="{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }" />
     </button>
     <template v-if="open">
@@ -68,7 +68,7 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
       <div v-else-if="loading" class="row small muted" style="padding:14px 4px;gap:8px"><span class="spin" style="width:18px;height:18px;border-width:2px"></span>Cargando Drive…</div>
       <div v-else class="files" :style="height ? { maxHeight: height + 'px' } : {}">
         <button v-for="f in items" :key="f.id" class="file" @click="openItem(f)">
-          <span class="ic" aria-hidden="true">{{ ICON(f.mime) }}</span>
+          <span class="fi" aria-hidden="true"><Icon :name="ICON(f.mime)" :size="17" /></span>
           <span class="nm">{{ f.name }}</span>
           <span class="meta">{{ f.folder ? '' : fsize(f.size) }} {{ fdate(f.modified) }}</span>
         </button>
@@ -81,7 +81,7 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
     <div v-if="preview" class="pv" role="dialog" aria-modal="true" :aria-label="preview.name" @click.self="preview = null">
       <div class="pv-box">
         <div class="pv-top">
-          <b class="pv-name">{{ ICON(preview.mime) }} {{ preview.name }}</b>
+          <b class="pv-name"><Icon :name="ICON(preview.mime)" :size="16" class="inl" /> {{ preview.name }}</b>
           <a class="btn sm lav" :href="openUrl(preview)" target="_blank" rel="noopener">Abrir en Drive ↗</a>
           <button class="iconbtn" aria-label="Cerrar vista previa" @click="preview = null"><Icon name="x" :size="18" /></button>
         </div>
@@ -103,7 +103,7 @@ const fsize = (b) => (!b ? '' : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math
 .file { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; }
 .file:last-child { border-bottom: 0; }
 .file:hover { background: var(--lav-50); }
-.ic { font-size: 18px; }
+.fi { display: grid; place-items: center; color: var(--lav-700); }
 .nm { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .pv { position: fixed; inset: 0; z-index: 80; background: rgba(20, 12, 24, .55); display: grid; place-items: center; padding: 12px; }

@@ -11,19 +11,19 @@ export function seed() {
   const past = (n) => keyPlus(-n)
 
   const goals = [
-    { id: 'g1', name: 'Graduarme con excelencia', category: 'universidad', description: 'Ingeniería de Sistemas en la Universidad del Tolima.', due: keyPlus(900), emoji: '🎓', progress: 35 },
-    { id: 'g2', name: 'Mejorar mi inglés', category: 'inglés', description: 'Poder tener una entrevista de trabajo en inglés.', due: keyPlus(240), emoji: '🇺🇸', progress: 0 },
-    { id: 'g3', name: 'Portafolio y perfil profesional', category: 'carrera', description: 'Un portafolio que me consiga trabajo y clientes freelance.', due: keyPlus(60), emoji: '💼', progress: 0 },
-    { id: 'g4', name: 'Independencia financiera', category: 'dinero', description: 'Ingresos estables como desarrolladora.', due: keyPlus(540), emoji: '💰', progress: 15 },
-    { id: 'g5', name: 'Vida equilibrada con mi familia', category: 'familia', description: 'Tiempo de calidad con mis papás, Leo y Negra.', due: null, emoji: '🤍', progress: 0 },
-    { id: 'g6', name: 'Crecer en mi relación con Dios', category: 'espiritualidad', description: 'Un espacio diario, sin presión.', due: null, emoji: '🕊️', progress: 0 },
+    { id: 'g1', name: 'Graduarme con excelencia', category: 'universidad', description: 'Ingeniería de Sistemas en la Universidad del Tolima.', due: keyPlus(900), progress: 35 },
+    { id: 'g2', name: 'Mejorar mi inglés', category: 'inglés', description: 'Poder tener una entrevista de trabajo en inglés.', due: keyPlus(240), progress: 0 },
+    { id: 'g3', name: 'Portafolio y perfil profesional', category: 'carrera', description: 'Un portafolio que me consiga trabajo y clientes freelance.', due: keyPlus(60), progress: 0 },
+    { id: 'g4', name: 'Independencia financiera', category: 'dinero', description: 'Ingresos estables como desarrolladora.', due: keyPlus(540), progress: 15 },
+    { id: 'g5', name: 'Vida equilibrada con mi familia', category: 'familia', description: 'Tiempo de calidad con mis papás, Leo y Negra.', due: null, progress: 0 },
+    { id: 'g6', name: 'Crecer en mi relación con Dios', category: 'espiritualidad', description: 'Un espacio diario, sin presión.', due: null, progress: 0 },
   ]
 
   const projects = [
     { id: 'p1', name: 'Portafolio profesional', goalId: 'g3', status: 'progreso', area: 'carrera', color: '#C3B3D4', description: 'Proyectos, demos interactivas y CV.', resources: ['github.com/alizz3'], skills: ['Vue', 'Diseño UI'], due: keyPlus(30) },
     { id: 'p2', name: 'Emily Pizza · menú web', goalId: 'g4', status: 'progreso', area: 'freelance', color: '#F7B6C2', description: 'Menú digital para el local de unos amigos.', resources: [], skills: ['HTML/CSS', 'JS'], due: keyPlus(10) },
     { id: 'p3', name: 'Vamos donde Nata', goalId: 'g4', status: 'plan', area: 'freelance', color: '#FAD6A5', description: 'Menú digital con modo mesero y admin.', resources: [], skills: ['Vue', 'Firebase'], due: keyPlus(25) },
-    { id: 'p4', name: BRAND.appName, goalId: 'g3', status: 'progreso', area: 'personal', color: '#B9DCCB', description: 'Mi sistema operativo personal 🐮', resources: [], skills: ['Vue', 'Arquitectura'], due: null },
+    { id: 'p4', name: BRAND.appName, goalId: 'g3', status: 'progreso', area: 'personal', color: '#B9DCCB', description: 'Mi sistema operativo personal', resources: [], skills: ['Vue', 'Arquitectura'], due: null },
     { id: 'p5', name: 'Plan de inglés', goalId: 'g2', status: 'progreso', area: 'aprendizaje', color: '#BFD7F0', description: 'Listening diario + curso.', resources: [], skills: ['Inglés'], due: null },
   ]
 
@@ -59,12 +59,12 @@ export function seed() {
   ]
 
   const habits = [
-    { id: 'h1', name: 'Despertar ~6:30', emoji: '☀️', when: 'mañana', target: 7, goalId: null, color: '#FAD6A5' },
-    { id: 'h2', name: 'Tiempo con Dios', emoji: '🕊️', when: 'mañana', target: 7, goalId: 'g6', color: '#E8DDF5' },
-    { id: 'h3', name: 'Bloque de estudio profundo', emoji: '📚', when: 'tarde', target: 5, goalId: 'g1', color: '#C3B3D4' },
-    { id: 'h4', name: 'Inglés 20 min', emoji: '🎧', when: 'tarde', target: 5, goalId: 'g2', color: '#BFD7F0' },
-    { id: 'h5', name: 'Avanzar en proyectos', emoji: '💻', when: 'tarde', target: 5, goalId: 'g3', color: '#B9DCCB' },
-    { id: 'h6', name: 'Dormir antes de las 11', emoji: '🌙', when: 'noche', target: 7, goalId: null, color: '#F7B6C2' },
+    { id: 'h1', name: 'Despertar ~6:30', when: 'mañana', target: 7, goalId: null, color: '#FAD6A5' },
+    { id: 'h2', name: 'Tiempo con Dios', when: 'mañana', target: 7, goalId: 'g6', color: '#E8DDF5' },
+    { id: 'h3', name: 'Bloque de estudio profundo', when: 'tarde', target: 5, goalId: 'g1', color: '#C3B3D4' },
+    { id: 'h4', name: 'Inglés 20 min', when: 'tarde', target: 5, goalId: 'g2', color: '#BFD7F0' },
+    { id: 'h5', name: 'Avanzar en proyectos', when: 'tarde', target: 5, goalId: 'g3', color: '#B9DCCB' },
+    { id: 'h6', name: 'Dormir antes de las 11', when: 'noche', target: 7, goalId: null, color: '#F7B6C2' },
   ]
   const habitLogs = {}
   habits.forEach((h, i) => {
@@ -153,12 +153,12 @@ export function seed() {
     },
     goals, projects, subjects, tasks, events, habits, habitLogs,
     routines: [
-      { id: 'ro1', name: 'Mañana', emoji: '🌅', steps: [{ t: 'Despertar', at: '06:30' }, { t: 'Higiene', min: 15 }, { t: 'Tiempo con Dios', min: 15 }, { t: 'Bloque de concentración', min: 60 }, { t: 'Desayuno familiar', at: '08:30' }, { t: 'Empezar el día', at: '09:00' }], flexible: true },
-      { id: 'ro2', name: 'Noche', emoji: '🌙', steps: [{ t: 'Dejar mañana preparado', min: 10 }, { t: 'Oración de la noche', min: 10 }, { t: 'Celular lejos de la cama', min: 1 }, { t: 'Dormir', at: '22:30' }], flexible: true },
-      { id: 'ro3', name: 'Estudio', emoji: '📚', steps: [{ t: 'Agua + escritorio limpio', min: 3 }, { t: 'Elegir UNA tarea', min: 2 }, { t: 'Bloque 25 min', min: 25 }, { t: 'Pausa', min: 5 }], flexible: true },
-      { id: 'ro4', name: 'Trabajo', emoji: '💻', steps: [{ t: 'Revisar correos importantes', min: 10 }, { t: 'Bloque de proyecto', min: 50 }, { t: 'Commit y notas', min: 5 }], flexible: true },
-      { id: 'ro5', name: 'Universidad (domingo)', emoji: '🎓', steps: [{ t: 'Revisar Aula', min: 10 }, { t: 'Preparar materiales', min: 10 }, { t: 'Clases', at: '08:00' }], flexible: true },
-      { id: 'ro6', name: 'Fin de semana', emoji: '🧺', steps: [{ t: 'Descanso sin culpa', min: 60 }, { t: 'Planear la semana', min: 20 }, { t: 'Tiempo en familia', min: 120 }], flexible: true },
+      { id: 'ro1', name: 'Mañana', steps: [{ t: 'Despertar', at: '06:30' }, { t: 'Higiene', min: 15 }, { t: 'Tiempo con Dios', min: 15 }, { t: 'Bloque de concentración', min: 60 }, { t: 'Desayuno familiar', at: '08:30' }, { t: 'Empezar el día', at: '09:00' }], flexible: true },
+      { id: 'ro2', name: 'Noche', steps: [{ t: 'Dejar mañana preparado', min: 10 }, { t: 'Oración de la noche', min: 10 }, { t: 'Celular lejos de la cama', min: 1 }, { t: 'Dormir', at: '22:30' }], flexible: true },
+      { id: 'ro3', name: 'Estudio', steps: [{ t: 'Agua + escritorio limpio', min: 3 }, { t: 'Elegir UNA tarea', min: 2 }, { t: 'Bloque 25 min', min: 25 }, { t: 'Pausa', min: 5 }], flexible: true },
+      { id: 'ro4', name: 'Trabajo', steps: [{ t: 'Revisar correos importantes', min: 10 }, { t: 'Bloque de proyecto', min: 50 }, { t: 'Commit y notas', min: 5 }], flexible: true },
+      { id: 'ro5', name: 'Universidad (domingo)', steps: [{ t: 'Revisar Aula', min: 10 }, { t: 'Preparar materiales', min: 10 }, { t: 'Clases', at: '08:00' }], flexible: true },
+      { id: 'ro6', name: 'Fin de semana', steps: [{ t: 'Descanso sin culpa', min: 60 }, { t: 'Planear la semana', min: 20 }, { t: 'Tiempo en familia', min: 120 }], flexible: true },
     ],
     routineLogs: {},
     sleep, screen, intentions, focus,

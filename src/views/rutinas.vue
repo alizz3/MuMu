@@ -6,6 +6,7 @@ import { daily, award, awardOnce, markRewarded } from '../engine/game'
 import { rankedTasks } from '../engine/planner'
 import { dayKey, keyPlus, hm, toHM, fmt12, fmtDur } from '../engine/time'
 import { Icon, Pet } from '../components/ui'
+import { routineIcon } from '../components/iconFor'
 
 const k = dayKey()
 const open = ref(ui.now.getHours() >= 18 ? 'ro2' : 'ro1')
@@ -56,7 +57,7 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
 
     <div v-for="r in state.routines" :key="r.id" class="card">
       <button class="row" style="all:unset;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer" @click="open = open === r.id ? null : r.id" :aria-expanded="open === r.id">
-        <span class="ico" style="font-size:20px">{{ r.emoji }}</span>
+        <span class="ico"><Icon :name="routineIcon(r)" :size="19" /></span>
         <div class="grow"><div class="b">{{ r.name }}</div><div class="tiny muted">{{ (logs[r.id] || []).length }}/{{ r.steps.length }} hoy · {{ fmtDur(r.steps.reduce((a, s) => a + (s.min || 0), 0)) }}</div></div>
         <Icon name="chev" :size="18" />
       </button>
@@ -69,9 +70,9 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
         </div>
         <div class="row" style="margin-top:8px"><input class="input" v-model="newStep" placeholder="Agregar paso…" @keyup.enter="addStep(r)" /><button class="btn sm lav" @click="addStep(r)">+</button></div>
         <div v-if="r.id === 'ro2'" class="card tight soft" style="margin-top:12px">
-          <div class="small b">🌙 Dejar mañana preparado</div>
+          <div class="small b wi"><Icon name="moon" :size="15" />Dejar mañana preparado</div>
           <p class="tiny muted">Brian Tracy sugiere planear la noche anterior. ¿Cuál será tu prioridad de mañana?</p>
-          <p v-if="tomorrowTask" class="small" style="margin-top:6px">⭐ {{ tomorrowTask.title }}</p>
+          <p v-if="tomorrowTask" class="small wi" style="margin-top:6px"><Icon name="star" :size="14" />{{ tomorrowTask.title }}</p>
           <div class="stack" style="gap:4px;margin-top:6px">
             <button v-for="x in rankedTasks().slice(0, 4)" :key="x.t.id" class="chip" :class="{ on: tomorrow.priority === x.t.id }" style="text-align:left" @click="tomorrow.priority = x.t.id">{{ x.t.title }}</button>
           </div>

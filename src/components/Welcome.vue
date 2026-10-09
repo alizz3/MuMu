@@ -35,8 +35,8 @@ const FEATURES = [
     <!-- Alguien que no es la dueña -->
     <section v-if="ui.blocked" class="w-hero" style="min-height:100dvh;justify-content:center">
       <div class="w-pets"><Pet kind="negra" pose="sit" :size="90" /><Pet pose="hug" :size="150" /><Pet kind="leo" pose="sleep" :size="90" /></div>
-      <h1 class="w-title">Esta es la casita de {{ state.settings.ownerName }} 🐮</h1>
-      <p class="w-sub">Aquí solo entra ella. Gracias por pasar a saludar 💗</p>
+      <h1 class="w-title">Esta es la casita de {{ state.settings.ownerName }}</h1>
+      <p class="w-sub">Aquí solo entra ella. Gracias por pasar a saludar.</p>
       <p class="small muted">¿Te gustaría una app así para ti o tu negocio? Escríbele a <b><Contact value="dev.doblezz@gmail.com" kind="email" label="dev.doblezz@gmail.com" /></b></p>
       <div class="row" style="justify-content:center;gap:8px;margin-top:14px">
         <button class="btn ghost" @click="leave">Salir</button>
@@ -59,8 +59,8 @@ const FEATURES = [
           <button class="btn ghost" @click="demo">Ver demo con datos de ejemplo</button>
         </div>
         <p v-if="error" class="notice" style="margin-top:12px">{{ error }}</p>
-        <button v-if="ui.installPrompt" class="link" style="margin-top:6px" @click="installApp">📲 Instalar MuMu en este dispositivo</button>
-        <p v-else-if="ui.isIOS && !ui.installed" class="tiny muted" style="margin-top:6px">📲 En iPhone: toca Compartir → "Agregar a inicio" para tenerla como app.</p>
+        <button v-if="ui.installPrompt" class="link" style="margin-top:6px" @click="installApp"><Icon name="download" :size="15" class="inl" /> Instalar MuMu en este dispositivo</button>
+        <p v-else-if="ui.isIOS && !ui.installed" class="tiny muted" style="margin-top:6px"><Icon name="download" :size="13" class="inl" /> En iPhone: toca Compartir → "Agregar a inicio" para tenerla como app.</p>
       </section>
 
       <section class="w-grid">
@@ -80,7 +80,7 @@ const FEATURES = [
       </section>
 
       <footer class="w-foot">
-        <span>Hecho con 💗 por Aliz Mejía · Vue · Firebase · Vercel</span>
+        <span>Hecho con cariño por Aliz Mejía · Vue · Firebase · Vercel</span>
         <span class="row" style="gap:14px"><a href="https://github.com/alizz3/MuMu" target="_blank" rel="noopener">GitHub</a><a href="/privacidad.html">Privacidad</a><a href="/terminos.html">Términos</a></span>
       </footer>
     </template>

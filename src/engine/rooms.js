@@ -9,11 +9,11 @@ const flower = (x, y, c = HOT, s = 1) => `<g transform="translate(${x} ${y}) sca
 
 // ---------- Cuartos ----------
 export const ROOMS = [
-  { id: 'dormitorio', name: 'Dormitorio', emoji: '🛏️', price: 0 },
-  { id: 'cocina', name: 'Cocina', emoji: '🍳', price: 200 },
-  { id: 'patio', name: 'Patio', emoji: '🌳', price: 250 },
-  { id: 'bano', name: 'Baño', emoji: '🛁', price: 180 },
-  { id: 'estudio', name: 'Estudio', emoji: '📚', price: 220 },
+  { id: 'dormitorio', name: 'Dormitorio', icon: 'bed', price: 0 },
+  { id: 'cocina', name: 'Cocina', icon: 'pan', price: 200 },
+  { id: 'patio', name: 'Patio', icon: 'tree', price: 250 },
+  { id: 'bano', name: 'Baño', icon: 'bath', price: 180 },
+  { id: 'estudio', name: 'Estudio', icon: 'book', price: 220 },
 ]
 // Dónde se para cada quien en cada cuarto
 const LAYOUT = {
@@ -214,4 +214,4 @@ export function careAction(game, kind, what) {
   game.care[kind][key] = Math.min(100, game.care[kind][key] + add)
   return careOf(game, kind)
 }
-export const SOUNDS = { leo: ['¡Miau! 💗', 'Purrrr…', '¡Mrrrau!', '*se estira*', 'Miau miau 🐟'], negra: ['¡Guau! 🐶', '¡Wuf wuf!', '*mueve la colita*', '¡Guau guau! 🦴', '*te da la patita*'] }
+export const SOUNDS = { leo: ['¡Miau!', 'Purrrr…', '¡Mrrrau!', '*se estira*', 'Miau miau'], negra: ['¡Guau!', '¡Wuf wuf!', '*mueve la colita*', '¡Guau guau!', '*te da la patita*'] }

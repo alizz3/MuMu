@@ -5,6 +5,7 @@ import { go } from '../store/actions'
 import { ask, toast } from '../engine/game'
 import { MONTHS, WEEKDAYS_LONG, fmt12s, toHM } from '../engine/time'
 import { Empty, Icon } from '../components/ui'
+import { stripEmoji } from '../components/iconFor'
 
 // Agrupadas como en Facebook: Hoy, Ayer, Esta semana, Antes
 const startOf = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime() }
@@ -52,7 +53,7 @@ function openN(n) {
   // Si la tarea ya no existe (el profe la quitó de Tu Aula), se avisa en vez de llevarte a cualquier lado
   if (n.key?.startsWith('aula:')) {
     const t = target?.type === 'task' ? state.tasks.find((x) => x.id === target.id) : state.tasks.find((x) => x.id === aulaOf(n)?.taskId)
-    if (!t) { const sj = subjectOf(n); return toast(`Esa actividad ya no está${sj ? ` en ${sj}` : ''}: parece que la quitaron de Tu Aula 🤷‍♀️`) }
+    if (!t) { const sj = subjectOf(n); return toast(`Esa actividad ya no está${sj ? ` en ${sj}` : ''}: parece que la quitaron de Tu Aula`) }
     target = { type: 'task', id: t.id }
   }
   if (!target && n.key?.startsWith('aula:')) { const a = state.aula.find((x) => `aula:${x.id}` === n.key); if (a?.taskId) target = { type: 'task', id: a.taskId } }
@@ -91,7 +92,7 @@ const offset = (n) => (drag.value.id === n.id ? drag.value.dx : 0)
             <span class="nt-bg" :style="{ opacity: Math.min(1, offset(n) / 110) }"><Icon name="trash" :size="16" /> Borrar</span>
             <div class="nt" role="button" tabindex="0" :style="{ transform: `translateX(${offset(n)}px)` }" @pointerdown="down(n, $event)" @pointermove="move" @pointerup="up(n)" @pointercancel="up(n)" @click="click(n)" @keyup.enter="openN(n)">
               <span class="ico" :class="{ lav: n.read }"><Icon :name="iconOf(n)" :size="17" /></span>
-              <div class="grow" style="min-width:0"><div class="small" :class="{ b: !n.read }" style="overflow-wrap:anywhere">{{ n.text }}</div><div class="tiny muted">{{ ago(n.at) }}<span v-if="subjectOf(n)"> · 📚 {{ subjectOf(n) }}</span></div></div>
+              <div class="grow" style="min-width:0"><div class="small" :class="{ b: !n.read }" style="overflow-wrap:anywhere">{{ stripEmoji(n.text) }}</div><div class="tiny muted">{{ ago(n.at) }}<span v-if="subjectOf(n)"> · <Icon name="book" :size="12" class="inl" /> {{ subjectOf(n) }}</span></div></div>
               <span v-if="!n.read" class="dot-unread" aria-label="Sin leer"></span>
               <button class="x" :aria-label="`Borrar notificación: ${n.text}`" @click.stop="remove(n)"><Icon name="x" :size="14" /></button>
             </div>
@@ -100,7 +101,7 @@ const offset = (n) => (drag.value.id === n.id ? drag.value.dx : 0)
       </section>
       <p class="tiny muted" style="text-align:center">Desliza una notificación a la derecha para borrarla</p>
     </template>
-    <Empty v-else pose="happy" text="Todo tranquilo por aquí. Te aviso cuando haya algo importante 💗" />
+    <Empty v-else pose="happy" text="Todo tranquilo por aquí. Te aviso cuando haya algo importante." />
     <button class="btn ghost" @click="go('ajustes')">Configurar notificaciones</button>
   </div>
 </template>

@@ -59,7 +59,7 @@ export async function initSync() {
     const keys = Object.keys(state)
     let snaps
     try { snaps = await Promise.all(keys.map((k) => getDoc(doc(fb.db, 'users', uid, 'data', k)))) } catch (e) {
-      toast('No pude leer tus datos: revisa que las reglas de Firestore estén publicadas (firestore.rules) 🙏')
+      toast('No pude leer tus datos: revisa que las reglas de Firestore estén publicadas (firestore.rules).')
       console.warn('sync', e.message); ui.synced = true; return
     }
     const anyRemote = snaps.some((s) => s.exists())
@@ -113,7 +113,7 @@ function processInbox() {
   let created = 0, updated = 0
   for (const entry of box) { const r = applyAcademicChanges(entry.items || [], entry.source || 'aula'); created += r.created; updated += r.updated }
   state.inbox = []
-  if (created || updated) toast(`Universidad: ${created} nuevas, ${updated} con cambios 🎓`)
+  if (created || updated) toast(`Universidad: ${created} nuevas, ${updated} con cambios`)
 }
 
 // Si Tu Aula está conectada y no se revisa hace más de 3 horas, se revisa al abrir
