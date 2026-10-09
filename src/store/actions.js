@@ -312,6 +312,7 @@ export function subjectByName(name) {
 // Las dos tareas de arranque del ejercicio viven en el hábito "Ejercicio en casa"
 export function linkHabitTasks() {
   const h = state.habits.find((x) => /ejercicio en casa/i.test(x.name)); if (!h) return
+  if (!h.gtList) h.gtList = 'Ejercicio'
   state.tasks.forEach((t) => { if (!t.habitId && /^(Elegir una rutina gratis para hacer en casa|Primera sesión: 10 minuticos)$/.test(t.title)) { t.habitId = h.id; t.category = 'vida' } })
 }
 export function cleanTitles() {
