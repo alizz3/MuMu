@@ -1,3 +1,4 @@
+import { socialMinutes } from './screen'
 // Analítica personal: observaciones sobre TUS datos (nunca diagnósticos)
 import { state } from '../store'
 import { keyPlus, parseDay, WEEKDAYS_LONG } from './time'
@@ -12,7 +13,7 @@ export function series(days = 14) {
     const k = keyPlus(-(days - 1) + i)
     const sl = state.sleep.find((s) => s.date === k)
     const sc = state.screen.find((s) => s.date === k)
-    const social = sc ? Object.values(sc.apps).reduce((a, b) => a + b, 0) : null
+    const social = sc ? socialMinutes(sc) : null
     const habits = state.habits.filter((h) => state.habitLogs[h.id]?.[k]?.done).length
     return { k, d: parseDay(k), sleep: sl ? sl.minutes / 60 : null, focus: (fByDay[k] || []).reduce((a, f) => a + f.minutes, 0), sessions: (fByDay[k] || []).length, tasks: done[k] || 0, social, habits }
   })
