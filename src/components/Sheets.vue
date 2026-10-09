@@ -52,7 +52,7 @@ const SCHEMAS = {
   habit: () => ({ title: 'Hábito', coll: 'habits', fields: [
     { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'emoji', l: 'Emoji', t: 'text' },
     { k: 'when', l: 'Momento', t: 'select', o: ['mañana', 'tarde', 'noche', 'cualquiera'] },
-    { k: 'target', l: 'Días por semana', t: 'number' }, { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) }, { k: 'color', l: 'Color', t: 'color' },
+    { k: 'target', l: 'Días por semana', t: 'number' }, { k: 'gtList', l: 'Lista en Google Tasks (opcional)', t: 'text' }, { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) }, { k: 'color', l: 'Color', t: 'color' },
   ] }),
   event: () => ({ title: 'Evento', coll: 'events', fields: [
     { k: 'title', l: 'Título', t: 'text', req: true }, { k: 'date', l: 'Fecha', t: 'date', req: true },
