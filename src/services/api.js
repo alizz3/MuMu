@@ -178,7 +178,9 @@ export function gtConf(a) {
   return (state.integrations.gtasks[a.id] ||= { role: isUniAcc(a) ? 'universidad' : 'personal', lists: [], defaultList: '@default' })
 }
 const sameTitle = (a, b) => { const x = normT(a), y = normT(b); return !!x && !!y && (x === y || (Math.min(x.length, y.length) > 10 && (x.includes(y) || y.includes(x)))) }
+const isUni = (t) => t.category === 'universidad' || !!t.subjectId || state.projects.find((p) => p.id === t.projectId)?.area === 'universidad'
 const accFor = (t) => { const accs = gtAccounts()
+  if (isUni(t)) { const u = accs.find((a) => gtConf(a).role === 'universidad'); if (u) return u }
   if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const hit = p && accs.find((a) => (gtConf(a).lists || []).some((l) => normT(l.title) === normT(p.name))); if (hit) return hit }
   const want = t.category === 'universidad' || t.subjectId ? 'universidad' : 'personal'; return accs.find((a) => gtConf(a).role === want) || null }
 function listFor(a, t) {
@@ -211,6 +213,7 @@ export async function syncGTasks({ quiet = false } = {}) {
           if (g.parent || gone.has(g.id)) continue
           seen.add(g.id)
           let t = state.tasks.find((x) => x.gtask?.id === g.id)
+          if (t?.habitId) continue
           if (!t) {
             // Si ya existe (por ejemplo vino de Classroom o Tu Aula), se une en vez de duplicar
             t = state.tasks.find((x) => !x.gtask && x.status !== 'cancelada' && sameTitle(x.title, g.title) && (!subj || !x.subjectId || x.subjectId === subj.id) && (!proj || !x.projectId || x.projectId === proj.id))
@@ -275,11 +278,26 @@ async function projectList(a, p) {
   return r.list.id
 }
 async function doPush() {
+  // Lo de un hábito vive en el hábito, no en Google Tasks
+  for (const t of state.tasks.filter((x) => x.habitId && x.gtask)) {
+    try { await call('gtasks/sync', { method: 'DELETE', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id } }); delete t.gtask } catch { /* luego */ }
+  }
+  // Lo de la U va en la cuenta de la U (Google no mueve entre cuentas: se crea allá y se borra acá)
+  for (const t of state.tasks.filter((x) => x.gtask && !x.habitId && isUni(x))) {
+    const want = accFor(t); if (!want || want.id === t.gtask.acc) continue
+    try {
+      const proj = t.projectId && state.projects.find((x) => x.id === t.projectId)
+      const list = proj ? await projectList(want, proj) : listFor(want, t)
+      const r = await call('gtasks/sync', { method: 'POST', body: { account: want.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
+      await call('gtasks/sync', { method: 'DELETE', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id } }).catch(() => {})
+      t.gtask = { acc: want.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(t) }
+    } catch { /* luego */ }
+  }
   for (const d of [...(state.integrations.gtDeleted || [])]) {
     try { await call('gtasks/sync', { method: 'DELETE', body: { account: d.acc, list: d.list, id: d.id } }); state.integrations.gtDeleted = state.integrations.gtDeleted.filter((x) => x.id !== d.id) } catch { /* luego */ }
   }
   const since = state.integrations.gtasksSince; if (!since) return
-  for (const t of state.tasks.filter((x) => !x.gtask && !x.demo && x.source === 'manual' && x.status !== 'cancelada' && x.status !== 'completada' && (x.createdAt || '') >= since)) {
+  for (const t of state.tasks.filter((x) => !x.gtask && !x.demo && x.source === 'manual' && !x.habitId && x.status !== 'cancelada' && x.status !== 'completada' && (x.createdAt || '') >= since)) {
     const a = accFor(t); if (!a) continue
     const proj = t.projectId && state.projects.find((x) => x.id === t.projectId)
     const list = proj ? await projectList(a, proj).catch(() => listFor(a, t)) : listFor(a, t)
@@ -299,7 +317,7 @@ async function doPush() {
   // Tareas que pasaste a un proyecto: se mueven a la lista de ese proyecto (misma cuenta)
   for (const t of state.tasks.filter((x) => x.gtask && x.projectId && x.source !== 'aula' && x.source !== 'classroom')) {
     const p = state.projects.find((x) => x.id === t.projectId); const a = gtAccounts().find((x) => x.id === t.gtask.acc)
-    if (!p || !a) continue
+    if (!p || !a || accFor(t)?.id !== a.id) continue
     try {
       const to = await projectList(a, p)
       if (to !== t.gtask.list) { const r = await call('gtasks/sync', { method: 'POST', body: { op: 'move', account: a.id, list: t.gtask.list, id: t.gtask.id, to } }); t.gtask.list = to; t.gtask.updated = r.task.updated }
