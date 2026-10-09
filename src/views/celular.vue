@@ -1,14 +1,14 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { APPS, parseMin, showMin, socialMinutes } from '../engine/screen'
-import { state } from '../store'
+import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { toast } from '../engine/game'
 import { insights } from '../engine/insights'
 import { dayKey, fmtDur, keyPlus, WEEKDAYS, parseDay } from '../engine/time'
 import { Pet, Chip, Icon } from '../components/ui'
 
-const REASONS = [['estudiar', '📚 Estudiar'], ['trabajar', '💻 Trabajar'], ['buscar', '🔎 Buscar info'], ['hablar', '💬 Hablar con alguien'], ['aburrimiento', '🥱 Aburrimiento'], ['evitar', '🙈 Evitar una tarea'], ['ansiedad', '😟 Ansiedad'], ['automatico', '🤖 Automático']]
+const REASONS = [['estudiar', 'Estudiar', 'book'], ['trabajar', 'Trabajar', 'briefcase'], ['buscar', 'Buscar info', 'search'], ['hablar', 'Hablar con alguien', 'chat'], ['aburrimiento', 'Aburrimiento', 'clock'], ['evitar', 'Evitar una tarea', 'back'], ['ansiedad', 'Ansiedad', 'heart'], ['automatico', 'Automático', 'zap']]
 const want = ref(''), mins = ref(10), reason = ref('estudiar')
 const pending = computed(() => state.intentions.find((i) => !i.result && i.date === dayKey()))
 const endedIn = ref('TikTok')
@@ -16,7 +16,7 @@ function go() { if (!want.value.trim() && !['aburrimiento', 'automatico', 'ansie
 
 // Tiempo de pantalla: se copia de Bienestar digital (una web no puede leerlo sola). Acepta "2 h 40 min", "2h40" o "160".
 const scDate = ref(dayKey())
-const sc = reactive({ total: '', notif: '', apps: {}, extra: [] })
+const sc = reactive({ total: '', notif: '', apps: {}, extra: [], src: null })
 function loadScreen() {
   const e = state.screen.find((s) => s.date === scDate.value)
   sc.total = showMin(e?.total || 0); sc.notif = e?.notifications || ''
@@ -30,7 +30,8 @@ function saveScreen() {
   APPS.forEach(([k]) => { const m = parseMin(sc.apps[k]); if (m) apps[k] = m })
   sc.extra.forEach((x) => { const k = x.name.trim().toLowerCase().replace(/\s+/g, '-'); const m = parseMin(x.min); if (k && m) { apps[k] = m; names[k] = x.name.trim() } })
   const total = parseMin(sc.total) || appSum.value
-  A.logScreen({ date: scDate.value, total, notifications: Number(sc.notif) || null, apps, names })
+  A.logScreen({ date: scDate.value, total, notifications: Number(sc.notif) || null, apps, names, source: sc.src || 'manual' })
+  sc.src = null
 }
 // Leer capturas (en tu equipo, gratis): llena el formulario y tú solo revisas y guardas
 const ocr = ref({ busy: false, pct: 0 })
@@ -41,6 +42,7 @@ async function fromShots(ev) {
   try {
     const { readScreenshots } = await import('../services/screenOcr')
     const r = await readScreenshots(files, (p) => (ocr.value.pct = Math.round(p * 100)))
+    sc.src = 'captura'
     if (r.total) sc.total = showMin(r.total)
     if (r.notifications) sc.notif = r.notifications
     let n = 0
@@ -73,16 +75,26 @@ const stats = computed(() => {
   const by = {}; state.intentions.forEach((i) => (by[i.reason] = (by[i.reason] || 0) + 1))
   return { total: it.length, ok: it.filter((i) => i.result === 'logrado').length, by: Object.entries(by).sort((a, b) => b[1] - a[1]) }
 })
+// Días guardados (los últimos 14) y app de Android
+const saved = computed(() => [...state.screen].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 14))
+const openDay = ref(null)
+const appRows = (e) => Object.entries(e.apps || {}).map(([k, m]) => { const a = APPS.find((x) => x[0] === k); return { k, name: a?.[1] || e.names?.[k] || k, kind: a?.[2] || 'otra', m: Number(m) || 0 } }).sort((a, b) => b.m - a.m)
+const dayLabel = (k) => (k === dayKey() ? 'Hoy' : k === keyPlus(-1) ? 'Ayer' : `${WEEKDAYS[parseDay(k).getDay()]} ${parseDay(k).getDate()}`)
+const SRC = { android: 'del celular', captura: 'de capturas' }
+const formOpen = ref(!state.screen.some((s) => s.date === dayKey()))
+const isAndroid = /android/i.test(navigator.userAgent)
+const android = computed(() => state.settings.android)
+const APK = 'https://github.com/alizz3/MuMu/releases/download/android/mumu.apk'
 const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].includes(i.id)))
 </script>
 
 <template>
   <div class="stack">
     <div class="card pink">
-      <div class="row"><Pet pose="think" :size="80" /><div class="grow"><h2 style="font-size:17px">Hey {{ state.settings.ownerName }} 💗 ¿Qué venías a hacer?</h2><p class="tiny muted">Antes de abrir otra app, dime tu intención. Después te pregunto si lo lograste.</p></div></div>
+      <div class="row"><Pet pose="think" :size="80" /><div class="grow"><h2 style="font-size:17px">Hey {{ state.settings.ownerName }}, ¿qué venías a hacer?</h2><p class="tiny muted">Antes de abrir otra app, dime tu intención. Después te pregunto cómo te fue, sin regaños.</p></div></div>
       <template v-if="!pending">
         <input class="input" v-model="want" placeholder="Ej: Revisar Aula" style="margin-top:10px" aria-label="Intención" />
-        <div class="chips" style="margin-top:8px"><Chip v-for="r in REASONS" :key="r[0]" :active="reason === r[0]" @click="reason = r[0]">{{ r[1] }}</Chip></div>
+        <div class="reasons"><button v-for="r in REASONS" :key="r[0]" class="rb" :class="{ on: reason === r[0] }" @click="reason = r[0]"><Icon :name="r[2]" :size="14" />{{ r[1] }}</button></div>
         <div class="row" style="margin-top:8px"><div class="chips grow"><Chip v-for="m in [5, 10, 15, 30]" :key="m" :active="mins === m" @click="mins = m">{{ m }} min</Chip></div><button class="btn primary" @click="go">Listo</button></div>
       </template>
       <template v-else>
@@ -90,7 +102,7 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
           <div class="small">Dijiste: <b>{{ pending.want }} — {{ pending.minutes }} min</b> ({{ pending.at }})</div>
           <div class="small b" style="margin-top:8px">¿Lo lograste?</div>
           <div class="row wrap" style="gap:6px;margin-top:6px">
-            <button class="btn sm primary" @click="A.resolveIntention(pending.id, 'logrado')">¡Sí! 🎉</button>
+            <button class="btn sm primary" @click="A.resolveIntention(pending.id, 'logrado')">¡Sí!</button>
             <button class="btn sm lav" @click="A.resolveIntention(pending.id, 'parcial')">Más o menos</button>
             <select class="input" style="width:auto;padding:6px" v-model="endedIn" aria-label="Terminé en"><option>TikTok</option><option>Instagram</option><option>Facebook</option><option>WhatsApp</option><option>YouTube</option><option>Otra</option></select>
             <button class="btn sm ghost" @click="A.resolveIntention(pending.id, 'distraje', endedIn)">Terminé en {{ endedIn }}</button>
@@ -99,31 +111,78 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
       </template>
     </div>
 
-    <div class="card stack" style="gap:10px">
-      <div class="row between wrap" style="gap:8px">
-        <h3>Tiempo de pantalla</h3>
-        <select class="input" style="width:auto;padding:6px 10px;font-size:13px" v-model="scDate" aria-label="Día">
-          <option v-for="(k, i) in daysBack" :key="k" :value="k">{{ i === 0 ? 'Hoy' : i === 1 ? 'Ayer' : WEEKDAYS[parseDay(k).getDay()] + ' ' + parseDay(k).getDate() }}</option>
-        </select>
+    <!-- App de Android: lee el uso sola -->
+    <div v-if="android" class="card row" style="gap:12px">
+      <span class="gico" :style="{ background: 'color-mix(in srgb, #B9DCCB 40%, var(--surface))' }"><Icon name="phone" :size="18" /></span>
+      <div class="grow" style="min-width:0">
+        <b class="small">{{ android.permiso ? 'Se lee solo desde tu celular' : 'Falta un permiso' }}</b>
+        <div class="tiny muted">{{ android.permiso ? 'Cada vez que abres la app de MuMu se guarda tu tiempo de pantalla de los últimos 7 días.' : 'Activa MuMu en "Acceso al uso" para que lea tu tiempo de pantalla.' }}</div>
       </div>
-      <label class="shot" :class="{ busy: ocr.busy }">
-        <input type="file" accept="image/*" multiple class="sr" :disabled="ocr.busy" @change="fromShots" />
-        <Icon name="image" :size="18" />
-        <span v-if="!ocr.busy"><b>Subir capturas de Bienestar digital</b><br /><span class="tiny muted">El Panel y la lista de apps. Se leen aquí en tu celular, no se suben a ningún lado.</span></span>
-        <span v-else>Leyendo… {{ ocr.pct }}%</span>
-      </label>
-      <p class="tiny muted">O escríbelo a mano como sale allá: "2 h 40 min", "2h40" o "160".</p>
-      <div class="grid2">
-        <label class="field"><span>Tiempo total</span><input class="input" v-model="sc.total" placeholder="6 h 51 min" inputmode="text" /></label>
-        <label class="field"><span>Notificaciones</span><input class="input" v-model="sc.notif" type="number" placeholder="410" /></label>
+      <a v-if="!android.permiso" class="btn sm primary" href="mumu://permiso">Dar permiso</a>
+      <a v-else class="btn sm ghost" href="mumu://abrir" title="Volver a leer ahora"><Icon name="refresh" :size="14" /></a>
+    </div>
+    <a v-else-if="isAndroid" class="card row" style="gap:12px;text-decoration:none;color:inherit" :href="APK">
+      <span class="gico" :style="{ background: 'color-mix(in srgb, #F7B6C2 40%, var(--surface))' }"><Icon name="phone" :size="18" /></span>
+      <div class="grow"><b class="small">Instala MuMu para Android</b><div class="tiny muted">Lee tu tiempo de pantalla sola, sin capturas.</div></div>
+      <Icon name="chev" :size="16" />
+    </a>
+
+    <!-- Registrar (plegable) -->
+    <div class="card">
+      <button class="fold-head" :aria-expanded="formOpen" @click="formOpen = !formOpen">
+        <span class="gico" :style="{ background: 'color-mix(in srgb, #C3B3D4 40%, var(--surface))' }"><Icon name="plus" :size="16" /></span>
+        <h3 class="grow">Registrar tiempo de pantalla</h3>
+        <Icon name="chev" :size="16" :style="{ transform: formOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }" />
+      </button>
+      <div v-if="formOpen" class="stack" style="gap:10px;margin-top:12px">
+        <div class="row between wrap" style="gap:8px">
+          <span class="small muted">Día</span>
+          <select class="input" style="width:auto;padding:6px 10px;font-size:13px" v-model="scDate" aria-label="Día">
+            <option v-for="(k, i) in daysBack" :key="k" :value="k">{{ i === 0 ? 'Hoy' : i === 1 ? 'Ayer' : WEEKDAYS[parseDay(k).getDay()] + ' ' + parseDay(k).getDate() }}</option>
+          </select>
+        </div>
+        <label class="shot" :class="{ busy: ocr.busy }">
+          <input type="file" accept="image/*" multiple class="sr" :disabled="ocr.busy" @change="fromShots" />
+          <Icon name="image" :size="18" />
+          <span v-if="!ocr.busy"><b>Subir capturas de Bienestar digital</b><br /><span class="tiny muted">Se leen aquí en tu equipo, no se suben a ningún lado.</span></span>
+          <span v-else>Leyendo… {{ ocr.pct }}%</span>
+        </label>
+        <p class="tiny muted">O escríbelo a mano como sale allá: "2 h 40 min", "2h40" o "160".</p>
+        <div class="grid2">
+          <label class="field"><span>Tiempo total</span><input class="input" v-model="sc.total" placeholder="6 h 51 min" /></label>
+          <label class="field"><span>Notificaciones</span><input class="input" v-model="sc.notif" type="number" placeholder="410" /></label>
+        </div>
+        <div class="apps">
+          <label v-for="[k, n, kind] in APPS" :key="k" class="app"><span class="an"><i class="adot" :class="kind"></i>{{ n }}</span><input class="input" v-model="sc.apps[k]" placeholder="0 min" :aria-label="`Minutos en ${n}`" /></label>
+          <div v-for="(x, i) in sc.extra" :key="i" class="app"><input class="input an-in" v-model="x.name" placeholder="App" aria-label="Nombre de la app" /><input class="input" v-model="x.min" placeholder="0 min" aria-label="Minutos" /></div>
+        </div>
+        <button class="link small" style="align-self:flex-start" @click="sc.extra.push({ name: '', min: '' })">+ Otra app</button>
+        <button class="btn lav block" @click="saveScreen(); formOpen = false">Guardar</button>
       </div>
-      <div class="apps">
-        <label v-for="[k, n, kind] in APPS" :key="k" class="app"><span class="an"><i class="adot" :class="kind"></i>{{ n }}</span><input class="input" v-model="sc.apps[k]" placeholder="0 min" :aria-label="`Minutos en ${n}`" /></label>
-        <div v-for="(x, i) in sc.extra" :key="i" class="app"><input class="input an-in" v-model="x.name" placeholder="App" aria-label="Nombre de la app" /><input class="input" v-model="x.min" placeholder="0 min" aria-label="Minutos" /></div>
+    </div>
+
+    <!-- Lo que ya guardaste -->
+    <div class="card">
+      <h3>Tus días</h3>
+      <p v-if="!saved.length" class="tiny muted" style="margin-top:6px">Todavía no hay días guardados.</p>
+      <div v-for="e in saved" :key="e.date" class="day">
+        <button class="day-head" :aria-expanded="openDay === e.date" @click="openDay = openDay === e.date ? null : e.date">
+          <b class="small" style="width:64px">{{ dayLabel(e.date) }}</b>
+          <span class="grow small">{{ showMin(e.total) || '—' }}<span class="tiny muted"> · redes {{ showMin(socialMinutes(e)) || '0 min' }}</span></span>
+          <span v-if="e.source && SRC[e.source]" class="tiny muted hide-xs">{{ SRC[e.source] }}</span>
+          <Icon name="chev" :size="14" :style="{ transform: openDay === e.date ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }" />
+        </button>
+        <div v-if="openDay === e.date" class="day-body">
+          <div v-if="e.notifications" class="tiny muted" style="margin-bottom:6px"><Icon name="bell" :size="12" /> {{ e.notifications }} notificaciones</div>
+          <div v-for="r in appRows(e)" :key="r.k" class="arow">
+            <span class="an small"><i class="adot" :class="r.kind"></i>{{ r.name }}</span>
+            <span class="abar"><i :class="r.kind" :style="{ width: Math.max(3, r.m / Math.max(1, appRows(e)[0].m) * 100) + '%' }"></i></span>
+            <span class="tiny muted" style="width:62px;text-align:right">{{ showMin(r.m) }}</span>
+          </div>
+          <button class="link tiny" style="margin-top:6px" @click="scDate = e.date; formOpen = true">Editar este día</button>
+        </div>
       </div>
-      <button class="link small" style="align-self:flex-start" @click="sc.extra.push({ name: '', min: '' })">+ Otra app</button>
-      <p class="tiny muted"><i class="adot social"></i> redes · <i class="adot util"></i> herramientas · <i class="adot ocio"></i> entretenimiento<span v-if="appSum"> · apps anotadas: {{ showMin(appSum) }}</span></p>
-      <button class="btn lav block" @click="saveScreen">Guardar</button>
+      <p class="tiny muted" style="margin-top:8px"><i class="adot social"></i> redes · <i class="adot util"></i> herramientas · <i class="adot ocio"></i> entretenimiento</p>
     </div>
 
     <div class="card">
@@ -141,10 +200,9 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
     <div class="card">
       <h3>Patrones (para entenderte, no para castigarte)</h3>
       <p class="small" style="margin-top:6px">Intenciones registradas: {{ state.intentions.length }} · lograste {{ stats.ok }} de {{ stats.total }}</p>
-      <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="[r, n] in stats.by" :key="r" class="badge">{{ REASONS.find((x) => x[0] === r)?.[1] || r }} · {{ n }}</span></div>
-      <p v-for="i in ins" :key="i.id" class="small" style="margin-top:8px">{{ i.emoji }} {{ i.text }}</p>
+      <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="[r, n] in stats.by" :key="r" class="pill"><Icon :name="REASONS.find((x) => x[0] === r)?.[2] || 'sparkles'" :size="12" />{{ REASONS.find((x) => x[0] === r)?.[1] || r }} · {{ n }}</span></div>
+      <p v-for="i in ins" :key="i.id" class="small row" style="margin-top:8px;gap:8px;align-items:flex-start"><Icon name="sparkles" :size="16" style="flex:none;margin-top:2px" />{{ i.text }}</p>
     </div>
-    <p class="notice"><Icon name="shield" :size="18" />Una app web no puede aparecer encima de TikTok ni leer tu uso automáticamente. Por ahora: registro manual + recordatorios dentro de la app. Más adelante, una app nativa o una extensión podrían hacerlo con tu permiso.</p>
   </div>
 </template>
 
@@ -158,4 +216,19 @@ const ins = computed(() => insights().filter((i) => ['phone', 'screen-focus'].in
 .an-in { padding: 8px 10px; }
 .adot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--line); vertical-align: middle; }
 .adot.social { background: var(--pink-300); } .adot.util { background: var(--lav-300); } .adot.ocio { background: #FFE29A; }
+.reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rb { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.rb.on { background: var(--pink-100); color: var(--pink-700); border-color: transparent; font-weight: 600; }
+.gico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; color: var(--ink); }
+.fold-head, .day-head { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.day { border-bottom: 1px solid var(--line); }
+.day:last-of-type { border-bottom: 0; }
+.day-head { padding: 11px 2px; }
+.day-body { padding: 0 2px 12px; }
+.arow { display: grid; grid-template-columns: minmax(0, 130px) 1fr auto; align-items: center; gap: 10px; padding: 3px 0; }
+.abar { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.abar i { display: block; height: 100%; border-radius: 99px; background: var(--line); }
+.abar i.social { background: var(--pink-300); } .abar i.util { background: var(--lav-300); } .abar i.ocio { background: #FFE29A; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; padding: 5px 10px; border-radius: 999px; background: var(--surface-3); }
+@media (max-width: 380px) { .hide-xs { display: none; } }
 </style>
