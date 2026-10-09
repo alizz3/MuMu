@@ -17,6 +17,9 @@ const filter = ref('abiertas')
 const group = ref('fecha')
 const cat = ref('todas')
 const q = ref('')
+// Filtro por proyecto o materia (como las listas de Google Tasks)
+const where = ref('todos')
+const LISTS = computed(() => [...state.projects.filter((p) => state.tasks.some((t) => t.projectId === p.id)).map((p) => ({ v: 'p:' + p.id, l: '📁 ' + p.name })), ...state.subjects.filter((x) => state.tasks.some((t) => t.subjectId === x.id)).map((x) => ({ v: 's:' + x.id, l: '📚 ' + x.name }))])
 const CATS = ['todas', 'universidad', 'trabajo', 'aprendizaje', 'personal', 'vida']
 const list = computed(() => {
   let ts = state.tasks.filter((t) => inScope('task', t))
@@ -26,6 +29,7 @@ const list = computed(() => {
   if (filter.value === 'pospuestas') ts = ts.filter((t) => isOpen(t) && (t.postponed || 0) > 0)
   if (filter.value === 'completadas') ts = ts.filter((t) => t.status === 'completada')
   if (cat.value !== 'todas') ts = ts.filter((t) => t.category === cat.value)
+  if (where.value !== 'todos') { const [k, id] = where.value.split(':'); ts = ts.filter((t) => (k === 'p' ? t.projectId : t.subjectId) === id) }
   if (q.value) ts = ts.filter((t) => t.title.toLowerCase().includes(q.value.toLowerCase()))
   return ts
 })
@@ -53,10 +57,15 @@ const groups = computed(() => {
     </div>
     <div class="chips"><Chip v-for="f in ['abiertas', 'hoy', 'semana', 'pospuestas', 'completadas', 'todas']" :key="f" :active="filter === f" @click="filter = f">{{ f }}</Chip></div>
     <div class="chips"><Chip v-for="c in CATS" :key="c" :active="cat === c" @click="cat = c">{{ c }}</Chip></div>
-    <div class="row small muted">Agrupar por
-      <select class="input" style="width:auto;padding:6px 10px" v-model="group" aria-label="Agrupar por">
-        <option value="fecha">fecha</option><option value="prioridad">prioridad</option><option value="proyecto">proyecto / materia</option><option value="estado">estado</option><option value="fuente">fuente</option>
-      </select>
+    <div class="row wrap small muted" style="gap:8px 14px">
+      <label class="row" style="gap:6px">Lista
+        <select class="input" style="width:auto;max-width:220px;padding:6px 10px" v-model="where" aria-label="Filtrar por proyecto o materia">
+          <option value="todos">Todas</option><option v-for="o in LISTS" :key="o.v" :value="o.v">{{ o.l }}</option>
+        </select></label>
+      <label class="row" style="gap:6px">Agrupar por
+        <select class="input" style="width:auto;padding:6px 10px" v-model="group" aria-label="Agrupar por">
+          <option value="fecha">fecha</option><option value="prioridad">prioridad</option><option value="proyecto">proyecto / materia</option><option value="estado">estado</option><option value="fuente">fuente</option>
+        </select></label>
     </div>
     <div v-for="g in groups" :key="g.k" class="card">
       <div class="row between"><h3>{{ g.k }}</h3><span class="badge">{{ g.v.length }}</span></div>
