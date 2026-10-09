@@ -27,11 +27,14 @@ export function addTask(data, { quiet = false } = {}) {
   return t
 }
 export function updateTask(id, patch) { const t = state.tasks.find((x) => x.id === id); if (t) Object.assign(t, patch); return t }
-export function deleteTask(id) {
-  const t = state.tasks.find((x) => x.id === id)
-  // Si estaba en Google Tasks, también se borra allá (y no vuelve a aparecer)
-  if (t?.gtask) state.integrations.gtDeleted = [...(state.integrations.gtDeleted || []), { ...t.gtask }]
-  state.tasks = state.tasks.filter((x) => x.id !== id)
+export function deleteTask(id) { removeTasks((x) => x.id === id) }
+// Quita tareas y, si estaban en Google Tasks, también las borra allá (y no vuelven a aparecer)
+export function removeTasks(match) {
+  const out = state.tasks.filter(match)
+  const g = out.filter((t) => t.gtask).map((t) => ({ ...t.gtask }))
+  if (g.length) state.integrations.gtDeleted = [...(state.integrations.gtDeleted || []), ...g]
+  const ids = new Set(out.map((t) => t.id))
+  state.tasks = state.tasks.filter((x) => !ids.has(x.id))
 }
 
 export function completeTask(id) {
@@ -298,7 +301,7 @@ export function ignoreCourse(subjectId) {
   const ids = [...new Set([s.externalId, ...(s.externalIds || [])].filter(Boolean))]
   state.integrations.ignoredCourses = [...(state.integrations.ignoredCourses || []), ...ids.map((id) => ({ id, name: s.name }))]
   state.aula = state.aula.filter((a) => a.courseId !== s.id)
-  state.tasks = state.tasks.filter((t) => !(t.subjectId === s.id && ['aula', 'classroom'].includes(t.source)))
+  removeTasks((t) => t.subjectId === s.id && ['aula', 'classroom'].includes(t.source))
   state.tasks.forEach((t) => { if (t.subjectId === s.id) t.subjectId = null })
   state.subjects = state.subjects.filter((x) => x.id !== s.id)
 }
@@ -323,7 +326,7 @@ export function cleanTitles() {
 export function dropSena() {
   const ids = new Set(state.subjects.filter((s) => s.institution === 'SENA' || /\badso\b/i.test(s.name)).map((s) => s.id))
   if (ids.size) {
-    state.tasks = state.tasks.filter((t) => !(ids.has(t.subjectId) && t.status !== 'completada'))
+    removeTasks((t) => ids.has(t.subjectId) && t.status !== 'completada')
     state.tasks.forEach((t) => { if (ids.has(t.subjectId)) t.subjectId = null })
     state.events = (state.events || []).filter((e) => !ids.has(e.subjectId))
     state.subjects = state.subjects.filter((s) => !ids.has(s.id))

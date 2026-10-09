@@ -289,12 +289,12 @@ async function doPush() {
       const proj = t.projectId && state.projects.find((x) => x.id === t.projectId)
       const list = proj ? await projectList(want, proj) : listFor(want, t)
       const r = await call('gtasks/sync', { method: 'POST', body: { account: want.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
-      await call('gtasks/sync', { method: 'DELETE', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id } }).catch(() => {})
+      await call('gtasks/sync', { method: 'POST', body: { op: 'delete', account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id } }).catch(() => {})
       t.gtask = { acc: want.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(t) }
     } catch { /* luego */ }
   }
   for (const d of [...(state.integrations.gtDeleted || [])]) {
-    try { await call('gtasks/sync', { method: 'DELETE', body: { account: d.acc, list: d.list, id: d.id } }); state.integrations.gtDeleted = state.integrations.gtDeleted.filter((x) => x.id !== d.id) } catch { /* luego */ }
+    try { await call('gtasks/sync', { method: 'POST', body: { op: 'delete', account: d.acc, list: d.list, id: d.id } }); state.integrations.gtDeleted = state.integrations.gtDeleted.filter((x) => x.id !== d.id) } catch { /* luego */ }
   }
   const since = state.integrations.gtasksSince; if (!since) return
   for (const t of state.tasks.filter((x) => !x.gtask && !x.demo && x.source === 'manual' && x.status !== 'cancelada' && x.status !== 'completada' && (x.createdAt || '') >= since)) {
@@ -304,7 +304,7 @@ async function doPush() {
     try {
       const r = await call('gtasks/sync', { method: 'POST', body: { account: a.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
       // Si la borraste mientras se creaba en Google, también se borra allá
-      if (!state.tasks.some((x) => x.id === t.id)) { await call('gtasks/sync', { method: 'DELETE', body: { account: a.id, list: r.list, id: r.task.id } }).catch(() => {}); continue }
+      if (!state.tasks.some((x) => x.id === t.id)) { await call('gtasks/sync', { method: 'POST', body: { op: 'delete', account: a.id, list: r.list, id: r.task.id } }).catch(() => {}); continue }
       const live = state.tasks.find((x) => x.id === t.id)
       live.gtask = { acc: a.id, list: r.list, id: r.task.id, done: false, updated: r.task.updated, sig: gsig(live) }
       if (r.task.url && !live.url) live.url = r.task.url

@@ -153,7 +153,9 @@ function save() {
 async function remove() {
   const sc = schema.value
   if (!(await ask('¿Eliminar? No se puede deshacer.'))) return
-  state[sc.coll] = state[sc.coll].filter((x) => x.id !== m.value.id)
+  // Las tareas se borran por la acción común, para que también se borren en Google Tasks
+  if (sc.coll === 'tasks') A.deleteTask(m.value.id)
+  else state[sc.coll] = state[sc.coll].filter((x) => x.id !== m.value.id)
   close()
 }
 
