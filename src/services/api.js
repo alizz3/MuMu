@@ -265,6 +265,15 @@ export async function pushNewGTasks(inner = false) {
   pushing = true
   try { await doPush() } finally { pushing = false }
 }
+// Cada proyecto tiene su propia lista en Google Tasks (se crea sola la primera vez)
+async function projectList(a, p) {
+  const c = gtConf(a)
+  const hit = (c.lists || []).find((l) => normT(l.title) === normT(p.name))
+  if (hit) return hit.id
+  const r = await call('gtasks/sync', { method: 'POST', body: { op: 'createList', account: a.id, title: p.name } })
+  c.lists = [...(c.lists || []), r.list]
+  return r.list.id
+}
 async function doPush() {
   for (const d of [...(state.integrations.gtDeleted || [])]) {
     try { await call('gtasks/sync', { method: 'DELETE', body: { account: d.acc, list: d.list, id: d.id } }); state.integrations.gtDeleted = state.integrations.gtDeleted.filter((x) => x.id !== d.id) } catch { /* luego */ }
@@ -272,7 +281,8 @@ async function doPush() {
   const since = state.integrations.gtasksSince; if (!since) return
   for (const t of state.tasks.filter((x) => !x.gtask && !x.demo && x.source === 'manual' && x.status !== 'cancelada' && x.status !== 'completada' && (x.createdAt || '') >= since)) {
     const a = accFor(t); if (!a) continue
-    const list = listFor(a, t)
+    const proj = t.projectId && state.projects.find((x) => x.id === t.projectId)
+    const list = proj ? await projectList(a, proj).catch(() => listFor(a, t)) : listFor(a, t)
     try {
       const r = await call('gtasks/sync', { method: 'POST', body: { account: a.id, list, title: t.title, notes: t.notes || '', due: t.due || '' } })
       // Si la borraste mientras se creaba en Google, también se borra allá
@@ -285,6 +295,15 @@ async function doPush() {
   // Editadas en MuMu (título, fecha, notas)
   for (const t of state.tasks.filter((x) => x.gtask?.sig && x.gtask.sig !== gsig(x))) {
     try { const r = await call('gtasks/sync', { method: 'PATCH', body: { account: t.gtask.acc, list: t.gtask.list, id: t.gtask.id, title: t.title, due: t.due || null, notes: ownNotes(t) ? t.notes || '' : undefined } }); t.gtask.updated = r.task.updated; t.gtask.sig = gsig(t) } catch { /* luego */ }
+  }
+  // Tareas que pasaste a un proyecto: se mueven a la lista de ese proyecto (misma cuenta)
+  for (const t of state.tasks.filter((x) => x.gtask && x.projectId && x.source !== 'aula' && x.source !== 'classroom')) {
+    const p = state.projects.find((x) => x.id === t.projectId); const a = gtAccounts().find((x) => x.id === t.gtask.acc)
+    if (!p || !a) continue
+    try {
+      const to = await projectList(a, p)
+      if (to !== t.gtask.list) { const r = await call('gtasks/sync', { method: 'POST', body: { op: 'move', account: a.id, list: t.gtask.list, id: t.gtask.id, to } }); t.gtask.list = to; t.gtask.updated = r.task.updated }
+    } catch { /* luego */ }
   }
   // Completadas en MuMu que Google aún no sabe
   for (const t of state.tasks.filter((x) => x.gtask && (x.status === 'completada') !== x.gtask.done)) {

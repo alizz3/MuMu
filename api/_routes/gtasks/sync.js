@@ -49,8 +49,20 @@ export default handler(async (req, res) => {
   }
   const b = body(req)
   const { token } = await accessToken(uid, str(b.account, 'cuenta', { max: 100 }), 'tasks')
+  // Crear una lista nueva (una por proyecto)
+  if (req.method === 'POST' && b.op === 'createList') {
+    const l = await send(token, 'POST', `${API}/users/@me/lists`, { title: str(b.title, 'nombre de la lista', { max: 100 }) })
+    return res.json({ list: { id: l.id, title: l.title } })
+  }
   const list = str(b.list || '@default', 'lista', { max: 200 })
   if (!ID.test(list)) throw new HttpError(400, 'Lista inválida')
+  // Mover una tarea a otra lista (cuando la pasas a un proyecto)
+  if (req.method === 'POST' && b.op === 'move') {
+    const id = str(b.id, 'tarea', { max: 200 }), to = str(b.to, 'lista destino', { max: 200 })
+    if (!ID.test(id) || !ID.test(to)) throw new HttpError(400, 'Datos inválidos')
+    const t = await send(token, 'POST', `${API}/lists/${encodeURIComponent(list)}/tasks/${encodeURIComponent(id)}/move?destinationTasklist=${encodeURIComponent(to)}`, {})
+    return res.json({ task: shape(t), list: to })
+  }
   if (req.method === 'POST') {
     const t = await send(token, 'POST', `${API}/lists/${encodeURIComponent(list)}/tasks`, { title: str(b.title, 'título', { max: 300 }), notes: str(b.notes, 'notas', { max: 4000, required: false }) || undefined, due: isoDue(b.due) })
     return res.json({ task: shape(t), list })
