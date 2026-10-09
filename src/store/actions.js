@@ -350,7 +350,7 @@ function ensureSubject(name, externalId, source) {
 
 // ---------- Vida, Dios ----------
 export function addLife(m) {
-  state.life.unshift({ id: uid('l'), date: dayKey(), ...m })
+  state.life.unshift({ id: uid('l'), ...m, date: m.date || dayKey() })
   // Hasta 3 momentos premiados por día
   const n = state.life.filter((l) => l.date === dayKey()).length
   if (n <= 3) awardOnce(`life:${dayKey()}:${n}`, 4, 6, 'Un momento que importa 🤍'); else toast('Guardado 🤍')
