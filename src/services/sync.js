@@ -12,14 +12,25 @@ const last = {}
 let uid = null, ready = false
 let unsubs = []
 
+// Nada debe dejar la vaquita de carga pegada: todo lo de red tiene tiempo límite
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))])
 export async function initSync() {
   markVisit()
+  // Plan B: si en 8 s no se resolvió el inicio de sesión, se muestra la app con lo guardado en el equipo
+  setTimeout(() => {
+    if (ui.authReady) return
+    try { const u = JSON.parse(localStorage.getItem('mumu:lastUser') || 'null'); if (u && !ui.user) ui.user = u } catch {}
+    ui.authReady = true
+    console.warn('sync: inicio lento, se abre con datos locales')
+  }, 8000)
   if (location.protocol.startsWith('http')) fetch('/api/health').then((r) => r.ok && r.json()).then((j) => { ui.backend = !!j?.ok }).catch(() => { ui.backend = false })
-  const fb = await getFirebase()
+  let fb = null
+  try { fb = await withTimeout(getFirebase(), 10000) } catch (e) { console.warn('firebase', e.message) }
   if (!fb) { ui.authReady = true; return }
   const { doc, getDoc, setDoc } = fb.fs
   fb.authMod.onAuthStateChanged(fb.auth, async (user) => {
     ui.user = user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null
+    try { if (ui.user) localStorage.setItem('mumu:lastUser', JSON.stringify(ui.user)); else localStorage.removeItem('mumu:lastUser') } catch {}
     // Al cerrar sesión se borra la copia local para que nadie más vea tus datos en este equipo
     if (!user && uid) { ready = false; unsubs.forEach((u) => u()); unsubs = []; resetToSeed() }
     uid = user?.uid || null
@@ -30,7 +41,8 @@ export async function initSync() {
     const dkey = `mumu:dataUid:${user.uid}`
     if (location.protocol.startsWith('http')) {
       try {
-        const r = await fetch('/api/me', { headers: { Authorization: `Bearer ${await idToken()}` } })
+        const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 6000)
+        const r = await fetch('/api/me', { signal: ctrl.signal, headers: { Authorization: `Bearer ${await withTimeout(idToken(), 5000)}` } }).finally(() => clearTimeout(t))
         if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
         const j = await r.json().catch(() => ({}))
         if (j.dataUid) { uid = j.dataUid; try { localStorage.setItem(dkey, uid) } catch {} } // la cuenta de la U usa los mismos datos que tu Gmail

@@ -80,6 +80,9 @@ window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',
 const isDark = computed(() => state.settings.theme === 'dark' || (state.settings.theme === 'auto' && sysDark.value))
 const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dark' }
 // Sin sesión se ve la bienvenida (o la demo si la eligen). Sin Firebase configurado, la app abre directo.
+const slow = ref(false)
+setTimeout(() => { slow.value = true }, 5000)
+const reload = () => location.reload()
 const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
 // Aviso de "sin internet" (la app sigue funcionando con lo guardado en el equipo)
@@ -117,7 +120,11 @@ const fmtLeft = computed(() => {
 </script>
 
 <template>
-  <div v-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true"><Pet pose="happy" :size="120" /></div>
+  <div v-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true">
+    <div class="stack" style="align-items:center;gap:10px"><Pet pose="happy" :size="120" />
+      <template v-if="slow"><span class="small muted">Está tardando un poquito… 🐮</span><button class="btn sm ghost" @click="reload">Reintentar</button></template>
+    </div>
+  </div>
   <Welcome v-else-if="gate === 'welcome'" />
   <div v-else class="shell">
     <aside class="side" aria-label="Navegación principal">
