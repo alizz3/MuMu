@@ -100,7 +100,7 @@ function startGTasks() {
   setInterval(run, 20 * 60e3)
   document.addEventListener('visibilitychange', () => { const l = state.integrations.gtasksLast; if (document.visibilityState === 'visible' && (!l || Date.now() - new Date(l).getTime() > 5 * 60e3)) run() })
   let timer = null
-  watch(() => state.tasks.map((t) => `${t.id}:${t.status}:${t.gtask ? 1 : 0}`).join('|'), () => {
+  watch(() => state.tasks.map((t) => `${t.id}:${t.status}:${t.gtask ? 1 : 0}:${t.title}:${t.due}:${(t.notes || '').length}`).join('|'), () => {
     clearTimeout(timer)
     timer = setTimeout(() => { if (gtAccounts().length) pushNewGTasks().catch(() => {}) }, 4000)
   })

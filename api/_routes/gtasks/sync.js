@@ -65,6 +65,7 @@ export default handler(async (req, res) => {
   const patch = {}
   if (typeof b.done === 'boolean') Object.assign(patch, b.done ? { status: 'completed' } : { status: 'needsAction', completed: null })
   if (b.title) patch.title = str(b.title, 'título', { max: 300 })
+  if (typeof b.notes === 'string') patch.notes = str(b.notes, 'notas', { max: 4000, required: false })
   if (b.due !== undefined) patch.due = isoDue(b.due) ?? null
   const t = await send(token, 'PATCH', `${API}/lists/${encodeURIComponent(list)}/tasks/${encodeURIComponent(id)}`, patch)
   res.json({ task: shape(t) })
