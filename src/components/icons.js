@@ -8,6 +8,8 @@ export const ICONS = {
   plus: 'M12 5v14M5 12h14',
   back: 'M15 5l-7 7 7 7',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
+  collapse: 'M7 4l5 5 5-5M7 20l5-5 5 5',
+  expand: 'M7 9l5-5 5 5M7 15l5 5 5-5',
   bell: 'M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7M10 20a2 2 0 0 0 4 0',
   menu: 'M4 7h16M4 12h16M4 17h10',
   check: 'M5 12l5 5 9-10',
