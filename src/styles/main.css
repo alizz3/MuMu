@@ -298,3 +298,8 @@ a.btn, a.btn:hover { text-decoration: none; }
 .now-line { flex: 1; position: relative; height: 2px; background: #E5484D; border-radius: 2px; align-self: center; margin: 4px 0; }
 .now-line i { position: absolute; left: -6px; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: #E5484D; }
 .tl-time.now-t { color: #E5484D; font-weight: 700; }
+.tl-card { position: relative; }
+.now-over { position: absolute; left: -4px; right: 0; height: 2px; background: #E5484D; z-index: 2; pointer-events: none; transform: translateY(-1px); }
+.now-over i { position: absolute; left: -5px; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: #E5484D; }
+.now-over b { position: absolute; right: 8px; top: -18px; font-size: 10.5px; color: #fff; background: #E5484D; padding: 1px 6px; border-radius: 8px; font-weight: 700; }
+.tl-card.rem { background: color-mix(in srgb, var(--pink-300) 16%, var(--surface)); border-left-style: dashed; }
