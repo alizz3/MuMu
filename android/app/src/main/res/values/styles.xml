@@ -15,7 +15,9 @@
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">end</item>
     </style>
-    <style name="Tema.Alarma" parent="@android:style/Theme.Material.Light.NoActionBar.Fullscreen">
-        <item name="android:windowBackground">@color/rosa</item>
+    <style name="Tema.Alarma" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF15101A</item>
+        <item name="android:statusBarColor">#FF15101A</item>
+        <item name="android:navigationBarColor">#FF15101A</item>
     </style>
 </resources>
