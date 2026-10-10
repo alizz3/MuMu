@@ -13,6 +13,7 @@ import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WE
 import { Icon, Pet, Chip } from './ui'
 import { goalIcon } from './iconFor'
 import { toast, ask } from '../engine/game'
+import { useDictado, juntar, DICTADO_FALLBACK } from '../services/dictado'
 
 const m = computed(() => ui.modal)
 const close = () => (ui.modal = null)
@@ -245,6 +246,9 @@ const prettyVal = (f, v) => {
   if (Array.isArray(v)) return v.join(', ')
   return v
 }
+// Dictar en vez de escribir (título de tareas y captura rápida)
+const dict = useDictado()
+function talk(id, set) { if (!dict.supported) return toast(DICTADO_FALLBACK); dict.toggle(id, set) }
 </script>
 
 <template>
@@ -255,7 +259,8 @@ const prettyVal = (f, v) => {
       <!-- Búsqueda y captura rápida -->
       <template v-if="m.type === 'search'">
         <h2 style="margin-bottom:10px">Buscar o capturar</h2>
-        <input class="input" v-model="q" placeholder="Escribe una tarea, idea o busca algo…" autofocus aria-label="Buscar o capturar" @keyup.enter="quick('task')" />
+        <div class="row" style="gap:6px"><input class="input grow" v-model="q" placeholder="Escribe o dicta una tarea, idea o busca algo…" autofocus aria-label="Buscar o capturar" @keyup.enter="quick('task')" />
+          <button type="button" class="iconbtn" :class="{ on: dict.active.value === 'q' }" :aria-label="dict.active.value === 'q' ? 'Dejar de dictar' : 'Dictar'" @click="talk('q', (t) => (q = juntar(q, t)))"><Icon name="mic" :size="18" /></button></div>
         <div class="row" style="margin:10px 0">
           <button class="btn sm primary" :disabled="!q.trim()" @click="quick('task')"><Icon name="plus" :size="15" />Crear tarea</button>
           <button class="btn sm lav" :disabled="!q.trim()" @click="quick('note')"><Icon name="brain" :size="15" />Guardar en Mi cerebro</button>
@@ -378,6 +383,8 @@ const prettyVal = (f, v) => {
               </div>
               <button class="btn sm ghost" type="button" @click.prevent="form[f.k].push({ weekday: 0, start: '08:00', end: '10:00' })">+ Agregar horario</button>
             </div>
+            <div v-else-if="f.k === 'title' || f.k === 'name'" class="row" style="gap:6px"><input class="input grow" type="text" v-model="form[f.k]" />
+              <button type="button" class="iconbtn" :class="{ on: dict.active.value === f.k }" :aria-label="dict.active.value === f.k ? 'Dejar de dictar' : 'Dictar'" @click.prevent="talk(f.k, (t) => (form[f.k] = juntar(form[f.k], t)))"><Icon name="mic" :size="18" /></button></div>
             <input v-else class="input" :type="{ number: 'number', date: 'date', time: 'time', color: 'color' }[f.t] || 'text'" v-model="form[f.k]" :inputmode="f.t === 'url' ? 'url' : undefined" :placeholder="f.t === 'url' ? 'https://…' : undefined" />
           </label>
           <div class="row" style="margin-top:6px">

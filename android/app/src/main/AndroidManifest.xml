@@ -8,6 +8,20 @@
     <!-- Para mostrar el nombre de cada app (WhatsApp, Instagram…) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
+    <!-- Alarmas con tu canción y recordatorios -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Avisarte cuando llegas a casa (solo si lo activas) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <queries>
         <intent><action android:name="android.support.customtabs.action.CustomTabsService" /></intent>
         <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /></intent>
@@ -33,6 +47,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -53,5 +68,38 @@
                 <data android:scheme="mumu" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".Alarma" android:exported="false" android:theme="@style/Tema.Alarma"
+            android:showWhenLocked="true" android:turnScreenOn="true" android:launchMode="singleTask"
+            android:excludeFromRecents="true" android:taskAffinity="co.alizz.mumu.alarma" />
+
+        <receiver android:name=".Aviso" android:exported="false" />
+        <receiver android:name=".CasaReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <service android:name=".SyncJob" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Widget de la pantalla de inicio -->
+        <receiver android:name=".Widget" android:exported="true" android:label="MuMu hoy">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
+        </receiver>
+
+        <!-- Botones del menú de arriba (ajustes rápidos) -->
+        <service android:name=".Tiles$Tarea" android:exported="true" android:label="@string/tile_tarea" android:icon="@drawable/ic_tarea"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".Tiles$Casa" android:exported="true" android:label="@string/tile_casa" android:icon="@drawable/ic_casa"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
     </application>
 </manifest>
