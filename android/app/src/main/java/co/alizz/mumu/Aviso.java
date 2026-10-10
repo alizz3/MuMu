@@ -35,12 +35,8 @@ public class Aviso extends BroadcastReceiver {
         NotificationChannel a = new NotificationChannel(AVISOS, "Recordatorios", NotificationManager.IMPORTANCE_HIGH);
         a.setDescription("Tareas que vencen, maleta, hora de salir y de dormir");
         nm.createNotificationChannel(a);
-        NotificationChannel b = new NotificationChannel(ALARMAS, "Alarmas", NotificationManager.IMPORTANCE_HIGH);
-        b.setDescription("Despertador con tu canción");
-        b.setSound(null, null); // la canción la pone la pantalla de alarma
-        b.setBypassDnd(true);
-        b.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-        nm.createNotificationChannel(b);
+        try { nm.deleteNotificationChannel(ALARMAS); } catch (Exception ignored) { } // el canal viejo (solo notificación)
+        AlarmaService.canal(c);
     }
 
     static PendingIntent abrir(Context c, String open, int code) {

@@ -82,7 +82,9 @@ function setHome() {
         <div class="row wrap" style="gap:6px">
           <button class="btn sm primary" @click="connectPhone"><Icon name="phone" :size="15" />{{ linked ? 'Volver a enlazar' : 'Enlazar este celular' }}</button>
           <a class="btn sm lav" href="mumu://permisos"><Icon name="bell" :size="15" />Permitir notificaciones y alarmas</a>
+          <a class="btn sm ghost" href="mumu://probar"><Icon name="alarm" :size="15" />Probar alarma (10 s)</a>
         </div>
+        <p class="tiny muted" style="margin:0">Para que salga la pantalla de alarma con la canción, en "Permitir…" activa también <b>notificaciones a pantalla completa</b>. Si al probar solo llega una notificación, ese es el permiso que falta.</p>
         <div class="small b wi" style="margin-top:6px"><Icon name="home" :size="15" />Aviso al llegar a casa</div>
         <div class="row wrap" style="gap:6px">
           <button class="btn sm ghost" :disabled="locating" @click="setHome">{{ state.settings.home ? 'Actualizar ubicación de mi casa' : 'Estoy en mi casa: guardar ubicación' }}</button>

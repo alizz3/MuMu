@@ -45,6 +45,23 @@ public class AtajoActivity extends Activity {
                 return;
             }
             if ("permisos".equals(host)) { paso = "notif"; siguiente(); return; }
+            if ("probar".equals(host)) {
+                // Prueba: suena en 10 segundos (bloquea la pantalla para verla como en la mañana)
+                org.json.JSONObject x = new org.json.JSONObject().put("kind", "alarm").put("title", "¡Arriba, Aliz!")
+                        .put("text", "Esto es una prueba. Así va a sonar en la mañana.").put("open", "ir=alarmas");
+                AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+                long at = System.currentTimeMillis() + 10000;
+                android.app.PendingIntent pi = Aviso.pending(this, "prueba", x);
+                if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, Aviso.abrir(this, "ir=alarmas", 9)), pi);
+                else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (Build.VERSION.SDK_INT >= 34 && !nm.canUseFullScreenIntent()) {
+                    Toast.makeText(this, "Activa MuMu aquí para que salga la pantalla de alarma. Suena en 10 s.", Toast.LENGTH_LONG).show();
+                    startActivity(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + getPackageName())));
+                } else Toast.makeText(this, "Suena en 10 segundos: bloquea la pantalla", Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
             if ("ubicacion".equals(host)) {
                 paso = "ubic";
                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
