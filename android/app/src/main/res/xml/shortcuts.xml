@@ -1,0 +1,14 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="tarea" android:enabled="true" android:icon="@drawable/atajo_tarea"
+        android:shortcutShortLabel="@string/atajo_tarea" android:shortcutLongLabel="@string/atajo_tarea">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="co.alizz.mumu" android:targetClass="co.alizz.mumu.MainActivity" android:data="https://mu-mu-blond.vercel.app/#nueva=tarea"/>
+    </shortcut>
+    <shortcut android:shortcutId="plan" android:enabled="true" android:icon="@drawable/atajo_plan"
+        android:shortcutShortLabel="@string/atajo_plan" android:shortcutLongLabel="@string/atajo_plan">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="co.alizz.mumu" android:targetClass="co.alizz.mumu.MainActivity" android:data="https://mu-mu-blond.vercel.app/#ir=plan"/>
+    </shortcut>
+    <shortcut android:shortcutId="enfoque" android:enabled="true" android:icon="@drawable/atajo_enfoque"
+        android:shortcutShortLabel="@string/atajo_enfoque" android:shortcutLongLabel="@string/atajo_enfoque">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="co.alizz.mumu" android:targetClass="co.alizz.mumu.MainActivity" android:data="https://mu-mu-blond.vercel.app/#ir=enfoque"/>
+    </shortcut>
+</shortcuts>

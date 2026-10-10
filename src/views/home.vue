@@ -9,6 +9,8 @@ import { Icon, Pet, Ring } from '../components/ui'
 import { habitIcon, goalIcon } from '../components/iconFor'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
+import { uniTimes, BAG, uniPlan } from '../services/device'
+import { addDays } from '../engine/time'
 
 const k = computed(() => dayKey(ui.now))
 const pet = computed(() => petState())
@@ -32,6 +34,17 @@ const principle = computed(() => rec.value.principle || state.principles.find((p
 const activeExp = computed(() => state.experiments.find((x) => x.status === 'activo'))
 const priorityTask = computed(() => state.tasks.find((t) => t.id === d.value.priority))
 const pickPriority = ref(false)
+// Ya en casa (botón, widget o aviso al llegar): ideas para lo que sigue
+const enCasa = computed(() => state.settings.enCasaAt && ui.now - state.settings.enCasaAt < 2 * 3600e3)
+const casaIdeas = computed(() => [
+  rankedTasks()[0] && { icon: 'timer', t: `25 min de "${rankedTasks()[0].t.title}"`, go: () => { A.startFocus({ taskId: rankedTasks()[0].t.id, minutes: 25 }); A.go('enfoque') } },
+  habitsLeft.value[0] && { icon: 'heart', t: `Hábito: ${habitsLeft.value[0].name}`, go: () => A.go('habitos') },
+  { icon: 'leaf', t: 'Descansar o compartir en familia', go: () => A.go('vida') },
+].filter(Boolean))
+function marcarCasa() { state.settings.enCasaAt = Date.now() }
+// Mañana hay U: la maleta
+const uTomorrow = computed(() => { const kk = dayKey(addDays(ui.now, 1)); const u = uniTimes(kk); if (!u) return null; const b = uniPlan().bag[kk] || {}; return { ...u, done: BAG.filter(([id]) => b[id]).length } })
+const uToday = computed(() => uniTimes(k.value))
 
 function startNow() {
   const r = rec.value
@@ -73,6 +86,21 @@ const welcome = () => { d.value.welcomed = true }
       </div>
     </section>
 
+    <!-- Ya en casa -->
+    <section v-if="enCasa" class="card soft stack" style="gap:8px">
+      <div class="row" style="gap:10px"><span class="gico" style="background:color-mix(in srgb,var(--mint) 40%,var(--surface))"><Icon name="home" :size="18" /></span>
+        <div class="grow"><b>Ya estás en casa</b><div class="tiny muted">¿Qué hacemos por tu vida?</div></div>
+        <button class="iconbtn" aria-label="Cerrar" @click="state.settings.enCasaAt = null"><Icon name="x" :size="16" /></button></div>
+      <button v-for="(c, i) in casaIdeas" :key="i" class="btn ghost sm" style="justify-content:flex-start" @click="c.go"><Icon :name="c.icon" :size="15" />{{ c.t }}</button>
+    </section>
+    <!-- Día de U -->
+    <section v-if="uTomorrow || uToday" class="card row" style="gap:10px;cursor:pointer" @click="A.go('plan')">
+      <span class="gico" style="background:color-mix(in srgb,#C3B3D4 40%,var(--surface))"><Icon :name="uTomorrow && !uToday ? 'bag' : 'cap'" :size="18" /></span>
+      <div class="grow" v-if="uToday"><b class="small">Hoy hay U</b><div class="tiny muted">Sal a las {{ fmt12(uToday.leave) }} · llegas ~{{ fmt12(uToday.home) }}</div></div>
+      <div class="grow" v-else><b class="small">Mañana hay U · alista tu maleta</b><div class="tiny muted">{{ uTomorrow.done }}/{{ BAG.length }} listo · a dormir {{ fmt12(uTomorrow.bed) }} · sales {{ fmt12(uTomorrow.leave) }}</div></div>
+      <button v-if="uToday && !enCasa" class="btn sm ghost" @click.stop="marcarCasa"><Icon name="home" :size="14" />Ya llegué</button>
+      <Icon name="chev" :size="16" class="muted" />
+    </section>
     <!-- Resumen del día -->
     <section class="card">
       <div class="row between"><h3>Tu resumen del día</h3><button class="link" @click="A.go('agenda')">Ver agenda</button></div>

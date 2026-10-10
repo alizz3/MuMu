@@ -181,6 +181,8 @@ export function seed() {
     integrations: { google: [], aula: { status: 'no-conectado', method: null, lastSync: null, site: '' }, classroom: { status: 'no-conectado' }, platzi: { status: 'manual' }, finance: { status: 'no-conectado' } },
     pendingSync: [],
     eventMarks: {},
+    device: {}, // plan de alarmas, recordatorios y widget para la app de Android
+    usoCelular: null, // tiempo de pantalla que sube la app de Android
   }
 }
 

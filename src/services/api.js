@@ -353,3 +353,6 @@ export async function linkSubjectFolders() {
   }
   return n
 }
+
+// Enlaza la app de Android (token para que lea alarmas, recordatorios y el widget sin abrir MuMu)
+export const linkDevice = () => call('device/link', { method: 'POST' })

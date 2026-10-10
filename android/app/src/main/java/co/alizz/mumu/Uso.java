@@ -32,11 +32,18 @@ final class Uso {
         int modo = Build.VERSION.SDK_INT >= 29
                 ? a.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), c.getPackageName())
                 : a.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), c.getPackageName());
+        if (modo == AppOpsManager.MODE_DEFAULT)
+            return c.checkCallingOrSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) == android.content.pm.PackageManager.PERMISSION_GRANTED;
         return modo == AppOpsManager.MODE_ALLOWED;
     }
 
     /** JSON en base64url: { v, permiso, d: { "2026-10-08": { t, a: { paquete: min } } }, l: { paquete: nombre } } */
     static String resumen(Context c, int dias) throws Exception {
+        byte[] b = json(c, dias).toString().getBytes(StandardCharsets.UTF_8);
+        return Base64.encodeToString(b, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
+    }
+
+    static JSONObject json(Context c, int dias) throws Exception {
         JSONObject out = new JSONObject();
         out.put("v", 1);
         boolean ok = permitido(c);
@@ -80,32 +87,50 @@ final class Uso {
             out.put("d", porDia);
             out.put("l", nombres);
         }
-        byte[] b = out.toString().getBytes(StandardCharsets.UTF_8);
-        return Base64.encodeToString(b, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
+        return out;
     }
 
-    /** Suma el tiempo en primer plano de cada app dentro del día, usando los eventos de abrir y cerrar. */
+    /**
+     * Suma el tiempo en primer plano de cada app dentro del día, como Bienestar digital:
+     * solo una app a la vez, se corta al apagar la pantalla y no se cuentan huecos.
+     */
     private static Map<String, Long> minutosDelDia(UsageStatsManager usm, long ini, long fin, Set<String> ignorar) {
         Map<String, Long> total = new HashMap<>();
-        Map<String, Long> abierta = new HashMap<>();
         UsageEvents ev = usm.queryEvents(ini, fin);
         UsageEvents.Event e = new UsageEvents.Event();
+        String cur = null; long desde = 0; long pausa = -1; long ultimo = ini;
         while (ev.hasNextEvent()) {
             ev.getNextEvent(e);
-            String p = e.getPackageName();
-            if (p == null || ignorar.contains(p)) continue;
             int t = e.getEventType();
-            if (t == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                abierta.put(p, e.getTimeStamp());
+            long ts = e.getTimeStamp();
+            ultimo = ts;
+            String p = e.getPackageName();
+            if (t == 16 /* SCREEN_NON_INTERACTIVE */ || t == 17 /* KEYGUARD_SHOWN */) {
+                if (cur != null) sumar(total, cur, (pausa >= 0 ? pausa : ts) - desde);
+                cur = null; pausa = -1;
+            } else if (t == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                if (p == null || ignorar.contains(p)) {
+                    if (cur != null) sumar(total, cur, (pausa >= 0 ? pausa : ts) - desde);
+                    cur = null; pausa = -1;
+                    continue;
+                }
+                if (p.equals(cur)) { pausa = -1; continue; } // otra pantalla de la misma app
+                if (cur != null) sumar(total, cur, (pausa >= 0 ? pausa : ts) - desde);
+                cur = p; desde = ts; pausa = -1;
             } else if (t == UsageEvents.Event.MOVE_TO_BACKGROUND) {
-                Long desde = abierta.remove(p);
-                if (desde != null) total.put(p, total.getOrDefault(p, 0L) + (e.getTimeStamp() - desde));
+                if (p != null && p.equals(cur)) pausa = ts;
             }
         }
-        for (Map.Entry<String, Long> a : abierta.entrySet()) {
-            total.put(a.getKey(), total.getOrDefault(a.getKey(), 0L) + (fin - a.getValue()));
+        if (cur != null) {
+            long hasta = pausa >= 0 ? pausa : (fin >= System.currentTimeMillis() - 60000 ? fin : ultimo);
+            sumar(total, cur, hasta - desde);
         }
         return total;
+    }
+
+    private static void sumar(Map<String, Long> m, String p, long ms) {
+        if (ms <= 0) return;
+        m.put(p, m.getOrDefault(p, 0L) + Math.min(ms, 6L * 3600 * 1000));
     }
 
     private static String nombre(PackageManager pm, String paquete) {

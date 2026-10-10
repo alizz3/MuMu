@@ -1,6 +1,7 @@
 package co.alizz.mumu;
 
 import android.net.Uri;
+import android.os.Bundle;
 import com.google.androidbrowserhelper.trusted.LauncherActivity;
 
 /**
@@ -9,6 +10,12 @@ import com.google.androidbrowserhelper.trusted.LauncherActivity;
  * salvo hacia tu propia MuMu.
  */
 public class MainActivity extends LauncherActivity {
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        Sync.enSegundoPlano(this); // alarmas, recordatorios y widget al día
+    }
+
     @Override
     protected Uri getLaunchingUrl() {
         Uri base = super.getLaunchingUrl();
