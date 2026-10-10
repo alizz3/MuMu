@@ -72,7 +72,7 @@ const isAndroid = /android/i.test(navigator.userAgent)
     <section v-if="nextU" class="card stack" style="gap:10px">
       <div class="row" style="gap:10px">
         <span class="gico" style="background:color-mix(in srgb,#C3B3D4 40%,var(--surface))"><Icon name="cap" :size="18" /></span>
-        <div class="grow"><div class="tiny muted">Próximo día de universidad</div><h3 style="margin:0">{{ relDay(nextU.k)[0].toUpperCase() + relDay(nextU.k).slice(1) }} · {{ longDate(parseDay(nextU.k)) }}</h3></div>
+        <div class="grow"><div class="tiny muted">Próximo día de universidad</div><h3 style="margin:0">{{ ['hoy', 'mañana'].includes(relDay(nextU.k)) ? relDay(nextU.k)[0].toUpperCase() + relDay(nextU.k).slice(1) + ' · ' : '' }}{{ longDate(parseDay(nextU.k)) }}</h3></div>
       </div>
       <label class="row small leave">
         <Icon name="door" :size="16" /><span class="grow">Ese día sales a las</span>
@@ -152,7 +152,7 @@ const isAndroid = /android/i.test(navigator.userAgent)
 .tline li { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; position: relative; }
 .tline li.eve { opacity: .8; }
 .tl-dot { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--pink-700); position: relative; z-index: 1; }
-.tl-h { width: 66px; flex: none; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; padding-top: 6px; }
+.tl-h { width: 76px; white-space: nowrap; flex: none; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; padding-top: 6px; }
 .tline .grow { padding-top: 4px; min-width: 0; overflow-wrap: anywhere; }
 .bag-it { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 8px 0; cursor: pointer; border-top: 1px solid var(--line); }
 .bag-it.on .small { text-decoration: line-through; opacity: .6; }
