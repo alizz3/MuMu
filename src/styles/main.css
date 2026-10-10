@@ -292,3 +292,6 @@ a.btn, a.btn:hover { text-decoration: none; }
 .focus-full-in .pet { width: 34%; height: auto; }
 .focus-full-time { font-size: clamp(56px, 16vw, 112px); font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
 .dt-h { display: flex; align-items: center; gap: 5px; margin: 10px 0 2px; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.tl-task { flex: 1; min-width: 0; border-left: 4px solid var(--pink-300); border-radius: 16px; padding: 2px 8px; background: var(--surface); }
+.tl-task.hecha, .list.hecha { opacity: .55; }
+.casa-btn { margin-top: 8px; }

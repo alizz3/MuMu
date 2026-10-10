@@ -16,7 +16,6 @@ import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
 import Contact from '../components/Contact.vue'
 import Links from '../components/Links.vue'
-import DiaUCard from '../components/DiaUCard.vue'
 import DriveBrowser from '../components/DriveBrowser.vue'
 import { semesterFolder, subjectFolder, driveAccount, linkSubjectFolders } from '../services/api'
 import { resumen, f1, tono, PASA } from '../engine/notas'
@@ -75,7 +74,6 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 <template>
   <div class="stack">
     <AulaStatus />
-    <DiaUCard v-if="!selS" />
     <div v-if="!selS" class="card stack" style="gap:10px">
       <Links :target="state.settings" field="semesterLinks" title="Mi semestre" icon="book" hint="Pega aquí la carpeta de Drive del semestre: MuMu encuentra sola la carpeta de cada materia." />
       <template v-if="semesterFolder()">

@@ -157,7 +157,7 @@ export function seed() {
       { id: 'ro2', name: 'Noche', steps: [{ t: 'Dejar mañana preparado', min: 10 }, { t: 'Oración de la noche', min: 10 }, { t: 'Celular lejos de la cama', min: 1 }, { t: 'Dormir', at: '22:30' }], flexible: true },
       { id: 'ro3', name: 'Estudio', steps: [{ t: 'Agua + escritorio limpio', min: 3 }, { t: 'Elegir UNA tarea', min: 2 }, { t: 'Bloque 25 min', min: 25 }, { t: 'Pausa', min: 5 }], flexible: true },
       { id: 'ro4', name: 'Trabajo', steps: [{ t: 'Revisar correos importantes', min: 10 }, { t: 'Bloque de proyecto', min: 50 }, { t: 'Commit y notas', min: 5 }], flexible: true },
-      { id: 'ro5', name: 'Universidad (domingo)', steps: [{ t: 'Revisar Aula', min: 10 }, { t: 'Preparar materiales', min: 10 }, { t: 'Clases', at: '08:00' }], flexible: true },
+      { id: 'ro5', name: 'Universidad', uni: true, color: '#C3B3D4', steps: [], flexible: true },
       { id: 'ro6', name: 'Fin de semana', steps: [{ t: 'Descanso sin culpa', min: 60 }, { t: 'Planear la semana', min: 20 }, { t: 'Tiempo en familia', min: 120 }], flexible: true },
     ],
     routineLogs: {},

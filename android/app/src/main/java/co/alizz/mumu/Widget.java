@@ -28,7 +28,7 @@ public class Widget extends AppWidgetProvider {
         JSONObject w = null;
         try { w = new JSONObject(Store.plan(c)).optJSONObject("widget"); } catch (Exception ignored) { }
         if (Store.token(c) == null) {
-            v.setTextViewText(R.id.w_line, "Abre MuMu → Rutinas → Día de U → Enlazar");
+            v.setTextViewText(R.id.w_line, "Abre MuMu → Más → Alarmas → Enlazar");
         } else if (w != null) {
             v.setTextViewText(R.id.w_line, w.optString("line"));
         }

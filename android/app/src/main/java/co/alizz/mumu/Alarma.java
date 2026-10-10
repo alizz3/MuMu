@@ -118,7 +118,7 @@ public class Alarma extends Activity {
                 AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
                 long at = System.currentTimeMillis() + 5 * 60 * 1000L;
                 PendingIntent pi = Aviso.pending(this, "snooze", x);
-                if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, Aviso.abrir(this, "ir=plan", 8)), pi);
+                if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, Aviso.abrir(this, "ir=alarmas", 8)), pi);
                 else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
             } catch (Exception ignored) { }
             finish();

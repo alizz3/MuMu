@@ -465,3 +465,15 @@ export function fixSubjects() {
     st.migSubjColors = true
   }
 }
+
+// Una sola vez: la rutina "Universidad (domingo)" pasa a ser la rutina de Universidad
+// (noche anterior + día de U), con las horas calculadas solas.
+export function fixUniRoutine(steps) {
+  const st = state.settings
+  if (st.migUniRoutine) return
+  let r = state.routines.find((x) => x.uni) || state.routines.find((x) => /universidad/i.test(x.name))
+  if (!r) { r = { id: 'ro5', flexible: true }; state.routines.push(r) }
+  r.name = 'Universidad'; r.uni = true; r.color = '#C3B3D4'
+  r.steps = JSON.parse(JSON.stringify(steps))
+  st.migUniRoutine = true
+}

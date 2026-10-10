@@ -97,7 +97,7 @@ final class Sync {
                 String id = x.optString("id");
                 PendingIntent pi = Aviso.pending(c, id, x);
                 if ("alarm".equals(x.optString("kind"))) {
-                    PendingIntent ver = PendingIntent.getActivity(c, 7, new Intent(Intent.ACTION_VIEW, Store.abrir("ir=plan"), c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+                    PendingIntent ver = PendingIntent.getActivity(c, 7, new Intent(Intent.ACTION_VIEW, Store.abrir("ir=alarmas"), c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
                     if (exacto) am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, ver), pi);
                     else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
                 } else if (exacto) {
