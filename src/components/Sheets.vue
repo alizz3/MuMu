@@ -8,7 +8,7 @@ function setGrade(t, k, v, max) {
 import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { planTask, remaining } from '../engine/planner'
+import { planTask, remaining, SESSIONS } from '../engine/planner'
 import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { goalIcon } from './iconFor'
@@ -87,7 +87,7 @@ const SCHEMAS = {
     { k: 'name', l: 'Nombre', t: 'text', req: true }, { k: 'short', l: 'Nombre corto', t: 'text' },
     { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' }, { k: 'url', l: 'Enlace del curso (Tu Aula, Classroom…)', t: 'url' },
     { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'projectId', l: 'Semestre (proyecto)', t: 'select', o: opts(state.projects.filter((p) => p.area === 'universidad')) },
-    { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
+    { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario (déjalo vacío si tus clases ya están en Google Calendar)', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
     { k: 'cipa', l: 'Mi CIPA (nombre del grupo)', t: 'text' }, { k: 'cipaMembers', l: 'Integrantes de la CIPA (uno por línea: Nombre · correo o celular)', t: 'textarea' },
     { k: 'cipaLink', l: 'Chat de la CIPA (enlace de Google Chat o WhatsApp)', t: 'url' },
   ] }),
@@ -326,6 +326,18 @@ function subjectFromTitle(title) {
   const n = String(title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   return state.subjects.find((s) => { const w = s.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter((x) => x.length > 4); return w.some((x) => n.includes(x)) })?.id || ''
 }
+// Nombre, sesión y materia de un evento de Google, guardados solo en MuMu
+function setMeta(patch) {
+  const e = ev.value; if (!e) return
+  state.eventMeta ||= {}
+  const cur = { ...(state.eventMeta[e.id] || {}), ...patch }
+  Object.keys(cur).forEach((k) => cur[k] == null && delete cur[k])
+  if (Object.keys(cur).length) state.eventMeta[e.id] = cur; else delete state.eventMeta[e.id]
+  if ('subjectId' in patch) e.subjectId = patch.subjectId || null
+  if ('session' in patch) e.session = patch.session
+  if ('name' in patch) e.title = patch.name || e.origTitle
+}
+const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subjectId); return sj && e.session ? `${sj.short || sj.name} · ${e.session}` : '' }
 </script>
 
 <template>
@@ -370,6 +382,19 @@ function subjectFromTitle(title) {
           <span v-if="ev.account" class="wi" style="overflow-wrap:anywhere"><Icon name="user" :size="14" />{{ ev.account }}</span>
         </div>
         <p v-if="ev.description || ev.notes" class="small" style="margin-top:8px;white-space:pre-line;overflow-wrap:anywhere">{{ ev.description || ev.notes }}</p>
+        <!-- Evento de la U: materia, sesión y el nombre que quieres ver en MuMu (no cambia tu Google Calendar) -->
+        <div v-if="ev.kind === 'event' && ev.type !== 'recordatorio' && (ev.subjectId || /UT|universidad/i.test(`${ev.calendarName || ''} ${ev.account || ''}`))" class="card tight soft stack" style="gap:8px;margin-top:12px">
+          <div class="small b wi"><Icon name="cap" :size="14" />En MuMu</div>
+          <label class="row small" style="gap:8px"><span style="width:62px">Materia</span>
+            <select class="input grow" :value="ev.subjectId || ''" @change="setMeta({ subjectId: $event.target.value })" aria-label="Materia del evento">
+              <option value="">— ninguna —</option><option v-for="sj in state.subjects" :key="sj.id" :value="sj.id">{{ sj.name }}</option>
+            </select></label>
+          <div class="tiny muted">Sesión</div>
+          <div class="chips" style="flex-wrap:wrap;overflow:visible"><button v-for="ss in SESSIONS" :key="ss" class="chip" :class="{ on: ev.session === ss }" @click="setMeta({ session: ev.session === ss ? null : ss })">{{ ss }}</button></div>
+          <label class="row small" style="gap:8px"><span style="width:62px">Nombre</span><input class="input grow" :value="state.eventMeta?.[ev.id]?.name || ''" :placeholder="shortName(ev) || ev.origTitle" @change="setMeta({ name: $event.target.value.trim() || null })" aria-label="Nombre en MuMu" /></label>
+          <button v-if="shortName(ev) && state.eventMeta?.[ev.id]?.name !== shortName(ev)" class="link tiny" style="align-self:flex-start" @click="setMeta({ name: shortName(ev) })">Usar «{{ shortName(ev) }}»</button>
+          <p class="tiny muted" style="margin:0">Solo cambia cómo se ve en MuMu; tu Google Calendar queda igual.</p>
+        </div>
         <!-- Recordatorio: de aquí sale la tarea (ej. estudiar para el quiz) -->
         <div v-if="ev.type === 'recordatorio'" class="row wrap" style="gap:8px;margin-top:14px">
           <button v-if="studyOf(ev)" class="btn sm lav" @click="ui.modal = { type: 'task', id: studyOf(ev).id }"><Icon name="check" :size="14" />Ver tarea: {{ studyOf(ev).title }}</button>
