@@ -10,7 +10,7 @@ export const NAV = [
     { id: 'proyectos', label: 'Proyectos', icon: 'folder' },
     { id: 'habitos', label: 'Hábitos', icon: 'heart' },
     { id: 'rutinas', label: 'Rutinas', icon: 'routine' },
-    { id: 'plan', label: 'Día de U y alarmas', icon: 'alarm' },
+    { id: 'plan', label: 'Día de U', icon: 'alarm' },
     { id: 'sueno', label: 'Sueño', icon: 'moon' },
     { id: 'celular', label: 'Celular y redes', icon: 'phone' },
   ] },
