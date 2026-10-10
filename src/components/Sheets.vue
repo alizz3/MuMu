@@ -64,6 +64,13 @@ const SCHEMAS = {
     { k: 'type', l: 'Tipo', t: 'select', o: ['evento', 'clase', 'estudio', 'trabajo', 'familia', 'vida', 'descanso', 'rutina'] },
     { k: 'recurring', l: 'Repetir los días', t: 'weekdays' },
   ] }),
+  reminder: () => ({ title: 'Recordatorio', coll: 'events', fields: [
+    { k: 'title', l: '¿Qué hay que recordar? (ej. Quiz en la primera clase)', t: 'text', req: true },
+    { k: 'date', l: 'Fecha', t: 'date', req: true }, { k: 'start', l: 'Hora (opcional)', t: 'time' },
+    { k: 'subjectId', l: 'Materia', t: 'select', o: opts(state.subjects) },
+    { k: 'notes', l: 'Notas (temas, qué llevar…)', t: 'textarea' },
+    { k: 'study', l: 'Crear una tarea para prepararme (ej. estudiar)', t: 'bool' },
+  ] }),
   resource: () => ({ title: 'Aprendizaje', coll: 'resources', fields: [
     { k: 'type', l: 'Tipo', t: 'select', o: ['libro', 'podcast', 'video', 'conferencia', 'nota', 'idea'] },
     { k: 'title', l: 'Título', t: 'text', req: true }, { k: 'author', l: 'Autor / fuente', t: 'text' },
@@ -176,11 +183,13 @@ function save() {
     const rec = state[sc.coll].find((x) => x.id === m.value.id)
     if ('url' in data && (data.url || null) !== (rec.url || null)) data.urlManual = true
     if ('dueTime' in data) { data.dueTime = data.dueTime || null; if (data.dueTime !== (rec.dueTime || null)) data.dueTimeManual = true }
+    if (m.value.type === 'reminder') { delete data.study; data.end = data.start || null; data.allDay = !data.start }
     Object.assign(rec, data)
     editMode.value = false
     if (m.value.type !== 'task') close()
   } else {
     if (sc.coll === 'tasks') A.addTask(data)
+    else if (m.value.type === 'reminder') { const r = A.addReminder(data); if (data.study) A.studyTaskFor(r.id) }
     else if (sc.coll === 'events') A.addEvent(data)
     else if (sc.coll === 'resources') A.addResource(data)
     else if (sc.coll === 'principles') A.addPrinciple(data)
@@ -311,6 +320,12 @@ async function toGroup(t) {
   if (c.google) { try { const u = new URL(url); u.searchParams.set('authuser', UT_ACC); url = u.toString() } catch { /* enlace raro */ } }
   window.open(url, '_blank', 'noopener')
 }
+// Recordatorios: su tarea de preparación y la materia que se adivina por el título del evento
+const studyOf = (e) => state.tasks.find((t) => t.reminderId === e.id && t.status !== 'cancelada')
+function subjectFromTitle(title) {
+  const n = String(title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return state.subjects.find((s) => { const w = s.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter((x) => x.length > 4); return w.some((x) => n.includes(x)) })?.id || ''
+}
 </script>
 
 <template>
@@ -343,18 +358,26 @@ async function toGroup(t) {
       <!-- Detalle de evento: info, quién va, editar o eliminar -->
       <template v-else-if="m.type === 'eventView' && ev">
         <div class="row between">
-          <span class="badge" :class="{ pink: ev.kind === 'event' }">{{ ev.kind === 'class' ? 'Clase' : ev.readonly ? (ev.calendarName || 'Google Calendar') : 'Evento' }}</span>
+          <span class="badge" :class="{ pink: ev.kind === 'event' }">{{ ev.type === 'recordatorio' ? 'Recordatorio' : ev.kind === 'class' ? 'Clase' : ev.readonly ? (ev.calendarName || 'Google Calendar') : 'Evento' }}</span>
           <button class="iconbtn" aria-label="Cerrar" @click="close"><Icon name="x" :size="18" /></button>
         </div>
         <h2 style="margin:8px 0 4px;overflow-wrap:anywhere">{{ ev.title }}</h2>
         <div class="stack small muted" style="gap:2px">
           <span class="wi"><Icon name="calendar" :size="14" />{{ evDate }}</span>
-          <span class="wi"><Icon name="clock" :size="14" />{{ ev.allDay ? 'Todo el día' : `${fmt12s(ev.start)} – ${fmt12s(ev.end)}` }}</span>
+          <span class="wi"><Icon name="clock" :size="14" />{{ ev.allDay ? 'Todo el día' : ev.type === 'recordatorio' || ev.start === ev.end ? fmt12s(ev.start) : `${fmt12s(ev.start)} – ${fmt12s(ev.end)}` }}</span>
+          <span v-if="ev.type === 'recordatorio' && ev.subjectId" class="wi"><Icon name="cap" :size="14" />{{ state.subjects.find((s) => s.id === ev.subjectId)?.name }}</span>
           <span v-if="ev.location" class="wi" style="overflow-wrap:anywhere"><Icon name="pin" :size="14" />{{ ev.location }}</span>
           <span v-if="ev.account" class="wi" style="overflow-wrap:anywhere"><Icon name="user" :size="14" />{{ ev.account }}</span>
         </div>
         <p v-if="ev.description || ev.notes" class="small" style="margin-top:8px;white-space:pre-line;overflow-wrap:anywhere">{{ ev.description || ev.notes }}</p>
-        <template v-if="ev.kind === 'event'">
+        <!-- Recordatorio: de aquí sale la tarea (ej. estudiar para el quiz) -->
+        <div v-if="ev.type === 'recordatorio'" class="row wrap" style="gap:8px;margin-top:14px">
+          <button v-if="studyOf(ev)" class="btn sm lav" @click="ui.modal = { type: 'task', id: studyOf(ev).id }"><Icon name="check" :size="14" />Ver tarea: {{ studyOf(ev).title }}</button>
+          <button v-else class="btn sm primary" @click="ui.modal = { type: 'task', id: A.studyTaskFor(ev.id).id }"><Icon name="plus" :size="14" />Crear tarea para prepararme</button>
+          <button class="btn sm ghost" @click="ui.modal = { type: 'reminder', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
+          <button class="btn sm ghost" @click="delEvent"><Icon name="trash" :size="14" />Eliminar</button>
+        </div>
+        <template v-if="ev.kind === 'event' && ev.type !== 'recordatorio'">
           <h3 style="margin-top:14px">¿Quién va?</h3>
           <div class="row wrap" style="margin-top:6px;gap:6px"><button v-for="mk in MARKS" :key="mk[0]" class="chip" :class="{ on: evMark?.status === mk[0] }" @click="setMark(mk[0])"><Icon :name="mk[2]" :size="14" />{{ mk[1] }}</button></div>
           <div v-if="evMark?.status === 'otro'" class="row" style="margin-top:8px"><input class="input" v-model="who" placeholder="¿Quién? ej. mi prima" aria-label="Quién va" @change="saveWho" @keyup.enter="saveWho" /></div>
@@ -362,9 +385,10 @@ async function toGroup(t) {
         </template>
         <div class="row wrap" style="gap:8px;margin-top:14px">
           <a v-if="ev.url" class="btn sm lav" :href="ev.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ ev.readonly ? 'Editar en Google Calendar' : 'Abrir' }}</a>
-          <button v-if="ev.kind === 'event' && !ev.readonly" class="btn sm ghost" @click="ui.modal = { type: 'event', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
-          <button v-if="ev.kind === 'event' && !ev.readonly" class="btn sm ghost" @click="delEvent"><Icon name="trash" :size="14" />Eliminar</button>
+          <button v-if="ev.kind === 'event' && !ev.readonly && ev.type !== 'recordatorio'" class="btn sm ghost" @click="ui.modal = { type: 'event', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
+          <button v-if="ev.kind === 'event' && !ev.readonly && ev.type !== 'recordatorio'" class="btn sm ghost" @click="delEvent"><Icon name="trash" :size="14" />Eliminar</button>
           <button v-if="ev.kind === 'class'" class="btn sm ghost" @click="close(); A.go('universidad')">Ver materia</button>
+          <button v-if="ev.type !== 'recordatorio' && (ev.kind === 'class' || ev.subjectId || /^UT\b/i.test(ev.calendarName || '') || /tutor/i.test(ev.title || ''))" class="btn sm ghost" @click="ui.modal = { type: 'reminder', prefill: { date: m.date, start: ev.start, subjectId: ev.subjectId || subjectFromTitle(ev.title), study: true } }"><Icon name="bell" :size="14" />Recordatorio</button>
         </div>
         <p v-if="ev.readonly" class="tiny muted" style="margin-top:8px">Este evento viene de Google Calendar: se edita o elimina allá y MuMu lo actualiza al sincronizar.</p>
       </template>

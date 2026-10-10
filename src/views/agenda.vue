@@ -14,7 +14,7 @@ const view = ref('dia')
 const sel = ref(dayKey())
 const selD = computed(() => parseDay(sel.value))
 const week = computed(() => { const d = selD.value; const start = addDays(d, -((d.getDay() + 6) % 7)); return Array.from({ length: 7 }, (_, i) => addDays(start, i)) })
-const TYPES = { clase: ['lav', 'cap'], bloque: ['cream', 'timer'], familia: ['mint', 'heart'], vida: ['mint', 'leaf'], trabajo: ['', 'briefcase'], descanso: ['mint', 'moon'], estudio: ['lav', 'book'], rutina: ['cream', 'routine'] }
+const TYPES = { clase: ['lav', 'cap'], bloque: ['cream', 'timer'], familia: ['mint', 'heart'], vida: ['mint', 'leaf'], trabajo: ['', 'briefcase'], descanso: ['mint', 'moon'], estudio: ['lav', 'book'], rutina: ['cream', 'routine'], recordatorio: ['pink', 'bell'] }
 const timeline = computed(() => {
   const k = sel.value
   const from = k === dayKey() ? nowMin() : null
@@ -22,7 +22,13 @@ const timeline = computed(() => {
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
   const tasks = [...dueOn(k), ...doneOn(k)].filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
   // Línea de "ahora", como en Google Calendar (solo hoy)
-  const now = k === dayKey() ? [{ id: 'now', now: true, at: nowMin(ui.now) + 0.5 }] : []
+  let now = []
+  if (k === dayKey()) {
+    const m = nowMin(ui.now)
+    const cur = items.find((i) => !i.allDay && hm(i.start) <= m && hm(i.end) > m)
+    if (cur) cur.nowPct = Math.round(((m - hm(cur.start)) / (hm(cur.end) - hm(cur.start))) * 100)
+    else now = [{ id: 'now', now: true, at: m + 0.5 }]
+  }
   return [...items, ...tasks, ...free, ...now].sort((a, b) => a.at - b.at)
 })
 const suggestion = computed(() => rankedTasks()[0]?.t)
@@ -65,6 +71,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
       <div class="row" style="gap:4px">
         <button class="btn sm ghost" @click="sel = dayKey()">Hoy</button>
         <button class="iconbtn" aria-label="Siguiente" @click="shift(1)"><Icon name="chev" /></button>
+        <button class="iconbtn" aria-label="Nuevo recordatorio" title="Recordatorio (ej. hay quiz)" @click="ui.modal = { type: 'reminder', prefill: { date: sel, study: true } }"><Icon name="bell" /></button>
         <button class="iconbtn add" aria-label="Nuevo evento" @click="ui.modal = { type: 'event', prefill: { date: sel } }"><Icon name="plus" /></button>
       </div>
     </div>
@@ -81,7 +88,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         <button v-if="googleOn && canUseBackend()" class="btn sm lav" @click="syncCalendar"><Icon name="refresh" :size="14" />Google</button></div>
       <div class="tl">
         <div v-for="i in timeline" :key="i.id" class="tl-row">
-          <div class="tl-time" :class="{ 'now-t': i.now }">{{ fmt12(Math.floor(i.at)) }}</div>
+          <div class="tl-time" :class="{ 'now-t': i.now }">{{ i.allDay ? 'Todo el día' : fmt12(Math.floor(i.at)) }}</div>
           <div v-if="i.now" class="now-line" role="presentation"><i></i></div>
           <div v-else-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
           <div v-else-if="i.free" class="tl-card free">
@@ -89,9 +96,10 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
             <div class="grow small"><b>Tienes {{ fmtDur(i.minutes) }} libres</b><div class="tiny" v-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
             <button v-if="suggestion && i.minutes >= 20" class="btn sm lav" @click="useFree(i)">Usar</button>
           </div>
-          <div v-else class="tl-card" :class="{ click: i.kind === 'event' || i.kind === 'class', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="openEv(i)">
+          <div v-else class="tl-card" :class="{ click: i.kind === 'event' || i.kind === 'class', rem: i.type === 'recordatorio', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="openEv(i)">
+            <span v-if="i.nowPct != null" class="now-over" :style="{ top: i.nowPct + '%' }" :title="fmt12(nowMin(ui.now))"><i></i></span>
             <span class="ico" :class="(TYPES[i.type] || [])[0]" style="width:32px;height:32px"><Icon :name="(TYPES[i.type] || ['', 'calendar'])[1]" :size="16" /></span>
-            <div class="grow tl-txt"><div class="small b tl-title" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div><span v-if="i.mark" class="badge tl-badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }"><Icon v-if="MARK_ICON[i.mark.status]" :name="MARK_ICON[i.mark.status]" :size="12" />{{ markText(i.mark) }}</span></div>
+            <div class="grow tl-txt"><div class="small b tl-title" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : i.type === 'recordatorio' ? 'Recordatorio · ' + fmt12s(i.start) : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div><span v-if="i.mark" class="badge tl-badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }"><Icon v-if="MARK_ICON[i.mark.status]" :name="MARK_ICON[i.mark.status]" :size="12" />{{ markText(i.mark) }}</span></div>
             <button v-if="i.kind === 'block'" class="check" :class="{ on: i.done }" aria-label="Bloque hecho" @click.stop="doneBlock(i)"><Icon v-if="i.done" name="check" :size="14" :stroke="3" /></button>
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
           </div>

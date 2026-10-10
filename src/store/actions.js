@@ -194,6 +194,20 @@ export function resolveIntention(id, result, endedIn) {
 // ---------- Agenda ----------
 export function addEvent(e) { const ev = { id: uid('e'), source: 'manual', type: 'evento', ...e }; state.events.push(ev); toast('Agregado a tu agenda'); return ev }
 export function deleteEvent(id) { state.events = state.events.filter((e) => e.id !== id) }
+// Recordatorio (ej. "hay quiz en la primera clase"): no es tarea, pero de él puede salir una
+export function addReminder(r) {
+  const { study, ...rest } = r
+  const ev = { id: uid('e'), source: 'manual', ...rest, type: 'recordatorio', end: rest.start || null, allDay: !rest.start }
+  state.events.push(ev); toast('Recordatorio guardado'); return ev
+}
+export function studyTaskFor(eid) {
+  const e = state.events.find((x) => x.id === eid); if (!e) return null
+  const ex = state.tasks.find((t) => t.reminderId === eid && t.status !== 'cancelada'); if (ex) return ex
+  const verb = /quiz|parcial|examen|evaluaci/i.test(e.title) ? 'Estudiar para' : /expo|sustentaci|presentaci/i.test(e.title) ? 'Preparar' : 'Prepararme para'
+  const prev = keyPlus(-1, new Date(e.date + 'T12:00'))
+  const due = prev >= dayKey() ? prev : e.date
+  return addTask({ title: `${verb}: ${e.title}`, due, subjectId: e.subjectId || null, category: e.subjectId ? 'universidad' : 'personal', goalId: e.subjectId ? 'g1' : null, notes: e.notes || '', reminderId: eid, estimate: 60, priority: 'alta' })
+}
 
 // ---------- Conocimiento ----------
 export function addResource(r) { const x = { id: uid('r'), status: 'pendiente', progress: 0, concepts: [], notes: '', ...r }; state.resources.unshift(x); award(2, 4, 'Nuevo aprendizaje guardado'); return x }
