@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { daily } from '../engine/game'
-import { isOpen } from '../engine/planner'
+import { isOpen, sessionsOf } from '../engine/planner'
 import { relDay, WEEKDAYS, fmt12s, dayKey } from '../engine/time'
 import { syncAula, syncClassroom, canUseBackend } from '../services/api'
 import { toast, ask } from '../engine/game'
@@ -93,6 +93,14 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
       <div v-if="subjectFolder(subjOf(selS.id))" class="card"><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" title="Drive de la materia" icon="folder" /></div>
+      <div v-if="sessionsOf(selS.id).length" class="card">
+        <h3 class="wi"><Icon name="calendar" :size="16" />Sesiones</h3>
+        <div v-for="e in sessionsOf(selS.id)" :key="e.id" class="row small ses" :class="{ past: e.date < dayKey() }" @click="ui.modal = { type: 'eventView', ev: e, date: e.date }">
+          <span class="grow"><b>{{ e.session || e.title }}</b><span class="tiny muted"> · {{ relDay(e.date) }} · {{ fmt12s(e.start) }}</span></span>
+          <Icon name="chev" :size="14" class="muted" />
+        </div>
+        <p class="tiny muted" style="margin:6px 0 0">Vienen de tu Google Calendar. Toca una para ponerle la sesión o cambiarle el nombre en MuMu.</p>
+      </div>
       <div class="card"><Links :target="subjOf(selS.id)" title="Enlaces de la materia" icon="link" /></div>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3 class="wi"><Icon name="target" :size="17" />Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>

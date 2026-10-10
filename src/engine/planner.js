@@ -7,11 +7,45 @@ export const PRIORITY_W = { alta: 3, media: 2, baja: 1 }
 export const isOpen = (t) => !['completada', 'cancelada'].includes(t.status)
 
 // ---------- Calendario unificado ----------
+// Las clases de tu Google Calendar ("4. Teoría de Sistemas - Tutoría 3") se unen solas a su materia
+const nrm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+const SKIP = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'a', 'en', 'i', 'ii', 'iii'])
+export function subjectForTitle(title) {
+  const head = nrm(String(title || '').replace(/^\s*\d+\s*[.)-]\s*/, '').split(/\s+[-–|]\s+/)[0])
+  if (!head) return null
+  let best = null, score = 0
+  for (const s of state.subjects) {
+    const w = nrm(s.name).split(' ').filter((x) => x.length > 3 && !SKIP.has(x))
+    if (!w.length) continue
+    const hit = w.filter((x) => head.includes(x)).length / w.length
+    if (hit > score && (hit >= 0.5 || head.includes(w[0]))) { best = s; score = hit }
+  }
+  return best
+}
+// Sesiones de la U: acuerdo pedagógico, tutorías 1–5 y convocatorias 1–2
+export const SESSIONS = ['Acuerdo pedagógico', 'Tutoría 1', 'Tutoría 2', 'Tutoría 3', 'Tutoría 4', 'Tutoría 5', 'Convocatoria 1', 'Convocatoria 2']
+export function sessionForTitle(title) {
+  const t = nrm(title)
+  if (/acuerdo pedag/.test(t)) return SESSIONS[0]
+  let m = t.match(/tutoria\s*(\d)/); if (m && +m[1] >= 1 && +m[1] <= 5) return `Tutoría ${m[1]}`
+  m = t.match(/convoca\w*\s*(\d)/); if (m) return `Convocatoria ${m[1]}`
+  return null
+}
+// Sesiones (eventos del calendario) de una materia, en orden
+export function sessionsOf(subjectId) {
+  return state.events.filter((e) => !e.recurring && e.type !== 'recordatorio').map((e) => decorate(e, e.date)).filter((e) => e.subjectId === subjectId).sort((a, b) => (a.date + a.start < b.date + b.start ? -1 : 1))
+}
+function decorate(e, k) {
+  const meta = state.eventMeta?.[e.id] || {}
+  const subj = e.subjectId ? state.subjects.find((x) => x.id === e.subjectId) : (meta.subjectId === '' ? null : (meta.subjectId && state.subjects.find((x) => x.id === meta.subjectId)) || (e.type !== 'recordatorio' && /UT|universidad/i.test(`${e.calendarName || ''} ${e.account || ''}`) ? subjectForTitle(e.title) : null))
+  const session = meta.session || (subj ? sessionForTitle(e.title) : null)
+  return { ...e, origTitle: e.title, title: meta.name || e.title, subjectId: subj?.id || e.subjectId || null, session, color: e.color || subj?.color, kind: 'event', mark: state.eventMarks?.[`${e.id}|${k}`] || null }
+}
 export function itemsOn(k) {
   const wd = parseDay(k).getDay()
   const out = []
   for (const e of state.events) {
-    if (e.date === k || (e.recurring && e.recurring.includes(wd) && e.date <= k && !(e.skip || []).includes(k))) out.push({ ...e, kind: 'event', mark: state.eventMarks?.[`${e.id}|${k}`] || null })
+    if (e.date === k || (e.recurring && e.recurring.includes(wd) && e.date <= k && !(e.skip || []).includes(k))) out.push(decorate(e, k))
   }
   for (const s of state.subjects) {
     for (const sl of s.schedule || []) if (sl.weekday === wd) out.push({ id: `${s.id}_${k}_${sl.start}`, title: `Clase: ${s.short || s.name}`, start: sl.start, end: sl.end, type: 'clase', subjectId: s.id, color: s.color, kind: 'class', source: s.institution })

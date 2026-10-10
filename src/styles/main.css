@@ -305,3 +305,5 @@ a.btn, a.btn:hover { text-decoration: none; }
 .tl-card.rem { background: color-mix(in srgb, var(--pink-300) 16%, var(--surface)); border-left-style: dashed; }
 .tl-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .tl-stack > .now-line { flex: none; }
+.ses { padding: 7px 0; border-top: 1px solid var(--line); cursor: pointer; gap: 8px; }
+.ses.past { opacity: .55; }
