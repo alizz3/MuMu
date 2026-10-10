@@ -35,4 +35,4 @@ export const NAV = [
 ]
 export const ALL = NAV.flatMap((g) => g.items)
 export const BOTTOM = ['home', 'agenda', 'habitos', 'universidad', 'mas']
-export const titleOf = (id) => ALL.find((x) => x.id === id)?.label || 'Más'
+export const titleOf = (id) => ALL.find((x) => x.id === id)?.label || { habito: 'Hábito' }[id] || 'Más'

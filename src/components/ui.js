@@ -7,8 +7,15 @@ import { state } from '../store'
 export const Icon = {
   props: { name: String, size: { type: [Number, String], default: 20 }, stroke: { type: Number, default: 1.9 } },
   setup(p) {
-    return () => h('svg', { viewBox: '0 0 24 24', width: p.size, height: p.size, fill: 'none', stroke: 'currentColor', 'stroke-width': p.stroke, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'icon' },
-      [h('path', { d: ICONS[p.name] || ICONS.sparkles })])
+    // La moneda siempre amarilla, como antes
+    return () => p.name === 'coin'
+      ? h('svg', { viewBox: '0 0 24 24', width: p.size, height: p.size, 'aria-hidden': 'true', class: 'icon coin' }, [
+          h('circle', { cx: 12, cy: 12, r: 9, fill: '#F6C744', stroke: '#C98F12', 'stroke-width': 1.6 }),
+          h('circle', { cx: 12, cy: 12, r: 6, fill: 'none', stroke: '#FCE38A', 'stroke-width': 1.4 }),
+          h('path', { d: 'M12 8.5v7', stroke: '#B07A0C', 'stroke-width': 1.8, 'stroke-linecap': 'round' }),
+        ])
+      : h('svg', { viewBox: '0 0 24 24', width: p.size, height: p.size, fill: 'none', stroke: 'currentColor', 'stroke-width': p.stroke, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'icon' },
+        [h('path', { d: ICONS[p.name] || ICONS.sparkles })])
   },
 }
 

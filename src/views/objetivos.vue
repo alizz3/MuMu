@@ -4,13 +4,20 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { habitStats } from '../engine/game'
 import { relDay, shortDate } from '../engine/time'
-import { Icon, Ring, Chip } from '../components/ui'
-import { goalIcon, habitIcon } from '../components/iconFor'
+import { Icon, Ring } from '../components/ui'
+import { habitIcon } from '../components/iconFor'
 import TaskRow from '../components/TaskRow.vue'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
+import GroupCard from '../components/GroupCard.vue'
 
-const open = ref(null)
-const cat = ref('todas')
-const cats = computed(() => ['todas', ...new Set(state.goals.map((g) => g.category))])
+// Abiertos/cerrados y la categoría se recuerdan, como en Tareas (empiezan cerrados)
+const opened = computed(() => (state.settings.goalOpen ||= {}))
+const cat = computed({ get: () => state.settings.goalCat || 'todas', set: (v) => (state.settings.goalCat = v) })
+const CAT_ICON = { universidad: 'cap', carrera: 'briefcase', dinero: 'wallet', salud: 'heart', aprendizaje: 'book', personal: 'sparkles', bienestar: 'leaf', familia: 'users', trabajo: 'briefcase', fe: 'dove', 'inglés': 'globe', ingles: 'globe' }
+const cap = (c) => c[0].toUpperCase() + c.slice(1)
+const cats = computed(() => [['todas', 'Todos', null, state.goals.length], ...[...new Set(state.goals.map((g) => g.category).filter(Boolean))].map((c) => [c, cap(c), CAT_ICON[c] || null, state.goals.filter((g) => g.category === c).length])])
+if (cat.value !== 'todas' && !state.goals.some((g) => g.category === cat.value)) cat.value = 'todas'
 const goals = computed(() => state.goals.filter((g) => cat.value === 'todas' || g.category === cat.value).map((g) => ({
   ...g, p: A.goalProgress(g),
   projects: state.projects.filter((p) => p.goalId === g.id),
@@ -18,19 +25,22 @@ const goals = computed(() => state.goals.filter((g) => cat.value === 'todas' || 
   habits: state.habits.filter((h) => h.goalId === g.id),
   courses: state.courses.filter((c) => c.goalId === g.id),
 })))
+const allFolded = computed(() => goals.value.length > 0 && goals.value.every((g) => !opened.value[g.id]))
+const foldAll = () => { const v = allFolded.value; goals.value.forEach((g) => (opened.value[g.id] = v)) }
+const meta = (g) => [g.category, g.due ? 'meta ' + shortDate(g.due) : '', `${g.projects.length} proyectos · ${g.tasks.length} tareas · ${g.habits.length} hábitos`].filter(Boolean).join(' · ')
 </script>
 
 <template>
   <div class="stack">
-    <div class="row"><div class="chips grow"><Chip v-for="c in cats" :key="c" :active="cat === c" @click="cat = c">{{ c }}</Chip></div>
-      <button class="iconbtn add" aria-label="Nuevo objetivo" @click="ui.modal = { type: 'goal' }"><Icon name="plus" /></button></div>
-    <div v-for="g in goals" :key="g.id" class="card">
-      <button class="row" style="all:unset;display:flex;gap:12px;align-items:center;width:100%;cursor:pointer" @click="open = open === g.id ? null : g.id" :aria-expanded="open === g.id">
-        <Ring :value="g.p" :size="56" :label="g.name" />
-        <div class="grow"><div class="b wi"><Icon :name="goalIcon(g)" :size="16" />{{ g.name }}</div><div class="tiny muted">{{ g.category }}{{ g.due ? ' · meta ' + shortDate(g.due) : '' }} · {{ g.projects.length }} proyectos · {{ g.tasks.length }} tareas · {{ g.habits.length }} hábitos</div></div>
-        <Icon :name="open === g.id ? 'back' : 'chev'" :size="18" style="transform:rotate(-90deg)" />
-      </button>
-      <div v-if="open === g.id" class="stack" style="margin-top:12px;gap:10px">
+    <div class="row" style="gap:8px">
+      <Seg v-model="cat" :options="cats" label="Categoría" class="grow" style="min-width:0" />
+      <button class="iconbtn add" aria-label="Nuevo objetivo" @click="ui.modal = { type: 'goal' }"><Icon name="plus" /></button>
+    </div>
+    <ListBar :count="goals.length" one="objetivo" :foldable="goals.length > 1" :all-folded="allFolded" @fold="foldAll" />
+    <GroupCard v-for="g in goals" :key="g.id" :title="g.name" :sub="meta(g)" wrap :open="!!opened[g.id]" @toggle="opened[g.id] = !opened[g.id]">
+      <template #lead><Ring :value="g.p" :size="48" :label="g.name" /></template>
+      <template #badge><span></span></template>
+      <div class="stack" style="margin-top:4px;gap:10px">
         <p v-if="g.description" class="small muted">{{ g.description }}</p>
         <div v-if="g.projects.length"><div class="tiny b muted">PROYECTOS</div>
           <button v-for="p in g.projects" :key="p.id" class="row small" style="all:unset;display:flex;gap:8px;padding:6px 0;cursor:pointer" @click="A.go('proyectos', { id: p.id })"><Icon name="folder" :size="14" />{{ p.name }} <span class="badge">{{ A.projectProgress(p) }}%</span></button>
@@ -48,6 +58,7 @@ const goals = computed(() => state.goals.filter((g) => cat.value === 'todas' || 
           <button class="btn sm ghost" @click="ui.modal = { type: 'goal', id: g.id }"><Icon name="edit" :size="14" /></button>
         </div>
       </div>
-    </div>
+    </GroupCard>
+    <p v-if="!goals.length" class="small muted" style="text-align:center">Aún no hay objetivos aquí.</p>
   </div>
 </template>

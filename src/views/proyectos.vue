@@ -1,17 +1,22 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { shortDate } from '../engine/time'
-import { Icon, Ring, Chip, Bar } from '../components/ui'
+import { Icon, Ring, Bar } from '../components/ui'
 import { goalIcon } from '../components/iconFor'
 import { ask } from '../engine/game'
 import { resumen, f1 } from '../engine/notas'
 import TaskRow from '../components/TaskRow.vue'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
+import GroupCard from '../components/GroupCard.vue'
 
 const FLOW = [['idea', 'Idea'], ['plan', 'Plan'], ['progreso', 'En progreso'], ['pausado', 'Pausado'], ['completado', 'Completado']]
-const view = ref('tablero')
-const area = ref('todas')
+// Vista y área se recuerdan, como en Tareas
+const pref = (k, d) => computed({ get: () => state.settings[k] || d, set: (v) => (state.settings[k] = v) })
+const view = pref('projView', 'tablero')
+const area = pref('projArea', 'todas')
 const sel = computed(() => state.projects.find((p) => p.id === ui.params.id))
 const projects = computed(() => state.projects.filter((p) => area.value === 'todas' || p.area === area.value))
 const tasksOf = (p) => state.tasks.filter((t) => t.projectId === p.id)
@@ -32,6 +37,34 @@ const subjPct = (s) => { const ts = subjTasks(s); return ts.length ? Math.round(
 const notaOf = (s) => { const r = resumen(subjTasks(s)); return r ? f1(r.promedio) : null }
 const openSubject = (s) => { ui.params = {}; A.go('universidad'); ui.openSubject = s.id }
 const byStatus = (st) => projects.value.filter((p) => p.status === st)
+// Filtro de áreas: solo las que tienen proyectos (más la elegida, para no perderla)
+const AREA_ICON = { carrera: 'briefcase', freelance: 'laptop', personal: 'heart', aprendizaje: 'book', universidad: 'cap', trabajo: 'briefcase' }
+const areaOpts = computed(() => {
+  const n = (a) => state.projects.filter((p) => p.area === a).length
+  const extra = [...new Set(state.projects.map((p) => p.area).filter((a) => a && !AREAS.includes(a)))]
+  return [['todas', 'Todas', null, state.projects.length], ...[...AREAS, ...extra].filter((a) => n(a) || area.value === a).map((a) => [a, a[0].toUpperCase() + a.slice(1), AREA_ICON[a] || null, n(a)])]
+})
+if (area.value !== 'todas' && !state.projects.some((p) => p.area === area.value)) area.value = 'todas'
+// Columnas plegables de lado (tipo Kanban compacto). Se recuerda por tablero (área) y columna.
+// Las vacías empiezan plegadas, salvo que la hayas abierto (se guarda false explícito).
+const kfold = () => (state.settings.kanbanFolded ||= {})
+const kkey = (col) => `${area.value}:${col}`
+const isFolded = (col) => { const v = state.settings.kanbanFolded?.[kkey(col)]; return v == null ? byStatus(col).length === 0 : v }
+// Al plegar/desplegar, el foco sigue en la misma columna (para teclado)
+function toggleCol(col) {
+  kfold()[kkey(col)] = !isFolded(col)
+  const had = document.activeElement?.closest?.(`[data-col="${col}"]`)
+  if (had) nextTick(() => document.querySelector(`[data-col="${col}"] .strip-btn, [data-col="${col}"] .col-toggle`)?.focus())
+}
+// Vista de lista: grupos por etapa, plegables
+const lfold = computed(() => (state.settings.projListFolded ||= {}))
+const listGroups = computed(() => FLOW.map((f) => ({ key: f[0], ...COL[f[0]], v: byStatus(f[0]) })).filter((g) => g.v.length))
+const allFolded = computed(() => (view.value === 'tablero' ? FLOW.every((f) => isFolded(f[0])) : listGroups.value.length > 0 && listGroups.value.every((g) => lfold.value[g.key])))
+function foldAll() {
+  const v = !allFolded.value
+  if (view.value === 'tablero') FLOW.forEach((f) => (kfold()[kkey(f[0])] = v))
+  else listGroups.value.forEach((g) => (lfold.value[g.key] = v))
+}
 const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))`, color: 'var(--ink)' })
 // Arrastrar y soltar entre columnas (en celular: flechitas en cada tarjeta)
 const dragId = ref(null), overCol = ref(null)
@@ -87,63 +120,85 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
 
     <!-- Tablero kanban / lista -->
     <template v-else>
-      <div class="row between" style="gap:8px">
-        <div class="views" role="radiogroup" aria-label="Vista">
-          <button v-for="v in [['tablero', 'Tablero', 'grid'], ['lista', 'Lista', 'list']]" :key="v[0]" role="radio" :aria-checked="view === v[0]" :class="{ on: view === v[0] }" @click="view = v[0]"><Icon :name="v[2]" :size="14" /><span>{{ v[1] }}</span></button>
-        </div>
-        <div class="row" style="gap:8px">
-          <select class="input area" v-model="area" aria-label="Área"><option value="todas">Todas las áreas</option><option v-for="a in AREAS" :key="a" :value="a">{{ a[0].toUpperCase() + a.slice(1) }}</option></select>
-          <button class="iconbtn add" aria-label="Nuevo proyecto" @click="ui.modal = { type: 'project', prefill: { status: 'idea' } }"><Icon name="plus" /></button>
-        </div>
+      <div class="row" style="gap:8px">
+        <Seg v-model="area" :options="areaOpts" label="Área" class="grow" style="min-width:0" />
+        <button class="iconbtn add" aria-label="Nuevo proyecto" @click="ui.modal = { type: 'project', prefill: { status: 'idea' } }"><Icon name="plus" /></button>
       </div>
+      <ListBar :count="projects.length" one="proyecto" foldable :all-folded="allFolded" :views="[['tablero', 'Tablero', 'grid'], ['lista', 'Lista', 'list']]" v-model:view="view" views-label="Vista" verb="Ver como" @fold="foldAll" />
 
       <div v-if="view === 'tablero'" class="kanban">
-        <section v-for="f in FLOW" :key="f[0]" class="col" :class="{ over: overCol === f[0] }" @dragover.prevent="overCol = f[0]" @dragleave="overCol = overCol === f[0] ? null : overCol" @drop.prevent="drop(f[0])">
-          <header class="col-head">
+        <section v-for="f in FLOW" :key="f[0]" :data-col="f[0]" class="col" :class="{ over: overCol === f[0], folded: isFolded(f[0]) }" @dragover.prevent="overCol = f[0]" @dragleave="overCol = overCol === f[0] ? null : overCol" @drop.prevent="drop(f[0])">
+          <!-- Plegada: tira angosta; tocar en cualquier parte la abre -->
+          <button v-if="isFolded(f[0])" type="button" class="strip-btn" :aria-expanded="false" :aria-label="`Expandir columna ${COL[f[0]].name} (${byStatus(f[0]).length})`" :title="`Expandir ${COL[f[0]].name}`" @click="toggleCol(f[0])">
             <span class="gico" :style="tint(COL[f[0]].color)"><Icon :name="COL[f[0]].icon" :size="15" /></span>
-            <b class="grow">{{ COL[f[0]].name }}</b>
             <span class="badge">{{ byStatus(f[0]).length }}</span>
-            <button class="mini" :aria-label="`Nuevo proyecto en ${COL[f[0]].name}`" @click="ui.modal = { type: 'project', prefill: { status: f[0] } }"><Icon name="plus" :size="14" /></button>
-          </header>
-          <div class="col-body">
-            <article v-for="p in byStatus(f[0])" :key="p.id" class="kcard" draggable="true" :class="{ dragging: dragId === p.id }" @dragstart="dragId = p.id" @dragend="dragId = null; overCol = null" @click="A.go('proyectos', { id: p.id })">
-              <span class="strip" :style="{ background: p.color || 'var(--lav-300)' }"></span>
-              <div class="b small kname">{{ p.name }}</div>
-              <div class="tiny muted kmeta"><span>{{ p.area }}</span><span v-if="p.due">· {{ shortDate(p.due) }}</span></div>
-              <Bar :value="A.projectProgress(p)" style="margin-top:8px" :color="p.color" />
-              <div class="row between" style="margin-top:8px">
-                <span class="tiny muted row" style="gap:4px"><Icon name="check" :size="12" />{{ tasksOf(p).filter((t) => t.status === 'completada').length }}/{{ tasksOf(p).length }}</span>
-                <span class="row" style="gap:2px">
-                  <button class="mini" :disabled="f[0] === FLOW[0][0]" :aria-label="`Mover ${p.name} a la etapa anterior`" @click.stop="move(p, -1)"><Icon name="back" :size="13" /></button>
-                  <button class="mini" :disabled="f[0] === FLOW[FLOW.length - 1][0]" :aria-label="`Mover ${p.name} a la siguiente etapa`" @click.stop="move(p, 1)"><Icon name="chev" :size="13" /></button>
-                </span>
-              </div>
-            </article>
-            <p v-if="!byStatus(f[0]).length" class="tiny muted empty-col">Arrastra un proyecto aquí</p>
-          </div>
+            <b class="vname">{{ COL[f[0]].name }}</b>
+            <span class="xbtn"><Icon name="expand" :size="15" style="transform:rotate(90deg)" /></span>
+          </button>
+          <template v-else>
+            <header class="col-head" @click.self="toggleCol(f[0])">
+              <button type="button" class="col-toggle" :aria-expanded="true" :aria-label="`Contraer columna ${COL[f[0]].name}`" :title="`Contraer ${COL[f[0]].name}`" @click="toggleCol(f[0])">
+                <span class="gico" :style="tint(COL[f[0]].color)"><Icon :name="COL[f[0]].icon" :size="15" /></span>
+                <b class="grow cname">{{ COL[f[0]].name }}</b>
+                <span class="badge">{{ byStatus(f[0]).length }}</span>
+                <span class="fold-ic"><Icon name="collapse" :size="14" style="transform:rotate(90deg)" /></span>
+              </button>
+              <button class="mini" :aria-label="`Nuevo proyecto en ${COL[f[0]].name}`" @click.stop="ui.modal = { type: 'project', prefill: { status: f[0] } }"><Icon name="plus" :size="14" /></button>
+            </header>
+            <div class="col-body">
+              <article v-for="p in byStatus(f[0])" :key="p.id" class="kcard" draggable="true" :class="{ dragging: dragId === p.id }" @dragstart="dragId = p.id" @dragend="dragId = null; overCol = null" @click="A.go('proyectos', { id: p.id })">
+                <span class="strip" :style="{ background: p.color || 'var(--lav-300)' }"></span>
+                <div class="b small kname">{{ p.name }}</div>
+                <div class="tiny muted kmeta"><span>{{ p.area }}</span><span v-if="p.due">· {{ shortDate(p.due) }}</span></div>
+                <Bar :value="A.projectProgress(p)" style="margin-top:8px" :color="p.color" />
+                <div class="row between" style="margin-top:8px">
+                  <span class="tiny muted row" style="gap:4px"><Icon name="check" :size="12" />{{ tasksOf(p).filter((t) => t.status === 'completada').length }}/{{ tasksOf(p).length }}</span>
+                  <span class="row" style="gap:2px">
+                    <button class="mini" :disabled="f[0] === FLOW[0][0]" :aria-label="`Mover ${p.name} a la etapa anterior`" @click.stop="move(p, -1)"><Icon name="back" :size="13" /></button>
+                    <button class="mini" :disabled="f[0] === FLOW[FLOW.length - 1][0]" :aria-label="`Mover ${p.name} a la siguiente etapa`" @click.stop="move(p, 1)"><Icon name="chev" :size="13" /></button>
+                  </span>
+                </div>
+              </article>
+              <p v-if="!byStatus(f[0]).length" class="tiny muted empty-col">Arrastra un proyecto aquí</p>
+            </div>
+          </template>
         </section>
       </div>
 
-      <div v-else class="card"><div class="list">
-        <button v-for="p in projects" :key="p.id" class="item" style="all:unset;display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer" @click="A.go('proyectos', { id: p.id })">
-          <Ring :value="A.projectProgress(p)" :size="40" /><div class="grow"><div class="b small">{{ p.name }}</div><div class="tiny muted">{{ p.area }} · {{ COL[p.status]?.name }}</div></div><Icon name="chev" :size="16" />
-        </button>
-      </div></div>
+      <template v-else>
+        <GroupCard v-for="g in listGroups" :key="g.key" :title="g.name" :icon="g.icon" :color="g.color" :count="g.v.length" :open="!lfold[g.key]" @toggle="lfold[g.key] = !lfold[g.key]">
+          <div class="list">
+            <button v-for="p in g.v" :key="p.id" class="prow" @click="A.go('proyectos', { id: p.id })">
+              <Ring :value="A.projectProgress(p)" :size="40" /><div class="grow" style="min-width:0"><div class="b small kname">{{ p.name }}</div><div class="tiny muted" style="text-transform:capitalize">{{ p.area }}{{ p.due ? ' · ' + shortDate(p.due) : '' }}</div></div><Icon name="chev" :size="16" class="muted" />
+            </button>
+          </div>
+        </GroupCard>
+        <p v-if="!projects.length" class="small muted" style="text-align:center">No hay proyectos en esta área todavía.</p>
+      </template>
     </template>
   </div>
 </template>
 
 <style scoped>
-.views { display: inline-flex; background: var(--surface-3); border-radius: 12px; padding: 3px; gap: 2px; }
-.views button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; cursor: pointer; }
-.views button.on { background: var(--surface); color: var(--pink-700); font-weight: 600; box-shadow: var(--shadow); }
-.area { width: auto; padding: 6px 10px; font-size: 13px; }
-.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; margin: 0 -4px; padding-left: 4px; padding-right: 4px; }
-.col { background: var(--surface-3); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 160px; scroll-snap-align: start; transition: box-shadow .15s; }
+.kanban { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding: 0 4px 8px; margin: 0 -4px; scroll-snap-type: x proximity; }
+.col { flex: 1 0 250px; min-width: 0; background: var(--surface-3); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 160px; scroll-snap-align: start; transition: flex-basis .28s ease, flex-grow .28s ease, box-shadow .15s, padding .28s; overflow: hidden; }
 .col.over { box-shadow: inset 0 0 0 2px var(--pink-300); }
-.col-head { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 2px 2px 0; }
+.col.folded { flex: 0 0 48px; padding: 6px 0; min-height: 230px; }
+.col-head { display: flex; align-items: center; gap: 4px; font-size: 14px; padding: 2px 0 0 2px; cursor: pointer; }
+.col-toggle { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; border-radius: 10px; }
+.col-toggle:focus-visible, .strip-btn:focus-visible { outline: 2px solid var(--pink-300); outline-offset: 2px; }
+.fold-ic { width: 24px; height: 24px; display: grid; place-items: center; color: var(--muted); border-radius: 8px; flex: none; }
+.col-toggle:hover .fold-ic { color: var(--pink-700); background: var(--surface); }
+.cname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip-btn { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 14px; padding: 4px 0; cursor: pointer; border-radius: 14px; }
+.strip-btn:hover { background: color-mix(in srgb, var(--pink-100) 50%, transparent); }
+.vname { writing-mode: vertical-rl; white-space: nowrap; letter-spacing: .02em; margin-top: 4px; }
+.xbtn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); background: var(--surface); flex: none; margin-top: auto; }
+.strip-btn:hover .xbtn { color: var(--pink-700); }
 .gico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; }
-.col-body { display: flex; flex-direction: column; gap: 8px; }
+.col-body { display: flex; flex-direction: column; gap: 8px; min-width: 228px; }
+.prow { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.prow:last-child { border-bottom: 0; }
 .kcard { position: relative; background: var(--surface); border-radius: 14px; padding: 12px 12px 10px 16px; box-shadow: var(--shadow); cursor: grab; overflow: hidden; }
 .kcard:active { cursor: grabbing; }
 .kcard.dragging { opacity: .45; }

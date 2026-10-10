@@ -4,13 +4,21 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { isOpen } from '../engine/planner'
 import { dayKey, uid, shortDate } from '../engine/time'
-import { Icon, Pet, Chip, Bar } from '../components/ui'
+import { Icon, Pet, Bar } from '../components/ui'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
+import GroupCard from '../components/GroupCard.vue'
 import { RESOURCE_ICON } from '../components/iconFor'
 
-const type = ref('todos')
+const type = computed({ get: () => state.settings.brainType || 'todos', set: (v) => (state.settings.brainType = v) })
 const q = ref('')
-const open = ref(null)
+const opened = ref({})
 const TYPES = [['todos', 'Todos'], ['libro', 'Libros'], ['podcast', 'Podcasts'], ['video', 'Videos'], ['conferencia', 'Conferencias'], ['nota', 'Notas'], ['idea', 'Ideas']]
+const typeOpts = computed(() => TYPES.map((t) => [t[0], t[1], t[0] === 'todos' ? null : RESOURCE_ICON[t[0]] || null, t[0] === 'todos' ? state.resources.length : state.resources.filter((r) => r.type === t[0]).length]).filter((t) => t[0] === 'todos' || t[3] || type.value === t[0]))
+const COLORS = { libro: '#C3B3D4', podcast: '#BFD7F0', video: '#F7B6C2', conferencia: '#FFE29A', nota: '#B9DCCB', idea: '#FFE29A' }
+const allFolded = computed(() => list.value.length > 0 && list.value.every((r) => !opened.value[r.id]))
+const foldAll = () => { const v = allFolded.value; list.value.forEach((r) => (opened.value[r.id] = v)) }
+function openRes(r) { opened.value[r.id] = true; setTimeout(() => document.getElementById('res-' + r.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }
 const list = computed(() => state.resources.filter((r) => (type.value === 'todos' || r.type === type.value) && (!q.value || (r.title + r.author + r.notes + r.concepts.join(' ')).toLowerCase().includes(q.value.toLowerCase()))))
 const continuing = computed(() => state.resources.filter((r) => ['leyendo', 'escuchando', 'viendo'].includes(r.status)))
 
@@ -34,9 +42,9 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
 
 <template>
   <div class="stack">
-    <div class="row"><input class="input grow" v-model="q" placeholder="Buscar contenido…" aria-label="Buscar en Mi cerebro" />
+    <div class="row"><label class="search grow"><Icon name="search" :size="16" /><input v-model="q" placeholder="Buscar contenido…" aria-label="Buscar en Mi cerebro" /></label>
       <button class="iconbtn add" aria-label="Agregar aprendizaje" @click="ui.modal = { type: 'resource', prefill: { type: type === 'todos' ? 'libro' : type } }"><Icon name="plus" /></button></div>
-    <div class="chips"><Chip v-for="t in TYPES" :key="t[0]" :active="type === t[0]" @click="type = t[0]">{{ t[1] }}</Chip></div>
+    <Seg v-model="type" :options="typeOpts" label="Tipo de contenido" />
 
     <div class="card pink now-card" style="min-height:150px">
       <div class="tiny b muted"><Icon name="bulb" :size="13" class="inl" /> PARA LO QUE ESTÁS VIVIENDO HOY · {{ today.why }}</div>
@@ -51,7 +59,7 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
 
     <div v-if="continuing.length" class="card">
       <h3>Continuar aprendiendo</h3>
-      <div class="list"><div v-for="r in continuing" :key="r.id" class="item" @click="open = r.id" style="cursor:pointer">
+      <div class="list"><div v-for="r in continuing" :key="r.id" class="item" role="button" tabindex="0" @click="openRes(r)" @keyup.enter="openRes(r)" style="cursor:pointer">
         <span class="ico lav"><Icon :name="RESOURCE_ICON[r.type] || 'pin'" :size="18" /></span>
         <div class="grow"><div class="title-line">{{ r.title }}</div><div class="tiny muted">{{ r.author }} · {{ r.type }}</div><Bar :value="r.progress" color="var(--lav-500)" style="margin-top:5px" /></div>
         <Icon name="chev" :size="16" />
@@ -59,13 +67,11 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
     </div>
 
     <div class="sec-title"><h2>Biblioteca viva</h2><span class="tiny muted">Contenido → Concepto → Principio → Acción → Experimento</span></div>
-    <div v-for="r in list" :key="r.id" class="card">
-      <button class="row" style="all:unset;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer" @click="open = open === r.id ? null : r.id" :aria-expanded="open === r.id">
-        <span class="ico"><Icon :name="RESOURCE_ICON[r.type] || 'pin'" :size="18" /></span>
-        <div class="grow"><div class="b small">{{ r.title }}</div><div class="tiny muted">{{ r.author }} · {{ r.status }}{{ r.minutes ? ' · ' + r.minutes + ' min' : '' }}</div></div>
-        <span class="badge">{{ principlesOf(r).length }} principios</span>
-      </button>
-      <div v-if="open === r.id" class="stack" style="gap:8px;margin-top:10px">
+    <ListBar :count="list.length" one="recurso" :foldable="list.length > 1" :all-folded="allFolded" @fold="foldAll" />
+    <GroupCard v-for="r in list" :id="'res-' + r.id" :key="r.id" :title="r.title" :sub="`${r.author} · ${r.status}${r.minutes ? ' · ' + r.minutes + ' min' : ''}`" :icon="RESOURCE_ICON[r.type] || 'pin'" :color="COLORS[r.type]" :open="!!opened[r.id]" @toggle="opened[r.id] = !opened[r.id]">
+      <template #badge><span class="badge" :title="`${principlesOf(r).length} principios`"><Icon name="bulb" :size="12" />{{ principlesOf(r).length }}</span></template>
+
+      <div class="stack" style="gap:8px">
         <div class="row wrap" style="gap:4px"><span v-for="c in r.concepts" :key="c" class="badge pink">{{ c }}</span></div>
         <p v-if="r.notes" class="quote small">{{ r.notes }}</p>
         <div v-for="p in principlesOf(r)" :key="p.id" class="card tight soft">
@@ -79,7 +85,8 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
           <button class="btn sm ghost" @click="ui.modal = { type: 'task', prefill: { title: `Aprender: ${r.title}`, category: 'aprendizaje', source: 'aprendizaje' } }">+ Sesión</button>
         </div>
       </div>
-    </div>
+    </GroupCard>
+    <p v-if="!list.length" class="small muted" style="text-align:center">{{ q ? 'No encontré nada con eso' : 'Nada de este tipo todavía' }}</p>
 
     <div class="card">
       <h3>Mis notas e ideas</h3>
@@ -89,3 +96,9 @@ function addNote() { if (noteText.value.trim()) { state.notes.unshift({ id: uid(
     </div>
   </div>
 </template>
+
+<style scoped>
+.search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px; color: var(--muted); min-width: 0; }
+.search input { border: 0; background: transparent; color: var(--ink); font: inherit; padding: 11px 0; width: 100%; outline: none; }
+.search:focus-within { border-color: var(--pink-300); }
+</style>

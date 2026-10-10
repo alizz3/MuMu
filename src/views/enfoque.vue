@@ -1,24 +1,50 @@
 <script setup>
-import { computed, ref, watch, onUnmounted } from 'vue'
+import { computed, ref, watch, onUnmounted, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { rankedTasks, isOpen } from '../engine/planner'
 import { dayKey, fmtDur } from '../engine/time'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
 import { FACES, FEELINGS } from '../components/iconFor'
-import { openFloat, canFloat } from '../services/focusFloat'
+import { openFloat, canFloat, closeFloat, isFloating } from '../services/focusFloat'
 import { askBrowserPermission } from '../engine/notify'
 import { toast } from '../engine/game'
+const floating = ref(false)
 async function floatOrNotify() {
-  if (canFloat()) { await openFloat(); return }
+  if (canFloat()) {
+    if (isFloating()) { closeFloat(); floating.value = false; return }
+    try { floating.value = await openFloat(); if (floating.value) toast('Listo: el reloj queda flotando aunque cambies de app') } catch { toast('No se pudo abrir la ventanita. Revisa que el navegador permita "Pantalla en pantalla" para MuMu.') }
+    return
+  }
   const r = await askBrowserPermission()
   toast(r === 'granted' ? 'Listo: si cambias de pestaña te mando mensajitos suaves' : 'Tu navegador no permite ventanita flotante; deja esta pestaña abierta y verás el tiempo en su título')
 }
 
+// Pantalla completa: reloj gigante, sin distracciones
+const full = ref(false)
+const fullEl = ref(null)
+async function openFull() {
+  full.value = true
+  await nextTick()
+  const el = fullEl.value || document.documentElement
+  try { if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen() } catch { /* se queda como capa encima */ }
+}
+function closeFull() {
+  full.value = false
+  const fe = document.fullscreenElement || document.webkitFullscreenElement
+  if (fe) (document.exitFullscreen || document.webkitExitFullscreen).call(document).catch?.(() => {})
+}
+const onFsChange = () => { if (!(document.fullscreenElement || document.webkitFullscreenElement)) full.value = false }
+const onKey = (ev) => { if (ev.key === 'Escape' && full.value) closeFull() }
+document.addEventListener('fullscreenchange', onFsChange)
+document.addEventListener('webkitfullscreenchange', onFsChange)
+document.addEventListener('keydown', onKey)
+onUnmounted(() => { document.removeEventListener('fullscreenchange', onFsChange); document.removeEventListener('webkitfullscreenchange', onFsChange); document.removeEventListener('keydown', onKey); if (full.value) closeFull() })
+
 const f = computed(() => ui.focus)
 const elapsed = computed(() => (f.value ? f.value.elapsed + (f.value.paused ? 0 : ui.now - f.value.startedAt) : 0))
 const tickNow = ref(Date.now())
-const timer = setInterval(() => { tickNow.value = Date.now(); if (f.value && !f.value.paused) ui.now = new Date() }, 1000)
+const timer = setInterval(() => { tickNow.value = Date.now(); floating.value = isFloating(); if (f.value && !f.value.paused) ui.now = new Date() }, 1000)
 onUnmounted(() => clearInterval(timer))
 const left = computed(() => { tickNow.value; return f.value ? Math.max(0, f.value.minutes * 60000 - (f.value.elapsed + (f.value.paused ? 0 : Date.now() - f.value.startedAt))) : 0 })
 const pct = computed(() => (f.value ? 100 - (left.value / (f.value.minutes * 60000)) * 100 : 0))
@@ -28,8 +54,9 @@ const ending = ref(false)
 const feeling = ref(3)
 const note = ref('')
 watch(finished, (v) => { if (v) ending.value = true })
+watch(f, (v) => { if (!v && full.value) closeFull() })
 
-function pause() { const x = ui.focus; if (x.paused) { x.startedAt = Date.now(); x.paused = false } else { x.elapsed += Date.now() - x.startedAt; x.paused = true } }
+function pause() { const x = ui.focus; if (!x) return; if (x.paused) { x.startedAt = Date.now(); x.paused = false } else { x.elapsed += Date.now() - x.startedAt; x.paused = true } }
 function more(min) { ui.focus.minutes += min; ending.value = false; toast(`+${min} min`) }
 function restart() { Object.assign(ui.focus, { startedAt: Date.now(), elapsed: 0, paused: false }); ending.value = false; toast('Reiniciado, desde cero') }
 function finish(outcome) { A.endFocus(outcome, feeling.value, note.value); ending.value = false; note.value = ''; feeling.value = 3 }
@@ -88,8 +115,33 @@ const today = computed(() => state.focus.filter((x) => x.date === dayKey()).redu
           <button class="btn sm ghost" @click="restart"><Icon name="refresh" :size="14" />Reiniciar</button>
         </div>
         <p v-if="ui.focusMsg" class="small" style="margin-top:10px">{{ ui.focusMsg }}</p>
-        <button class="btn ghost sm" style="margin-top:10px" @click="floatOrNotify"><Icon name="link" :size="14" />{{ canFloat() ? 'Seguir en una ventanita flotante' : 'Avisarme si cambio de pestaña' }}</button>
-        <p class="tiny muted" style="margin-top:8px">¿Necesitas Classroom o Tu Aula? Ábrelos en otra pestaña: la ventanita queda encima y el tiempo sigue en el título.</p>
+        <div class="row" style="justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn sm lav" :aria-pressed="floating" @click="floatOrNotify"><Icon :name="canFloat() ? 'pip' : 'bell'" :size="15" />{{ canFloat() ? (floating ? 'Quitar flotante' : 'Flotante') : 'Avisarme si cambio de pestaña' }}</button>
+          <button class="btn sm lav" @click="openFull"><Icon name="fullscreen" :size="15" />Pantalla completa</button>
+        </div>
+        <p class="tiny muted" style="margin-top:8px">¿Necesitas Classroom o Tu Aula? Toca <b>Flotante</b> y ábrelos: el relojito queda encima de todo, también en el celular.</p>
+      </div>
+      <div ref="fullEl" class="focus-full" :class="{ on: full }" role="dialog" aria-modal="true" aria-label="Enfoque en pantalla completa" v-show="full">
+        <button class="btn sm ghost focus-full-x" @click="closeFull"><Icon name="minimize" :size="15" />Salir</button>
+        <div class="tiny b muted">{{ f.paused ? 'EN PAUSA' : f.mode === 'empezar' ? 'LA META ES EMPEZAR' : 'SESIÓN DE ENFOQUE' }}</div>
+        <h2 class="focus-full-title">{{ f.title }}</h2>
+        <p v-if="f.step" class="small muted">Pasito: {{ f.step }}</p>
+        <div class="focus-full-ring">
+          <Ring :value="pct" :size="340" :width="14" color="var(--pink-500)" label="Tiempo transcurrido"><span></span></Ring>
+          <div class="focus-full-in">
+            <Pet :pose="f.paused ? 'sleep' : f.category === 'trabajo' ? 'laptop' : 'study'" :size="120" />
+            <div class="focus-full-time">{{ mmss }}</div>
+          </div>
+        </div>
+        <p v-if="ui.focusMsg" class="small" style="text-align:center;max-width:420px">{{ ui.focusMsg }}</p>
+        <div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap">
+          <button class="btn lav" @click="pause"><Icon :name="f.paused ? 'play' : 'pause'" :size="16" />{{ f.paused ? 'Seguir' : 'Pausa' }}</button>
+          <button class="btn ghost" @click="more(1)">+1 min</button>
+          <button class="btn ghost" @click="more(5)">+5 min</button>
+          <button class="btn ghost" @click="restart"><Icon name="refresh" :size="15" />Reiniciar</button>
+          <button class="btn primary" @click="closeFull(); ending = true"><Icon name="check" :size="16" />{{ finished ? '¡Tiempo! Terminar' : 'Terminar' }}</button>
+        </div>
+        <p class="tiny muted">Esc o “Salir” para volver</p>
       </div>
       <div v-if="ending" class="card">
         <h3>{{ finished ? (f.mode === 'empezar' ? '¡Empezaste! Eso era lo difícil' : '¡Tiempo!') : '¿Cómo te fue?' }}</h3>

@@ -5,6 +5,7 @@ import * as A from '../store/actions'
 import { myMethod } from '../engine/insights'
 import { dayKey, daysUntil, keyPlus, parseDay, addDays, shortDate } from '../engine/time'
 import { Icon, Pet, Ring, Chip } from '../components/ui'
+import Seg from '../components/Seg.vue'
 import { FACES, FEELINGS } from '../components/iconFor'
 
 const tab = ref('activos')
@@ -29,7 +30,7 @@ const days = (x) => Array.from({ length: x.days }, (_, i) => { const k = keyPlus
       <Pet pose="think" :size="86" />
       <div class="grow"><h2 style="font-size:17px">Experimentos personales</h2><p class="small">Probar ideas contigo misma para descubrir <b>tu propio método</b>.</p></div>
     </div>
-    <div class="seg"><button v-for="t in [['activos', 'Activos'], ['metodo', 'Mi propio método'], ['principios', 'Principios'], ['historial', 'Historial']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]">{{ t[1] }}</button></div>
+    <Seg v-model="tab" :options="[['activos', 'Activos', 'flask', active.length], ['metodo', 'Mi propio método', 'sprout'], ['principios', 'Principios', 'bulb', state.principles.length], ['historial', 'Historial', 'clock', done.length]]" label="Secciones de experimentos" />
 
     <template v-if="tab === 'activos'">
       <div v-for="x in active" :key="x.id" class="card">

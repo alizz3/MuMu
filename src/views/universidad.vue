@@ -7,7 +7,10 @@ import { isOpen } from '../engine/planner'
 import { relDay, WEEKDAYS, fmt12s, dayKey } from '../engine/time'
 import { syncAula, syncClassroom, canUseBackend } from '../services/api'
 import { toast, ask } from '../engine/game'
-import { Icon, Pet, Ring, Chip } from '../components/ui'
+import { Icon, Pet, Ring } from '../components/ui'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
+import GroupCard from '../components/GroupCard.vue'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
@@ -28,6 +31,17 @@ const subjects = computed(() => state.subjects.filter((s) => inst.value === 'tod
 const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId)).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
 const subjOf = (id) => state.subjects.find((s) => s.id === id)
+const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['profes', 'Profes', 'users'], ['aula', 'Tu Aula · Classroom', 'globe']]
+const INSTS = [['todas', 'Todas'], ['UT', 'U. Tolima'], ['Classroom', 'Classroom']]
+// Tareas de la U agrupadas por materia, plegables como en Tareas
+const uFold = computed(() => (state.settings.uniFolded ||= {}))
+const uniGroups = computed(() => {
+  const g = {}
+  uniTasks.value.forEach((t) => { const s = subjOf(t.subjectId); const k = s ? s.id : 'none'; (g[k] ||= { key: k, label: s ? s.name : 'Sin materia', color: s?.color || '#E7E1EE', icon: s ? 'cap' : 'list', v: [] }).v.push(t) })
+  return Object.values(g).sort((a, b) => (a.key === 'none') - (b.key === 'none') || a.label.localeCompare(b.label))
+})
+const uAllFolded = computed(() => uniGroups.value.length > 0 && uniGroups.value.every((g) => uFold.value[g.key]))
+const uFoldAll = () => { const v = !uAllFolded.value; uniGroups.value.forEach((g) => (uFold.value[g.key] = v)) }
 const sync = ref(false)
 const aulaInt = computed(() => state.integrations.aula)
 async function doSync() {
@@ -66,7 +80,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <DriveBrowser :root="semesterFolder()" :height="380" title="Drive del semestre" icon="folder" />
       </template>
     </div>
-    <div class="seg"><button v-for="t in [['cursos', 'Materias'], ['tareas', 'Tareas'], ['profes', 'Profes'], ['aula', 'Tu Aula · Classroom']]" :key="t[0]" :class="{ on: tab === t[0] }" @click="tab = t[0]; sel = null">{{ t[1] }}</button></div>
+    <Seg :model-value="tab" :options="TABS" label="Secciones de la universidad" @update:model-value="tab = $event; sel = null" />
 
     <!-- Materia seleccionada -->
     <template v-if="selS">
@@ -95,8 +109,9 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     </template>
 
     <template v-else-if="tab === 'cursos'">
-      <div class="row"><div class="chips grow"><Chip v-for="i in ['todas', 'UT', 'Classroom']" :key="i" :active="inst === i" @click="inst = i">{{ i === 'UT' ? 'U. del Tolima' : i }}</Chip></div>
-        <button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></div>
+      <ListBar :count="subjects.length" one="materia" :views="INSTS" v-model:view="inst" views-label="Institución" verb="Ver">
+        <template #end><button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></template>
+      </ListBar>
       <div v-if="autos.length && reales.length" class="card soft stack" style="gap:10px">
         <div><b class="small wi"><Icon name="puzzle" :size="15" />¿Cuál materia es cada una?</b><p class="tiny muted">Tu Aula y Classroom nombran los cursos con códigos. Dime a cuál de tus materias corresponde y MuMu lo recordará para siempre.</p></div>
         <div v-for="s in autos" :key="s.id" class="stack" style="gap:4px">
@@ -127,8 +142,11 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     <Profes v-else-if="tab === 'profes'" />
 
     <template v-else-if="tab === 'tareas'">
-      <div class="card"><div class="list"><TaskRow v-for="t in uniTasks" :key="t.id" :task="t" /></div>
-        <p v-if="!uniTasks.length" class="small muted">Sin tareas universitarias pendientes.</p></div>
+      <ListBar :count="uniTasks.length" one="tarea pendiente" many="tareas pendientes" :foldable="uniGroups.length > 1" :all-folded="uAllFolded" @fold="uFoldAll" />
+      <GroupCard v-for="g in uniGroups" :key="g.key" :title="g.label" :icon="g.icon" :color="g.color" :count="g.v.length" :open="!uFold[g.key]" @toggle="uFold[g.key] = !uFold[g.key]">
+        <div class="list"><TaskRow v-for="t in g.v" :key="t.id" :task="t" /></div>
+      </GroupCard>
+      <p v-if="!uniTasks.length" class="small muted" style="text-align:center">Sin tareas universitarias pendientes.</p>
     </template>
 
     <template v-else>
