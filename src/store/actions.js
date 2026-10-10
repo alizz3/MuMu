@@ -246,7 +246,7 @@ export function aulaToTask(aid) {
   const twin = state.tasks.find((x) => x.source === 'gtasks' && x.status !== 'cancelada' && nt(x.title) && (nt(x.title) === nt(a.title) || (Math.min(nt(x.title).length, nt(a.title).length) > 10 && (nt(x.title).includes(nt(a.title)) || nt(a.title).includes(nt(x.title))))))
   if (twin) { a.taskId = twin.id; Object.assign(twin, { subjectId: twin.subjectId || a.courseId, category: 'universidad', url: twin.url || a.url || null, due: twin.due || a.due, dueTime: twin.dueTime || a.dueTime || null }); return twin }
   const s = state.subjects.find((x) => x.id === a.courseId)
-  const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, dueTime: a.dueTime || null, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
+  const t = addTask({ title: a.title, url: a.url || null, subjectId: a.courseId, category: 'universidad', source: a.source === 'classroom' ? 'classroom' : 'aula', due: a.due, dueTime: a.dueTime || null, priority: a.due && daysUntil(a.due) <= 3 ? 'alta' : 'media', estimate: a.type === 'quiz' ? 30 : 90, goalId: 'g1', group: /\b(grupo|grupal|cipas?|integrantes?)\b/i.test(`${a.title} ${a.description || ''}`), notes: s ? `Materia: ${s.name}` : '', demo: a.demo })
   a.taskId = t.id
   return t
 }
