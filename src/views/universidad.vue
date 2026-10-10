@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { daily } from '../engine/game'
-import { isOpen, sessionsOf } from '../engine/planner'
+import { isOpen, sessionsOf, nextSessionOf } from '../engine/planner'
 import { relDay, WEEKDAYS, fmt12s, dayKey } from '../engine/time'
 import { syncAula, syncClassroom, canUseBackend } from '../services/api'
 import { toast, ask } from '../engine/game'
@@ -89,18 +89,22 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
           <button class="iconbtn" aria-label="Editar materia" @click="ui.modal = { type: 'subject', id: selS.id }"><Icon name="edit" :size="18" /></button></div>
         <a v-if="selS.url" class="btn sm lav" style="margin-top:8px" :href="selS.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />Abrir el curso</a>
         <div v-if="selS.teacherEmail || selS.teacherPhone" class="small row wrap" style="margin-top:8px;gap:4px 14px"><Contact v-if="selS.teacherEmail" :value="selS.teacherEmail" kind="email" as="azmejiaf@ut.edu.co" /><Contact v-if="selS.teacherPhone" :value="selS.teacherPhone" kind="phone" /></div>
-        <div class="row wrap" style="gap:6px;margin-top:8px"><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></div>
+        <div class="row wrap" style="gap:6px;margin-top:8px">
+          <button v-if="nextSessionOf(selS.id)" class="badge ses-pill" :class="{ live: nextSessionOf(selS.id).live }" @click="ui.modal = { type: 'eventView', ev: nextSessionOf(selS.id), date: nextSessionOf(selS.id).date }">
+            <i v-if="nextSessionOf(selS.id).live" class="dot"></i><b>{{ nextSessionOf(selS.id).session || nextSessionOf(selS.id).title }}</b>
+            · {{ nextSessionOf(selS.id).live ? 'ahora' : relDay(nextSessionOf(selS.id).date) }} · {{ fmt12s(nextSessionOf(selS.id).start) }}–{{ fmt12s(nextSessionOf(selS.id).end) }}</button>
+          <template v-else><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></template>
+        </div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
       <div v-if="subjectFolder(subjOf(selS.id))" class="card"><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" title="Drive de la materia" icon="folder" /></div>
-      <div v-if="sessionsOf(selS.id).length" class="card">
-        <h3 class="wi"><Icon name="calendar" :size="16" />Sesiones</h3>
+      <GroupCard v-if="sessionsOf(selS.id).length" title="Sesiones" :sub="`${sessionsOf(selS.id).filter((e) => e.date >= dayKey()).length} por venir · de tu Google Calendar`" icon="calendar" :color="selS.color" :count="sessionsOf(selS.id).length" :open="!!state.settings.sesOpen?.[selS.id]" @toggle="state.settings.sesOpen = { ...(state.settings.sesOpen || {}), [selS.id]: !state.settings.sesOpen?.[selS.id] }">
         <div v-for="e in sessionsOf(selS.id)" :key="e.id" class="row small ses" :class="{ past: e.date < dayKey() }" @click="ui.modal = { type: 'eventView', ev: e, date: e.date }">
           <span class="grow"><b>{{ e.session || e.title }}</b><span class="tiny muted"> · {{ relDay(e.date) }} · {{ fmt12s(e.start) }}</span></span>
           <Icon name="chev" :size="14" class="muted" />
         </div>
-        <p class="tiny muted" style="margin:6px 0 0">Vienen de tu Google Calendar. Toca una para ponerle la sesión o cambiarle el nombre en MuMu.</p>
-      </div>
+        <p class="tiny muted" style="margin:6px 0 0">Toca una para ponerle la sesión o cambiarle el nombre en MuMu.</p>
+      </GroupCard>
       <div class="card"><Links :target="subjOf(selS.id)" title="Enlaces de la materia" icon="link" /></div>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3 class="wi"><Icon name="target" :size="17" />Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>
@@ -133,7 +137,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
       </div>
       <button v-for="s in subjects" :key="s.id" class="card row" style="text-align:left;cursor:pointer" @click="sel = s.id">
         <span style="width:6px;align-self:stretch;border-radius:4px" :style="{ background: s.color }"></span>
-        <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted wi" style="gap:4px"><Icon name="user" :size="12" />{{ s.teacher }}<template v-if="s.teacherEmail"> · <Icon name="mail" :size="12" /><span class="sr">con correo</span></template></div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
+        <div class="grow"><div class="b small">{{ s.name }}</div><div v-if="s.teacher" class="tiny muted wi" style="gap:4px"><Icon name="user" :size="12" />{{ s.teacher }}<template v-if="s.teacherEmail"> · <Icon name="mail" :size="12" /><span class="sr">con correo</span></template></div><div class="tiny muted">{{ s.open.length }} {{ s.open.length === 1 ? 'tarea pendiente' : 'tareas pendientes' }} · {{ nextSessionOf(s.id) ? `${nextSessionOf(s.id).session || 'Clase'} ${nextSessionOf(s.id).live ? 'ahora' : relDay(nextSessionOf(s.id).date)}` : s.schedule.map((h) => WEEKDAYS[h.weekday]).join(', ') || 'sin horario' }}</div></div>
         <span v-if="s.nota" class="badge" :class="tono(s.nota.promedio)" :title="`Nota: ${f1(s.nota.promedio)}`"><Icon name="target" :size="12" />{{ f1(s.nota.promedio) }}</span>
         <Ring :value="s.p" :size="46" :color="s.color" />
       </button>
