@@ -303,3 +303,5 @@ a.btn, a.btn:hover { text-decoration: none; }
 .now-over i { position: absolute; left: -5px; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: #E5484D; }
 .now-over b { position: absolute; right: 8px; top: -18px; font-size: 10.5px; color: #fff; background: #E5484D; padding: 1px 6px; border-radius: 8px; font-weight: 700; }
 .tl-card.rem { background: color-mix(in srgb, var(--pink-300) 16%, var(--surface)); border-left-style: dashed; }
+.tl-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.tl-stack > .now-line { flex: none; }

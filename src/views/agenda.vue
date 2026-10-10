@@ -20,7 +20,7 @@ const timeline = computed(() => {
   const from = k === dayKey() ? nowMin() : null
   const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: i.allDay ? -1 : hm(i.start) }))
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
-  const tasks = [...dueOn(k), ...doneOn(k)].filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
+  const tasks = dueOn(k).filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
   // Línea de "ahora", como en Google Calendar (solo hoy)
   let now = []
   if (k === dayKey()) {
@@ -30,6 +30,16 @@ const timeline = computed(() => {
     else now = [{ id: 'now', now: true, at: m + 0.5 }]
   }
   return [...items, ...tasks, ...free, ...now].sort((a, b) => a.at - b.at)
+})
+// Lo que empieza a la misma hora va junto, una cosa sobre otra (una sola hora a la izquierda)
+const rows = computed(() => {
+  const out = []
+  for (const i of timeline.value) {
+    const last = out[out.length - 1]
+    if (last && !i.now && !i.free && !last.now && !last.free && Math.floor(last.at) === Math.floor(i.at) && !!last.allDay === !!i.allDay) last.items.push(i)
+    else out.push({ id: i.id, at: i.at, now: i.now, free: i.free, allDay: i.allDay, items: [i] })
+  }
+  return out
 })
 const suggestion = computed(() => rankedTasks()[0]?.t)
 function useFree(b) {
@@ -53,7 +63,7 @@ const doneBlock = (i) => { const t = state.tasks.find((x) => x.id === i.taskId);
 // Tareas del día: las que vencen y las que ya hiciste ese día
 const doneOn = (k) => state.tasks.filter((t) => t.status === 'completada' && (t.due ? t.due === k : t.completedAt === k))
 const timed = (t) => /^\d{2}:\d{2}$/.test(t.dueTime || '')
-const dayTasks = computed(() => { const k = sel.value; const due = dueOn(k).filter((t) => inScope('task', t) && !timed(t)); const done = doneOn(k).filter((t) => inScope('task', t) && !timed(t)); return { due, done, n: due.length + done.length } })
+const dayTasks = computed(() => { const k = sel.value; const due = dueOn(k).filter((t) => inScope('task', t) && !timed(t)); const done = doneOn(k).filter((t) => inScope('task', t)); return { due, done, n: due.length + done.length } })
 const tasksOpen = computed({ get: () => state.settings.agendaTasksOpen !== false, set: (v) => (state.settings.agendaTasksOpen = v) })
 const tasksSub = computed(() => [dayTasks.value.due.length && `${dayTasks.value.due.length} vence${dayTasks.value.due.length === 1 ? '' : 'n'}`, dayTasks.value.done.length && `${dayTasks.value.done.length} hecha${dayTasks.value.done.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ') || 'Nada para este día')
 const googleOn = computed(() => state.integrations.google.some((a) => a.services.includes('calendar')))
@@ -87,8 +97,10 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
       <div class="row between"><h2 style="font-size:16px">{{ longDate(selD) }}</h2>
         <button v-if="googleOn && canUseBackend()" class="btn sm lav" @click="syncCalendar"><Icon name="refresh" :size="14" />Google</button></div>
       <div class="tl">
-        <div v-for="i in timeline" :key="i.id" class="tl-row">
-          <div class="tl-time" :class="{ 'now-t': i.now }">{{ i.allDay ? 'Todo el día' : fmt12(Math.floor(i.at)) }}</div>
+        <div v-for="r in rows" :key="r.id" class="tl-row">
+          <div class="tl-time" :class="{ 'now-t': r.now }">{{ r.allDay ? 'Todo el día' : fmt12(Math.floor(r.at)) }}</div>
+          <div class="tl-stack">
+          <template v-for="i in r.items" :key="i.id">
           <div v-if="i.now" class="now-line" role="presentation"><i></i></div>
           <div v-else-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
           <div v-else-if="i.free" class="tl-card free">
@@ -102,6 +114,8 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
             <div class="grow tl-txt"><div class="small b tl-title" :class="{ 'done-txt': i.done }">{{ i.title }}</div><div class="tiny muted">{{ i.allDay ? 'Todo el día' : i.type === 'recordatorio' ? 'Recordatorio · ' + fmt12s(i.start) : `${fmt12s(i.start)} – ${fmt12s(i.end)}` }}<span v-if="i.calendarName && i.calendarName !== i.account"> · {{ i.calendarName }}</span><span v-if="i.account"> · {{ i.account }}</span><span v-if="i.source === 'rutina'"> · rutina</span></div><span v-if="i.mark" class="badge tl-badge" :class="{ green: i.mark.status === 'otro' || i.mark.status === 'hecho' }"><Icon v-if="MARK_ICON[i.mark.status]" :name="MARK_ICON[i.mark.status]" :size="12" />{{ markText(i.mark) }}</span></div>
             <button v-if="i.kind === 'block'" class="check" :class="{ on: i.done }" aria-label="Bloque hecho" @click.stop="doneBlock(i)"><Icon v-if="i.done" name="check" :size="14" :stroke="3" /></button>
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
+          </div>
+          </template>
           </div>
         </div>
         <div v-if="!timeline.some((x) => !x.now)" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
