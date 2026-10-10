@@ -103,8 +103,10 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
       </div>
       <div class="card"><div class="row between"><h3>Tareas</h3><button class="link" @click="ui.modal = { type: 'task', prefill: { subjectId: selS.id, category: 'universidad', goalId: 'g1' } }">+ Tarea</button></div>
         <div class="list"><TaskRow v-for="t in selS.ts" :key="t.id" :task="t" /></div></div>
-      <div class="card"><h3>Actividades detectadas</h3>
-        <div v-for="a in state.aula.filter((x) => x.courseId === selS.id)" :key="a.id" class="small" style="padding:6px 0">• {{ a.title }} <span class="muted">{{ a.due ? '· ' + relDay(a.due) : '' }}</span></div></div>
+      <div v-if="state.aula.some((x) => x.courseId === selS.id && !x.taskId)" class="card"><h3>Otras novedades del curso</h3>
+        <div v-for="a in state.aula.filter((x) => x.courseId === selS.id && !x.taskId)" :key="a.id" class="row small" style="padding:6px 0;gap:8px"><span class="grow">{{ a.title }} <span class="muted">{{ a.due ? '· ' + relDay(a.due) : '' }}</span></span>
+          <a v-if="a.url" class="btn sm ghost" :href="a.url" target="_blank" rel="noopener">Abrir</a>
+          <button v-if="a.type !== 'forum'" class="btn sm lav" @click="A.openAulaTask(a.id)"><Icon name="plus" :size="14" />Tarea</button></div></div>
       <button class="btn ghost" @click="sel = null"><Icon name="back" :size="16" />Todas las materias</button>
     </template>
 
@@ -175,7 +177,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
               <span v-if="a.changed" class="badge yellow">{{ a.changeNote }}</span><span v-if="a.firstSeen === dayKey()" class="badge pink">nueva</span><span v-if="a.demo" class="badge demo">ejemplo</span></div></div>
           <a v-if="a.url" class="btn sm ghost" :href="a.url" target="_blank" rel="noopener">Abrir</a>
           <button v-if="!a.taskId && a.type !== 'forum'" class="btn sm lav" @click="A.aulaToTask(a.id)"><Icon name="plus" :size="14" />Tarea</button>
-          <button v-else-if="a.taskId" class="btn sm ghost" @click="ui.modal = { type: 'task', id: a.taskId }">Ver</button>
+          <button v-else-if="a.taskId" class="btn sm ghost" @click="A.openAulaTask(a.id)">Ver</button>
         </div>
       </div></div>
     </template>

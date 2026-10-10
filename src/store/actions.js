@@ -34,7 +34,32 @@ export function removeTasks(match) {
   const g = out.filter((t) => t.gtask).map((t) => ({ ...t.gtask }))
   if (g.length) state.integrations.gtDeleted = [...(state.integrations.gtDeleted || []), ...g]
   const ids = new Set(out.map((t) => t.id))
+  // Si la borraste tú, la actividad de Tu Aula/Classroom no la vuelve a crear
+  state.aula.forEach((a) => { if (a.taskId && ids.has(a.taskId)) a.dismissed = true })
   state.tasks = state.tasks.filter((x) => !ids.has(x.id))
+}
+
+// Toda actividad (entrega o quiz) de Tu Aula/Classroom debe tener su tarea en MuMu.
+// Si la tarea se perdió (por ejemplo, otra pestaña la pisó), se vuelve a crear con los datos de la actividad.
+export function ensureAulaTasks() {
+  let n = 0
+  for (const a of state.aula) {
+    if (a.demo || a.dismissed || !['assign', 'quiz'].includes(a.type)) continue
+    if (a.due && daysUntil(a.due) < -14) continue
+    if (a.taskId && state.tasks.some((t) => t.id === a.taskId)) continue
+    a.taskId = null
+    if (aulaToTask(a.id)) n++
+  }
+  return n
+}
+// Abre la tarea de una actividad (la crea si hace falta)
+export function openAulaTask(aid) {
+  const a = state.aula.find((x) => x.id === aid)
+  if (!a) return null
+  let t = a.taskId && state.tasks.find((x) => x.id === a.taskId)
+  if (!t) { a.taskId = null; a.dismissed = false; t = aulaToTask(a.id) }
+  if (t) ui.modal = { type: 'task', id: t.id }
+  return t
 }
 
 export function completeTask(id) {
@@ -257,6 +282,7 @@ export function applyAcademicChanges(items, source = 'aula') {
     }
   }
   tidySubjects()
+  created += ensureAulaTasks()
   return { created, updated }
 }
 // Une el curso de Tu Aula/Classroom con una materia que ya tengas (ej. "Ética Profesional - Grupo 3" → Ética Profesional)

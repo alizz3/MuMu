@@ -3,7 +3,7 @@
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { UNI_STEPS } from './device'
-import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine } from '../store/actions'
+import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks } from '../store/actions'
 import { syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
 import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
@@ -77,6 +77,7 @@ export async function initSync() {
     fixUniRoutine(UNI_STEPS)
     linkHabitTasks()
     processInbox()
+    ensureAulaTasks()
     autoSync()
     if (!anyRemote) push(fb, doc, setDoc)
   })
