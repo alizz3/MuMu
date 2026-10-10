@@ -25,6 +25,7 @@ const SCHEMAS = {
   task: () => ({
     title: 'Tarea', coll: 'tasks', fields: [
       { k: 'title', l: 'Título', t: 'text', req: true },
+      { k: 'lista', l: 'Lista', t: 'lista' },
       { k: 'notes', l: 'Descripción / notas', t: 'textarea' },
       { k: 'url', l: 'Enlace (Tu Aula, Classroom, Drive…)', t: 'url' },
       { k: 'priority', l: 'Prioridad', t: 'select', o: ['alta', 'media', 'baja'] },
@@ -33,9 +34,7 @@ const SCHEMAS = {
       { k: 'dueTime', l: 'Hora límite', t: 'time' },
       { k: 'estimate', l: 'Duración estimada (min)', t: 'number' },
       { k: 'category', l: 'Categoría', t: 'select', o: ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas'] },
-      { k: 'projectId', l: 'Proyecto', t: 'select', o: opts(state.projects) },
       { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) },
-      { k: 'subjectId', l: 'Materia', t: 'select', o: opts(state.subjects) },
       { k: 'group', l: 'Es en grupo (CIPA)', t: 'bool' },
       { k: 'uploader', l: '¿Quién la sube? (vacío = yo)', t: 'text' },
       { k: 'source', l: 'Fuente', t: 'select', o: ['manual', 'gmail', 'aula', 'classroom', 'calendario', 'proyecto', 'aprendizaje', 'rutina', 'objetivo'] },
@@ -100,6 +99,39 @@ const SCHEMAS = {
   ] }),
 }
 
+// Listas para elegir al crear o editar una tarea (como en Tareas → Listas)
+const LISTAS = computed(() => {
+  const g = []
+  const p = state.projects.filter((x) => x.status !== 'completado').map((x) => ({ v: 'p:' + x.id, l: x.name }))
+  if (p.length) g.push({ l: 'Proyectos', o: p })
+  const sj = state.subjects.map((x) => ({ v: 's:' + x.id, l: x.name }))
+  if (sj.length) g.push({ l: 'Materias', o: sj })
+  const h = state.habits.map((x) => ({ v: 'h:' + x.id, l: x.name }))
+  if (h.length) g.push({ l: 'Hábitos', o: h })
+  const gt = []
+  for (const [acc, c] of Object.entries(state.integrations.gtasks || {})) {
+    for (const l of c.lists || []) if (!state.projects.some((x) => x.name.toLowerCase() === l.title.toLowerCase())) gt.push({ v: `g:${acc}|${l.id}`, l: l.title })
+  }
+  if (gt.length) g.push({ l: 'Google Tasks', o: gt })
+  return g
+})
+function listaOf(t) {
+  if (!t) return ''
+  if (t.habitId) return 'h:' + t.habitId
+  if (t.projectId) return 'p:' + t.projectId
+  if (t.subjectId) return 's:' + t.subjectId
+  const g = t.gtWant || t.gtask
+  return g ? `g:${g.acc}|${g.list}` : ''
+}
+function applyLista(data, v) {
+  const [kind, id] = [String(v || '').slice(0, 1), String(v || '').slice(2)]
+  data.projectId = kind === 'p' ? id : null
+  data.subjectId = kind === 's' ? id : null
+  data.habitId = kind === 'h' ? id : null
+  data.gtWant = kind === 'g' ? { acc: id.split('|')[0], list: id.split('|')[1] } : null
+  if (kind === 's') { data.category = 'universidad'; data.goalId = data.goalId || 'g1' }
+  if (kind === 'p') { const pr = state.projects.find((x) => x.id === id); if (pr?.area === 'universidad') data.category = 'universidad' }
+}
 const form = reactive({})
 const schema = computed(() => (m.value && SCHEMAS[m.value.type] ? SCHEMAS[m.value.type]() : null))
 const editing = computed(() => !!(m.value?.id && schema.value))
@@ -115,6 +147,7 @@ watch(m, (v) => {
     if (f.t === 'tags') val = (val || []).join(', ')
     if (f.t === 'schedule') val = JSON.parse(JSON.stringify(val || []))
     if (f.t === 'weekdays') val = [...(val || [])]
+    if (f.t === 'lista') val = ex ? listaOf(ex) : (base.lista || listaOf(base) || (Object.keys(base).length ? '' : state.settings.lastLista || ''))
     form[f.k] = val ?? (f.t === 'select' && Array.isArray(f.o) && typeof f.o[0] === 'string' ? f.o[0] : f.t === 'date' && f.k === 'date' ? dayKey() : '')
   })
 })
@@ -135,6 +168,7 @@ function save() {
     data[f.k] = v
   })
   if (bad) return toast(`Revisa el enlace: ${bad}`)
+  if ('lista' in data) { if (!m.value.id) state.settings.lastLista = data.lista || ''; applyLista(data, data.lista); delete data.lista }
   // Momento con rango de horas: los minutos salen solos (si pasó la medianoche, también)
   if (sc.coll === 'life' && data.start && data.end) { let m = hm(data.end) - hm(data.start); if (m <= 0) m += 1440; data.minutes = m }
   if (sc.coll === 'life' && data.feeling != null) data.feeling = Math.min(5, Math.max(1, data.feeling))
@@ -421,6 +455,10 @@ async function toGroup(t) {
           <label v-for="f in schema.fields" :key="f.k" class="field">
             <span>{{ f.l }}</span>
             <textarea v-if="f.t === 'textarea'" class="input" v-model="form[f.k]"></textarea>
+            <select v-else-if="f.t === 'lista'" class="input" v-model="form[f.k]">
+              <option value="">Sin lista</option>
+              <optgroup v-for="g in LISTAS" :key="g.l" :label="g.l"><option v-for="o in g.o" :key="o.v" :value="o.v">{{ o.l }}</option></optgroup>
+            </select>
             <select v-else-if="f.t === 'select'" class="input" v-model="form[f.k]">
               <option v-for="o in f.o" :key="typeof o === 'string' ? o : o.v" :value="typeof o === 'string' ? o : o.v">{{ typeof o === 'string' ? o : o.l }}</option>
             </select>

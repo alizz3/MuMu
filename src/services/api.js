@@ -180,11 +180,13 @@ export function gtConf(a) {
 const sameTitle = (a, b) => { const x = normT(a), y = normT(b); return !!x && !!y && (x === y || (Math.min(x.length, y.length) > 10 && (x.includes(y) || y.includes(x)))) }
 const isUni = (t) => t.category === 'universidad' || !!t.subjectId || state.projects.find((p) => p.id === t.projectId)?.area === 'universidad'
 const accFor = (t) => { const accs = gtAccounts()
+  if (t.gtWant) { const w = accs.find((a) => a.id === t.gtWant.acc); if (w) return w }
   if (isUni(t)) { const u = accs.find((a) => gtConf(a).role === 'universidad'); if (u) return u }
   if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const hit = p && accs.find((a) => (gtConf(a).lists || []).some((l) => normT(l.title) === normT(p.name))); if (hit) return hit }
   const want = t.category === 'universidad' || t.subjectId ? 'universidad' : 'personal'; return accs.find((a) => gtConf(a).role === want) || null }
 function listFor(a, t) {
   const c = gtConf(a)
+  if (t.gtWant && t.gtWant.acc === a.id && c.lists.some((l) => l.id === t.gtWant.list)) return t.gtWant.list
   if (t.subjectId) { const s = state.subjects.find((x) => x.id === t.subjectId); const l = s && c.lists.find((l) => subjectByName(l.title)?.id === s.id); if (l) return l.id }
   if (t.projectId) { const p = state.projects.find((x) => x.id === t.projectId); const l = p && c.lists.find((l) => normT(l.title) === normT(p.name)); if (l) return l.id }
   return c.defaultList || '@default'
