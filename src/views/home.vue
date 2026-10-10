@@ -16,7 +16,8 @@ const rec = computed(() => recommend())
 const items = computed(() => itemsOn(k.value))
 const upcoming = computed(() => items.value.filter((i) => hm(i.end) > nowMin(ui.now) && inScope('event', i)).slice(0, 4))
 const open = computed(() => state.tasks.filter((t) => isOpen(t) && inScope('task', t)))
-const dueSoon = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)).slice(0, 4))
+const dueSoon = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) >= 0 && daysUntil(t.due) <= 7).sort((a, b) => (a.due > b.due ? 1 : -1)).slice(0, 5))
+const lateCount = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) < 0).length)
 const todayCount = computed(() => open.value.filter((t) => t.due && daysUntil(t.due) <= 0).length)
 const classes = computed(() => items.value.filter((i) => i.type === 'clase'))
 const habitsLeft = computed(() => state.habits.filter((h) => inScope('habit', h) && !state.habitLogs[h.id]?.[k.value]?.done))
@@ -117,7 +118,8 @@ const welcome = () => { d.value.welcomed = true }
         <section class="card">
           <div class="row between"><h3>Próximos vencimientos</h3><button class="link" @click="A.go('tareas')">Todas</button></div>
           <div class="list"><TaskRow v-for="t in dueSoon" :key="t.id" :task="t" compact /></div>
-          <p v-if="!dueSoon.length" class="small muted" style="padding:8px 0">Nada vence en 3 días.</p>
+          <p v-if="!dueSoon.length" class="small muted" style="padding:8px 0">Nada vence esta semana.</p>
+          <button v-if="lateCount" class="link tiny wi" style="margin-top:6px;gap:4px" @click="state.settings.taskFilter = 'abiertas'; state.settings.taskGroup = 'fecha'; A.go('tareas')"><Icon name="clock" :size="13" />Tienes {{ lateCount }} {{ lateCount === 1 ? 'atrasada' : 'atrasadas' }} (sin culpa) · ver</button>
         </section>
 
         <!-- Universidad + correo -->

@@ -7,6 +7,7 @@ import { dayKey, parseDay, addDays, WEEKDAYS, MONTHS, fmt12s, fmt12, fmtDur, hm,
 import { syncCalendar, canUseBackend } from '../services/api'
 import { Icon, Pet } from '../components/ui'
 import TaskRow from '../components/TaskRow.vue'
+import GroupCard from '../components/GroupCard.vue'
 import { inScope } from '../engine/modoU'
 
 const view = ref('dia')
@@ -30,9 +31,9 @@ function useFree(b) {
 const month = computed(() => {
   const d = selD.value, first = new Date(d.getFullYear(), d.getMonth(), 1)
   const start = addDays(first, -((first.getDay() + 6) % 7))
-  return Array.from({ length: 42 }, (_, i) => { const x = addDays(start, i), k = dayKey(x); return { k, d: x.getDate(), out: x.getMonth() !== d.getMonth(), n: itemsOn(k).length + dueOn(k).length } })
+  return Array.from({ length: 42 }, (_, i) => { const x = addDays(start, i), k = dayKey(x); return { k, d: x.getDate(), out: x.getMonth() !== d.getMonth(), n: itemsOn(k).length + dueOn(k).length + doneOn(k).length } })
 })
-const listDays = computed(() => Array.from({ length: 14 }, (_, i) => { const k = dayKey(addDays(new Date(), i)); return { k, items: itemsOn(k), due: dueOn(k) } }).filter((x) => x.items.length || x.due.length))
+const listDays = computed(() => Array.from({ length: 14 }, (_, i) => { const k = dayKey(addDays(new Date(), i)); return { k, items: itemsOn(k), due: dueOn(k), done: doneOn(k) } }).filter((x) => x.items.length || x.due.length || x.done.length))
 const shift = (n) => { sel.value = dayKey(addDays(selD.value, view.value === 'mes' ? n * 30 : n * 7)) }
 // Al tocar un evento o clase se abre su ventanita con la info, quién va, editar o eliminar
 const openEv = (i) => { if (i.kind === 'event' || i.kind === 'class') ui.modal = { type: 'eventView', ev: { ...i }, date: sel.value } }
@@ -40,6 +41,11 @@ const MARK_TXT = { yo: 'Voy yo', recordatorio: 'Recordatorio', hecho: 'Ya pasó'
 const MARK_ICON = { yo: 'user', otro: 'users', recordatorio: 'pin', hecho: 'check' }
 const markText = (m) => m && (m.status === 'otro' ? (m.who ? 'Va ' + m.who : 'Va alguien más') : MARK_TXT[m.status])
 const doneBlock = (i) => { const t = state.tasks.find((x) => x.id === i.taskId); const b = t?.blocks.find((x) => x.start === i.start && x.date === sel.value); if (b) b.done = !b.done }
+// Tareas del día: las que vencen y las que ya hiciste ese día
+const doneOn = (k) => state.tasks.filter((t) => t.status === 'completada' && (t.completedAt === k || (!t.completedAt && t.due === k)))
+const dayTasks = computed(() => { const k = sel.value; const due = dueOn(k).filter((t) => inScope('task', t)); const done = doneOn(k).filter((t) => inScope('task', t)); return { due, done, n: due.length + done.length } })
+const tasksOpen = computed({ get: () => state.settings.agendaTasksOpen !== false, set: (v) => (state.settings.agendaTasksOpen = v) })
+const tasksSub = computed(() => [dayTasks.value.due.length && `${dayTasks.value.due.length} vence${dayTasks.value.due.length === 1 ? '' : 'n'}`, dayTasks.value.done.length && `${dayTasks.value.done.length} hecha${dayTasks.value.done.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ') || 'Nada para este día')
 const googleOn = computed(() => state.integrations.google.some((a) => a.services.includes('calendar')))
 </script>
 
@@ -61,7 +67,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
 
     <div v-if="view === 'dia' || view === 'semana'" class="days card tight">
       <button v-for="d in week" :key="dayKey(d)" :class="{ on: dayKey(d) === sel }" @click="sel = dayKey(d)">
-        {{ WEEKDAYS[d.getDay()] }}<b>{{ d.getDate() }}</b><i v-if="itemsOn(dayKey(d)).length || dueOn(dayKey(d)).length"></i>
+        {{ WEEKDAYS[d.getDay()] }}<b>{{ d.getDate() }}</b><i v-if="itemsOn(dayKey(d)).length || dueOn(dayKey(d)).length || doneOn(dayKey(d)).length"></i>
       </button>
     </div>
 
@@ -69,6 +75,14 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
     <template v-if="view === 'dia'">
       <div class="row between"><h2 style="font-size:16px">{{ longDate(selD) }}</h2>
         <button v-if="googleOn && canUseBackend()" class="btn sm lav" @click="syncCalendar"><Icon name="refresh" :size="14" />Google</button></div>
+      <GroupCard title="Tareas del día" :sub="tasksSub" icon="check" color="#F7B6C2" :count="dayTasks.n" :open="tasksOpen" @toggle="tasksOpen = !tasksOpen">
+        <div v-if="dayTasks.due.length" class="tiny muted b dt-h"><Icon name="pin" :size="12" />Vence {{ sel === dayKey() ? 'hoy' : 'este día' }}</div>
+        <div v-if="dayTasks.due.length" class="list"><TaskRow v-for="t in dayTasks.due" :key="t.id" :task="t" /></div>
+        <div v-if="dayTasks.done.length" class="tiny muted b dt-h"><Icon name="check" :size="12" />Lo que hiciste</div>
+        <div v-if="dayTasks.done.length" class="list"><TaskRow v-for="t in dayTasks.done" :key="t.id" :task="t" /></div>
+        <p v-if="!dayTasks.n" class="tiny muted" style="margin:6px 0 0">No hay tareas que venzan ni que hayas hecho este día.</p>
+        <button class="btn sm ghost" style="margin-top:8px" @click="ui.modal = { type: 'task', prefill: { due: sel } }"><Icon name="plus" :size="14" />Tarea para este día</button>
+      </GroupCard>
       <div class="tl">
         <div v-for="i in timeline" :key="i.id" class="tl-row">
           <div class="tl-time">{{ fmt12(i.at) }}</div>
@@ -86,10 +100,6 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         </div>
         <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
       </div>
-      <div v-if="dueOn(sel).length" class="card">
-        <h3>Vence este día</h3>
-        <div class="list"><TaskRow v-for="t in dueOn(sel)" :key="t.id" :task="t" /></div>
-      </div>
     </template>
 
     <!-- Semana -->
@@ -100,6 +110,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
           <div class="row wrap" style="gap:4px;margin-top:6px">
             <span v-for="i in itemsOn(dayKey(d))" :key="i.id" class="badge wk-badge" :class="{ pink: i.type !== 'clase', green: i.type === 'familia' || i.type === 'vida', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }">{{ i.allDay ? '' : i.start }} {{ i.title }}</span>
             <span v-for="t in dueOn(dayKey(d))" :key="t.id" class="badge red wk-badge"><Icon name="pin" :size="12" />{{ t.title }}</span>
+            <span v-for="t in doneOn(dayKey(d))" :key="t.id" class="badge green wk-badge dim"><Icon name="check" :size="12" />{{ t.title }}</span>
           </div>
         </div>
       </div>
@@ -123,6 +134,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         <h3 style="margin-bottom:6px">{{ relDay(d.k)[0].toUpperCase() + relDay(d.k).slice(1) }} <span class="muted small">· {{ longDate(parseDay(d.k)) }}</span></h3>
         <div v-for="i in d.items" :key="i.id" class="row small" style="padding:4px 0"><span class="muted" style="width:66px">{{ i.allDay ? 'Todo el día' : fmt12s(i.start) }}</span>{{ i.title }}</div>
         <TaskRow v-for="t in d.due" :key="t.id" :task="t" compact />
+        <TaskRow v-for="t in d.done" :key="t.id" :task="t" compact />
       </div>
     </template>
   </div>

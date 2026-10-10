@@ -76,7 +76,8 @@ export function learnedPrefs() {
 
 export function scoreTask(t, ctx) {
   const d = daysUntil(t.due)
-  const urgency = t.due == null ? 0.4 : d < 0 ? 5 : d === 0 ? 4.6 : d === 1 ? 4 : d <= 3 ? 2.8 : d <= 7 ? 1.4 : 0.6
+  // Primero lo que se vence pronto (hoy, mañana); lo atrasado va después, sin culpa
+  const urgency = t.due == null ? 0.4 : d < 0 ? (d >= -2 ? 3.2 : 2.4) : d === 0 ? 4.8 : d === 1 ? 4.2 : d <= 3 ? 2.9 : d <= 7 ? 1.4 : 0.6
   const importance = PRIORITY_W[t.priority] + (t.goalId ? 0.8 : 0)
   const rem = remaining(t)
   const free = ctx.freeNow?.minutes ?? 60
@@ -135,8 +136,10 @@ export function recommend(now = ui.now) {
   const parts = []
   parts.push(ctx.next ? `Tienes ${fmtDur(free)} libres antes de ${ctx.next.title.toLowerCase()}.` : `Tienes ${fmtDur(free)} libres.`)
   parts.push(`Lo mejor ahora es avanzar en "${top.title}" durante ${minutes} minutos`)
-  if (top.due != null) parts[1] += d < 0 ? ' (está atrasada, sin culpa: vamos por partes).' : ` (vence ${relDay(top.due)}).`
+  if (top.due != null) parts[1] += d < 0 ? ' (está atrasada, sin culpa: vamos por partes).' : d <= 1 ? `, porque se te vence ${relDay(top.due)}.` : ` (vence ${relDay(top.due)}).`
   else parts[1] += '.'
+  const late = d >= 0 && ranked.map((r) => r.t).find((x) => x.due && daysUntil(x.due) < 0)
+  if (late) parts.push(`Si te queda tiempo, retoma lo atrasado: "${late.title}".`)
   if (goal) parts.push(`Te acerca a "${goal.name}".`)
   let principle = null
   if ((top.postponed || 0) >= 2) {
