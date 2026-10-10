@@ -18,6 +18,42 @@ export function uniPlan() {
   return p
 }
 
+// Pasos de la rutina de Universidad: la noche anterior y el día de U.
+// auto: la hora se calcula sola con tu hora de salida y tus clases.
+export const UNI_STEPS = [
+  { t: 'Empacar los cuadernos de las materias', sec: 'antes' },
+  { t: 'Cartuchera: lápices, lapiceros, borrador, calculadora', sec: 'antes' },
+  { t: 'Tareas y guías al día', sec: 'antes' },
+  { t: 'Organizar la ropa que te vas a poner', sec: 'antes' },
+  { t: 'Poner a cargar el celular (y el power bank)', sec: 'antes' },
+  { t: 'Llaves de la moto, casco y documentos a la mano', sec: 'antes' },
+  { t: 'Revisar la ruta y la hora de salida', sec: 'antes' },
+  { t: 'Acostarte', sec: 'antes', auto: 'bed' },
+  { t: 'Levantarte sin negociar', sec: 'dia', auto: 'wake' },
+  { t: 'Alistarte', sec: 'dia', min: 45 },
+  { t: 'Salir de la casa', sec: 'dia', auto: 'leave' },
+  { t: 'Llegar a la casa', sec: 'dia', auto: 'home' },
+]
+export const uniRoutine = () => state.routines.find((r) => r.uni)
+// Próximo día de U (hoy si todavía no has vuelto a la casa)
+export function nextUniDay(now = new Date()) {
+  const m = now.getHours() * 60 + now.getMinutes()
+  for (let i = 0; i < 21; i++) {
+    const k = dayKey(addDays(now, i)), u = uniTimes(k)
+    if (u && (i > 0 || u.home > m)) return { k, i, ...u }
+  }
+  return null
+}
+// Ciclos de sueño (90 min + 15 para dormirte) para levantarte a la hora "wake" (minutos) de mañana
+export function sleepCycles(wake, now = new Date()) {
+  const m = now.getHours() * 60 + now.getMinutes()
+  let wakeAbs = wake + 1440 // mañana
+  if (m < 300 && wake > m) wakeAbs = wake // ya es de madrugada: la alarma es hoy
+  const opts = [6, 5, 4].map((n) => ({ n, h: n * 1.5, at: wakeAbs - 15 - n * 90 })).filter((o) => o.at >= m - 5)
+  const left = wakeAbs - m - 15
+  return { now: m, wake, opts: opts.map((o) => ({ ...o, at: ((o.at % 1440) + 1440) % 1440 })), left, cycles: Math.max(0, Math.floor(left / 90)) }
+}
+
 export const BAG = [
   ['cuadernos', 'Empaca los cuadernos de las materias de mañana', 'book'],
   ['cartuchera', 'Recarga la cartuchera: lápices, lapiceros, borrador, calculadora', 'edit'],
@@ -58,6 +94,15 @@ const WAKE = [
 ]
 const pick = (arr, seed) => arr[Math.abs(seed) % arr.length]
 
+// ---------- Alarmas (como una app de alarmas normal) ----------
+export function alarms() {
+  if (!state.settings.alarms) {
+    const p = uniPlan()
+    state.settings.alarms = [{ id: 'a1', at: p.wake || '06:30', days: [0, 1, 2, 3, 4, 5, 6], on: p.wakeOn !== false, label: '¡Arriba, Aliz!', wake: true }]
+  }
+  return state.settings.alarms
+}
+
 // ---------- El plan ----------
 const at = (k, min) => { const d = parseDay(k); d.setMinutes(min); return d.getTime() }
 function inQuiet(min) {
@@ -86,12 +131,18 @@ export function computePlan(now = new Date()) {
     const u = uniTimes(k)
     const uNext = uniTimes(next)
     const seed = parseDay(k).getDate()
-    // Alarma de despertar (en día de U, la calculada a partir de la hora de salida)
-    if (u) add('wake', k, u.wake, 'alarm', '¡Arriba, Aliz!', `${pick(WAKE, seed)} Hoy sales a las ${fmt12(u.leave)}.`, 'ir=plan')
-    else if (p.wakeOn) add('wake', k, hm(p.wake), 'alarm', '¡Arriba, Aliz!', pick(WAKE, seed), '')
+    // Alarmas: en día de U la de levantarte se calcula con la hora de salida (si la tienes activa)
+    const wd = parseDay(k).getDay()
+    const uniWake = u && p.uniWakeOn !== false
+    if (uniWake) add('wake', k, u.wake, 'alarm', '¡Arriba, Aliz!', `${pick(WAKE, seed)} Hoy sales a las ${fmt12(u.leave)}.`, 'ir=rutinas')
+    for (const al of alarms()) {
+      if (!al.on || !al.days.includes(wd)) continue
+      if (uniWake && al.wake) continue // ese día manda la alarma de la U
+      add('al' + al.id, k, hm(al.at), 'alarm', al.label || '¡Arriba, Aliz!', al.wake ? pick(WAKE, seed) : (al.note || 'Es la hora que programaste.'), '')
+    }
     if (u) {
-      add('salir15', k, u.leave - 15, 'notif', 'En 15 minutos sales', `Llaves, casco, maleta, celular. Primera clase a las ${fmt12(u.first)}.`, 'ir=plan')
-      add('salir', k, u.leave, 'alarm', '¡Hora de salir!', 'Ve con calma y con cuidado en la moto. Dios te acompaña.', 'ir=plan')
+      add('salir15', k, u.leave - 15, 'notif', 'En 15 minutos sales', `Llaves, casco, maleta, celular. Primera clase a las ${fmt12(u.first)}.`, 'ir=rutinas')
+      if (p.leaveOn !== false) add('salir', k, u.leave, 'alarm', '¡Hora de salir!', 'Ve con calma y con cuidado en la moto. Dios te acompaña.', 'ir=rutinas')
       u.cls.forEach((c, j) => add('clase' + j, k, hm(c.start) - 10, 'notif', `En 10 min: ${c.title}`, `${fmt12(hm(c.start))} – ${fmt12(hm(c.end))}${c.location ? ' · ' + c.location : ''}`, 'ir=agenda'))
       for (let j = 0; j < u.cls.length - 1; j++) {
         const gap = hm(u.cls[j + 1].start) - hm(u.cls[j].end)
@@ -101,8 +152,8 @@ export function computePlan(now = new Date()) {
     }
     // La noche antes de la U: maleta y dormir a tiempo
     if (uNext) {
-      add('maleta', k, hm(p.bagAt), 'notif', 'Alista tu maleta para mañana', 'Cuadernos, cartuchera, tareas, ropa, celular cargado, llaves y documentos. Toca para ver la lista.', 'ir=plan')
-      add('dormir30', k, uNext.bed - 30, 'notif', 'En 30 min a dormir', `Para levantarte a las ${fmt12(uNext.wake)} sin pereza y salir a las ${fmt12(uNext.leave)}.`, 'ir=plan')
+      add('maleta', k, hm(p.bagAt), 'notif', 'Alista tu maleta para mañana', 'Cuadernos, cartuchera, tareas, ropa, celular cargado, llaves y documentos. Toca para ver la lista.', 'ir=rutinas')
+      add('dormir30', k, uNext.bed - 30, 'notif', 'En 30 min a dormir', `Para levantarte a las ${fmt12(uNext.wake)} sin pereza y salir a las ${fmt12(uNext.leave)}.`, 'ir=rutinas')
       add('dormir', k, uNext.bed, 'notif', 'Hora de dormir', 'Celular lejos de la cama. Mañana ganas la primera batalla.', '')
     } else if (level >= 1) {
       add('dormir', k, hm(state.profile.sleep) - 30, 'notif', 'Vamos cerrando el día', 'En 30 min a dormir. Deja mañana preparado.', 'ir=rutinas')
@@ -147,7 +198,7 @@ function refresh() {
 }
 
 export function initDevice() {
-  watch(() => [ui.synced, state.tasks, state.events, state.habitLogs, state.settings.uniPlan, state.settings.home, state.settings.notify, state.subjects, state.profile.sleep],
+  watch(() => [ui.synced, state.tasks, state.events, state.habitLogs, state.settings.uniPlan, state.settings.alarms, state.settings.home, state.settings.notify, state.subjects, state.profile.sleep],
     () => { clearTimeout(timer); timer = setTimeout(refresh, 2500) }, { deep: true })
   setInterval(refresh, 20 * 60 * 1000)
   // Tiempo de pantalla que subió la app de Android mientras MuMu estaba cerrada
@@ -168,7 +219,7 @@ function handleHash() {
   const go = (v) => import('../store/actions').then((A) => A.go(v))
   if (m[1] === 'nueva') setTimeout(() => { ui.modal = { type: 'task', prefill: { due: dayKey() } } }, 600)
   if (m[1] === 'casa') { state.settings.enCasaAt = Date.now(); go('home') }
-  if (m[1] === 'ir') go(m[2])
+  if (m[1] === 'ir') go(m[2] === 'plan' ? 'rutinas' : m[2])
 }
 
 // Enlazar el celular: pide un token y se lo pasa a la app

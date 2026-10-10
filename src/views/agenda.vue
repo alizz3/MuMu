@@ -20,7 +20,8 @@ const timeline = computed(() => {
   const from = k === dayKey() ? nowMin() : null
   const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: i.allDay ? -1 : hm(i.start) }))
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
-  return [...items, ...free].sort((a, b) => a.at - b.at)
+  const tasks = [...dueOn(k), ...doneOn(k)].filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
+  return [...items, ...tasks, ...free].sort((a, b) => a.at - b.at)
 })
 const suggestion = computed(() => rankedTasks()[0]?.t)
 function useFree(b) {
@@ -42,8 +43,9 @@ const MARK_ICON = { yo: 'user', otro: 'users', recordatorio: 'pin', hecho: 'chec
 const markText = (m) => m && (m.status === 'otro' ? (m.who ? 'Va ' + m.who : 'Va alguien más') : MARK_TXT[m.status])
 const doneBlock = (i) => { const t = state.tasks.find((x) => x.id === i.taskId); const b = t?.blocks.find((x) => x.start === i.start && x.date === sel.value); if (b) b.done = !b.done }
 // Tareas del día: las que vencen y las que ya hiciste ese día
-const doneOn = (k) => state.tasks.filter((t) => t.status === 'completada' && (t.completedAt === k || (!t.completedAt && t.due === k)))
-const dayTasks = computed(() => { const k = sel.value; const due = dueOn(k).filter((t) => inScope('task', t)); const done = doneOn(k).filter((t) => inScope('task', t)); return { due, done, n: due.length + done.length } })
+const doneOn = (k) => state.tasks.filter((t) => t.status === 'completada' && (t.due ? t.due === k : t.completedAt === k))
+const timed = (t) => /^\d{2}:\d{2}$/.test(t.dueTime || '')
+const dayTasks = computed(() => { const k = sel.value; const due = dueOn(k).filter((t) => inScope('task', t) && !timed(t)); const done = doneOn(k).filter((t) => inScope('task', t) && !timed(t)); return { due, done, n: due.length + done.length } })
 const tasksOpen = computed({ get: () => state.settings.agendaTasksOpen !== false, set: (v) => (state.settings.agendaTasksOpen = v) })
 const tasksSub = computed(() => [dayTasks.value.due.length && `${dayTasks.value.due.length} vence${dayTasks.value.due.length === 1 ? '' : 'n'}`, dayTasks.value.done.length && `${dayTasks.value.done.length} hecha${dayTasks.value.done.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ') || 'Nada para este día')
 const googleOn = computed(() => state.integrations.google.some((a) => a.services.includes('calendar')))
@@ -75,18 +77,11 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
     <template v-if="view === 'dia'">
       <div class="row between"><h2 style="font-size:16px">{{ longDate(selD) }}</h2>
         <button v-if="googleOn && canUseBackend()" class="btn sm lav" @click="syncCalendar"><Icon name="refresh" :size="14" />Google</button></div>
-      <GroupCard title="Tareas del día" :sub="tasksSub" icon="check" color="#F7B6C2" :count="dayTasks.n" :open="tasksOpen" @toggle="tasksOpen = !tasksOpen">
-        <div v-if="dayTasks.due.length" class="tiny muted b dt-h"><Icon name="pin" :size="12" />Vence {{ sel === dayKey() ? 'hoy' : 'este día' }}</div>
-        <div v-if="dayTasks.due.length" class="list"><TaskRow v-for="t in dayTasks.due" :key="t.id" :task="t" /></div>
-        <div v-if="dayTasks.done.length" class="tiny muted b dt-h"><Icon name="check" :size="12" />Lo que hiciste</div>
-        <div v-if="dayTasks.done.length" class="list"><TaskRow v-for="t in dayTasks.done" :key="t.id" :task="t" /></div>
-        <p v-if="!dayTasks.n" class="tiny muted" style="margin:6px 0 0">No hay tareas que venzan ni que hayas hecho este día.</p>
-        <button class="btn sm ghost" style="margin-top:8px" @click="ui.modal = { type: 'task', prefill: { due: sel } }"><Icon name="plus" :size="14" />Tarea para este día</button>
-      </GroupCard>
       <div class="tl">
         <div v-for="i in timeline" :key="i.id" class="tl-row">
           <div class="tl-time">{{ fmt12(i.at) }}</div>
-          <div v-if="i.free" class="tl-card free">
+          <div v-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
+          <div v-else-if="i.free" class="tl-card free">
             <Icon name="sparkles" :size="18" />
             <div class="grow small"><b>Tienes {{ fmtDur(i.minutes) }} libres</b><div class="tiny" v-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
             <button v-if="suggestion && i.minutes >= 20" class="btn sm lav" @click="useFree(i)">Usar</button>
@@ -100,6 +95,13 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         </div>
         <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
       </div>
+      <GroupCard v-if="dayTasks.n" title="Tareas del día" :sub="tasksSub" icon="check" color="#F7B6C2" :count="dayTasks.n" :open="tasksOpen" @toggle="tasksOpen = !tasksOpen">
+        <div v-if="dayTasks.due.length" class="tiny muted b dt-h"><Icon name="pin" :size="12" />Vence {{ sel === dayKey() ? 'hoy' : 'este día' }}</div>
+        <div v-if="dayTasks.due.length" class="list"><TaskRow v-for="t in dayTasks.due" :key="t.id" :task="t" /></div>
+        <div v-if="dayTasks.done.length" class="tiny muted b dt-h"><Icon name="check" :size="12" />Ya hecha</div>
+        <div v-if="dayTasks.done.length" class="list hecha"><TaskRow v-for="t in dayTasks.done" :key="t.id" :task="t" /></div>
+        <button class="btn sm ghost" style="margin-top:8px" @click="ui.modal = { type: 'task', prefill: { due: sel } }"><Icon name="plus" :size="14" />Tarea para este día</button>
+      </GroupCard>
     </template>
 
     <!-- Semana -->

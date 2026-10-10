@@ -3,7 +3,7 @@
     <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://mu-mu-blond.vercel.app\"}}]</string>
     <string name="widget_desc">Lo próximo, tus tareas y botones para agregar o marcar que llegaste</string>
     <string name="atajo_tarea">Nueva tarea</string>
-    <string name="atajo_plan">Día de U</string>
+    <string name="atajo_plan">Rutinas</string>
     <string name="atajo_enfoque">Enfoque</string>
     <string name="tile_tarea">Tarea MuMu</string>
     <string name="tile_casa">Ya llegué</string>

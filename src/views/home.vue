@@ -9,7 +9,7 @@ import { Icon, Pet, Ring } from '../components/ui'
 import { habitIcon, goalIcon } from '../components/iconFor'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
-import { uniTimes, BAG, uniPlan } from '../services/device'
+import { uniTimes, uniRoutine, nextUniDay } from '../services/device'
 import { addDays } from '../engine/time'
 
 const k = computed(() => dayKey(ui.now))
@@ -43,7 +43,7 @@ const casaIdeas = computed(() => [
 ].filter(Boolean))
 function marcarCasa() { state.settings.enCasaAt = Date.now() }
 // Mañana hay U: la maleta
-const uTomorrow = computed(() => { const kk = dayKey(addDays(ui.now, 1)); const u = uniTimes(kk); if (!u) return null; const b = uniPlan().bag[kk] || {}; return { ...u, done: BAG.filter(([id]) => b[id]).length } })
+const uTomorrow = computed(() => { const kk = dayKey(addDays(ui.now, 1)); const u = uniTimes(kk); const r = uniRoutine(); if (!u || !r || ui.now.getHours() < 14) return null; const antes = r.steps.map((s, i) => [s, i]).filter(([s]) => s.sec === 'antes'); const log = state.routineLogs[kk]?.[r.id] || []; return { ...u, n: antes.length, done: antes.filter(([, i]) => log.includes(i)).length } })
 const uToday = computed(() => uniTimes(k.value))
 
 function startNow() {
@@ -65,6 +65,7 @@ const welcome = () => { d.value.welcomed = true }
         <div>
           <div class="hero-greet">{{ greeting(ui.now) }}, {{ state.settings.ownerName }}! <Icon :name="ui.now.getHours() < 18 ? 'sun' : 'moon'" :size="20" class="inl" /></div>
           <div class="muted">{{ longDate(ui.now) }} · {{ fmt12(nowMin(ui.now)) }}</div>
+          <button v-if="!enCasa" class="chip casa-btn" @click="marcarCasa"><Icon name="home" :size="14" />Estoy en mi casa</button>
         </div>
         <div class="row" style="align-items:center">
           <div class="speech grow" @click="welcome">{{ pet.msg }}</div>
@@ -93,12 +94,11 @@ const welcome = () => { d.value.welcomed = true }
         <button class="iconbtn" aria-label="Cerrar" @click="state.settings.enCasaAt = null"><Icon name="x" :size="16" /></button></div>
       <button v-for="(c, i) in casaIdeas" :key="i" class="btn ghost sm" style="justify-content:flex-start" @click="c.go"><Icon :name="c.icon" :size="15" />{{ c.t }}</button>
     </section>
-    <!-- Día de U -->
-    <section v-if="uTomorrow || uToday" class="card row" style="gap:10px;cursor:pointer" @click="A.go('plan')">
-      <span class="gico" style="background:color-mix(in srgb,#C3B3D4 40%,var(--surface))"><Icon :name="uTomorrow && !uToday ? 'bag' : 'cap'" :size="18" /></span>
-      <div class="grow" v-if="uToday"><b class="small">Hoy hay U</b><div class="tiny muted">Sal a las {{ fmt12(uToday.leave) }} · llegas ~{{ fmt12(uToday.home) }}</div></div>
-      <div class="grow" v-else><b class="small">Mañana hay U · alista tu maleta</b><div class="tiny muted">{{ uTomorrow.done }}/{{ BAG.length }} listo · a dormir {{ fmt12(uTomorrow.bed) }} · sales {{ fmt12(uTomorrow.leave) }}</div></div>
-      <button v-if="uToday && !enCasa" class="btn sm ghost" @click.stop="marcarCasa"><Icon name="home" :size="14" />Ya llegué</button>
+    <!-- Día de U: avisa que toca la rutina -->
+    <section v-if="uTomorrow || uToday" class="card row" style="gap:10px;cursor:pointer" @click="A.go('rutinas')">
+      <span class="gico" style="background:color-mix(in srgb,#C3B3D4 40%,var(--surface))"><Icon :name="uToday ? 'cap' : 'moon'" :size="18" /></span>
+      <div class="grow" v-if="uToday"><b class="small">Hoy tienes U</b><div class="tiny muted">Sal a las {{ fmt12(uToday.leave) }} · llegas ~{{ fmt12(uToday.home) }}</div></div>
+      <div class="grow" v-else><b class="small">Mañana tienes U · ve haciendo tu rutina</b><div class="tiny muted">Noche anterior {{ uTomorrow.done }}/{{ uTomorrow.n }} · sales {{ fmt12(uTomorrow.leave) }}</div></div>
       <Icon name="chev" :size="16" class="muted" />
     </section>
     <!-- Resumen del día -->

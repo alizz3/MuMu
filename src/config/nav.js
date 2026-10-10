@@ -10,7 +10,6 @@ export const NAV = [
     { id: 'proyectos', label: 'Proyectos', icon: 'folder' },
     { id: 'habitos', label: 'Hábitos', icon: 'heart' },
     { id: 'rutinas', label: 'Rutinas', icon: 'routine' },
-    { id: 'plan', label: 'Día de U', icon: 'alarm' },
     { id: 'sueno', label: 'Sueño', icon: 'moon' },
     { id: 'celular', label: 'Celular y redes', icon: 'phone' },
   ] },
@@ -30,6 +29,7 @@ export const NAV = [
     { id: 'casa', label: 'Casa de la vaquita', icon: 'house' },
   ] },
   { group: 'Sistema', items: [
+    { id: 'alarmas', label: 'Alarmas', icon: 'alarm' },
     { id: 'notificaciones', label: 'Notificaciones', icon: 'bell' },
     { id: 'ajustes', label: 'Configuración', icon: 'settings' },
   ] },
