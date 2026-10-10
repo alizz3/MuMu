@@ -9,6 +9,7 @@ import { Icon, Pet } from '../components/ui'
 import { routineIcon } from '../components/iconFor'
 import GroupCard from '../components/GroupCard.vue'
 import ListBar from '../components/ListBar.vue'
+import DiaUCard from '../components/DiaUCard.vue'
 
 const k = dayKey()
 const open = ref(ui.now.getHours() >= 18 ? 'ro2' : 'ro1')
@@ -45,6 +46,7 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
 
 <template>
   <div class="stack">
+    <DiaUCard />
     <div class="card soft row">
       <Pet pose="coffee" :size="80" />
       <div class="grow small">
