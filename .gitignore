@@ -6,3 +6,4 @@ dist-preview
 !.env.example
 .vercel
 *serviceAccount*.json
+secretos-mumu-android.txt
