@@ -295,3 +295,6 @@ a.btn, a.btn:hover { text-decoration: none; }
 .tl-task { flex: 1; min-width: 0; border-left: 4px solid var(--pink-300); border-radius: 16px; padding: 2px 8px; background: var(--surface); }
 .tl-task.hecha, .list.hecha { opacity: .55; }
 .casa-btn { margin-top: 8px; }
+.now-line { flex: 1; position: relative; height: 2px; background: #E5484D; border-radius: 2px; align-self: center; margin: 4px 0; }
+.now-line i { position: absolute; left: -6px; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: #E5484D; }
+.tl-time.now-t { color: #E5484D; font-weight: 700; }

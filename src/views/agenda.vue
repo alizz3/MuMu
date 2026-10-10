@@ -21,7 +21,9 @@ const timeline = computed(() => {
   const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: i.allDay ? -1 : hm(i.start) }))
   const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
   const tasks = [...dueOn(k), ...doneOn(k)].filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
-  return [...items, ...tasks, ...free].sort((a, b) => a.at - b.at)
+  // Línea de "ahora", como en Google Calendar (solo hoy)
+  const now = k === dayKey() ? [{ id: 'now', now: true, at: nowMin(ui.now) + 0.5 }] : []
+  return [...items, ...tasks, ...free, ...now].sort((a, b) => a.at - b.at)
 })
 const suggestion = computed(() => rankedTasks()[0]?.t)
 function useFree(b) {
@@ -79,8 +81,9 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
         <button v-if="googleOn && canUseBackend()" class="btn sm lav" @click="syncCalendar"><Icon name="refresh" :size="14" />Google</button></div>
       <div class="tl">
         <div v-for="i in timeline" :key="i.id" class="tl-row">
-          <div class="tl-time">{{ fmt12(i.at) }}</div>
-          <div v-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
+          <div class="tl-time" :class="{ 'now-t': i.now }">{{ fmt12(Math.floor(i.at)) }}</div>
+          <div v-if="i.now" class="now-line" role="presentation"><i></i></div>
+          <div v-else-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
           <div v-else-if="i.free" class="tl-card free">
             <Icon name="sparkles" :size="18" />
             <div class="grow small"><b>Tienes {{ fmtDur(i.minutes) }} libres</b><div class="tiny" v-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
@@ -93,7 +96,7 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
             <button v-if="i.kind === 'block' && !i.done" class="btn sm primary" @click.stop="A.startFocus({ taskId: i.taskId, minutes: hm(i.end) - hm(i.start) }); A.go('enfoque')"><Icon name="play" :size="12" /></button>
           </div>
         </div>
-        <div v-if="!timeline.length" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
+        <div v-if="!timeline.some((x) => !x.now)" class="empty"><Pet pose="sleep" :size="90" /><p>Día terminado. A descansar.</p></div>
       </div>
       <GroupCard v-if="dayTasks.n" title="Tareas del día" :sub="tasksSub" icon="check" color="#F7B6C2" :count="dayTasks.n" :open="tasksOpen" @toggle="tasksOpen = !tasksOpen">
         <div v-if="dayTasks.due.length" class="tiny muted b dt-h"><Icon name="pin" :size="12" />Vence {{ sel === dayKey() ? 'hoy' : 'este día' }}</div>
