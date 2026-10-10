@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { state, ui } from '../store'
-import { go } from '../store/actions'
+import { go, openAulaTask } from '../store/actions'
 import { ask, toast } from '../engine/game'
 import { MONTHS, WEEKDAYS_LONG, fmt12s, toHM } from '../engine/time'
 import { Empty, Icon } from '../components/ui'
@@ -62,7 +62,9 @@ function openN(n) {
   let target = n.open
   // Si la tarea ya no existe (el profe la quitó de Tu Aula), se avisa en vez de llevarte a cualquier lado
   if (n.key?.startsWith('aula:')) {
-    const t = target?.type === 'task' ? state.tasks.find((x) => x.id === target.id) : state.tasks.find((x) => x.id === aulaOf(n)?.taskId)
+    let t = target?.type === 'task' ? state.tasks.find((x) => x.id === target.id) : state.tasks.find((x) => x.id === aulaOf(n)?.taskId)
+    // La actividad sigue en Tu Aula pero su tarea se perdió: se vuelve a crear con sus datos
+    if (!t && aulaOf(n)) { t = openAulaTask(aulaOf(n).id); if (t) return }
     if (!t) { const sj = subjectOf(n); return toast(`Esa actividad ya no está${sj ? ` en ${sj}` : ''}: parece que la quitaron de Tu Aula`) }
     target = { type: 'task', id: t.id }
   }
