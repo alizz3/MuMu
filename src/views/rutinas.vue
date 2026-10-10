@@ -7,6 +7,8 @@ import { rankedTasks } from '../engine/planner'
 import { dayKey, keyPlus, hm, toHM, fmt12, fmtDur } from '../engine/time'
 import { Icon, Pet } from '../components/ui'
 import { routineIcon } from '../components/iconFor'
+import GroupCard from '../components/GroupCard.vue'
+import ListBar from '../components/ListBar.vue'
 
 const k = dayKey()
 const open = ref(ui.now.getHours() >= 18 ? 'ro2' : 'ro1')
@@ -18,6 +20,9 @@ function toggle(r, i) {
   if (j >= 0) { if (arr.length === r.steps.length) markRewarded(`rutina:${r.id}:${k}`); arr.splice(j, 1) } else arr.push(i)
   if (arr.length === r.steps.length) awardOnce(`rutina:${r.id}:${k}`, 8, 12, `Rutina ${r.name} completa`)
 }
+const RCOL = ['#FFE29A', '#C3B3D4', '#B9DCCB', '#BFD7F0', '#F7B6C2']
+const rcolor = (r, i) => r.color || RCOL[i % RCOL.length]
+const sub = (r) => `${fmtDur(r.steps.reduce((a, s) => a + (s.min || 0), 0))}${(logs.value[r.id] || []).length === r.steps.length && r.steps.length ? ' · completa hoy' : ''}`
 const newStep = ref('')
 function addStep(r) { if (newStep.value.trim()) { r.steps.push({ t: newStep.value.trim(), min: 10 }); newStep.value = '' } }
 
@@ -55,13 +60,9 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
       <label class="field"><span>Dormir ideal</span><input class="input" type="time" v-model="state.profile.sleep" /></label>
     </div>
 
-    <div v-for="r in state.routines" :key="r.id" class="card">
-      <button class="row" style="all:unset;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer" @click="open = open === r.id ? null : r.id" :aria-expanded="open === r.id">
-        <span class="ico"><Icon :name="routineIcon(r)" :size="19" /></span>
-        <div class="grow"><div class="b">{{ r.name }}</div><div class="tiny muted">{{ (logs[r.id] || []).length }}/{{ r.steps.length }} hoy · {{ fmtDur(r.steps.reduce((a, s) => a + (s.min || 0), 0)) }}</div></div>
-        <Icon name="chev" :size="18" />
-      </button>
-      <div v-if="open === r.id" style="margin-top:10px">
+    <ListBar :count="state.routines.length" one="rutina" />
+    <GroupCard v-for="(r, ri) in state.routines" :key="r.id" :title="r.name" :sub="sub(r)" :icon="routineIcon(r)" :color="rcolor(r, ri)" :count="`${(logs[r.id] || []).length}/${r.steps.length}`" :open="open === r.id" @toggle="open = open === r.id ? null : r.id">
+      <div>
         <div v-for="(s, i) in r.steps" :key="i" class="item">
           <button class="check" :class="{ on: isDone(r, i) }" :aria-label="`Paso ${s.t}`" @click="toggle(r, i)"><Icon v-if="isDone(r, i)" name="check" :size="14" :stroke="3" /></button>
           <div class="grow small" :class="{ 'done-txt': isDone(r, i) }">{{ s.t }}</div>
@@ -78,6 +79,6 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
           </div>
         </div>
       </div>
-    </div>
+    </GroupCard>
   </div>
 </template>

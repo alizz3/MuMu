@@ -10,6 +10,7 @@ import { setModoU } from '../engine/modoU'
 import { BRAND } from '../config/brand'
 import { toast, ask } from '../engine/game'
 import { Icon, Pet, Chip } from '../components/ui'
+import Seg from '../components/Seg.vue'
 
 const tab = ref('cuentas')
 const backendOk = computed(() => API.canUseBackend())
@@ -77,9 +78,9 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
 
 <template>
   <div class="stack">
-    <div class="chips"><Chip v-for="t in [['cuentas', 'Cuentas'], ['integraciones', 'Integraciones'], ['notif', 'Notificaciones'], ['apariencia', 'Apariencia'], ['privacidad', 'Privacidad']]" :key="t[0]" :active="tab === t[0]" @click="tab = t[0]">{{ t[1] }}</Chip></div>
+    <Seg v-model="tab" :options="[['cuentas', 'Cuentas', 'user'], ['integraciones', 'Integraciones', 'puzzle'], ['notif', 'Notificaciones', 'bell'], ['apariencia', 'Apariencia', 'sparkles'], ['privacidad', 'Privacidad', 'shield']]" label="Secciones de configuración" />
 
-    <p v-if="!ui.backend" class="notice"><Icon name="shield" :size="18" />Estás en <b>modo local</b>: todo funciona y se guarda en este navegador. Las integraciones (Google, Tu Aula, IA, finanzas) se activan cuando la app está desplegada con su servidor en Vercel (instrucciones en el README).</p>
+    <p v-if="!ui.backend" class="notice"><Icon name="shield" :size="18" /><span>Estás en <b>modo local</b>: todo funciona y se guarda en este navegador. Las integraciones (Google, Tu Aula, IA, finanzas) se activan cuando la app está desplegada con su servidor en Vercel (instrucciones en el README).</span></p>
 
     <!-- Cuentas -->
     <template v-if="tab === 'cuentas'">

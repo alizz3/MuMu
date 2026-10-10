@@ -59,7 +59,7 @@
       "destination": "/api/router?path=:path*"
     },
     {
-      "source": "/:view(agenda|ajustes|analitica|aprendizaje|casa|celular|cerebro|correo|dios|enfoque|experimentos|finanzas|habitos|mas|notificaciones|objetivos|proyectos|rutinas|sueno|tareas|trabajo|universidad|vida)/:rest*",
+      "source": "/:view(agenda|ajustes|analitica|aprendizaje|casa|celular|cerebro|correo|dios|enfoque|experimentos|finanzas|habito|habitos|mas|notificaciones|objetivos|proyectos|rutinas|sueno|tareas|trabajo|universidad|vida)/:rest*",
       "destination": "/index.html"
     }
   ]

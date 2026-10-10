@@ -6,8 +6,15 @@ import { award } from '../engine/game'
 import { dayKey, shortDate } from '../engine/time'
 import { Icon, Pet, Ring, Bar } from '../components/ui'
 import { goalIcon } from '../components/iconFor'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
 
 const courses = computed(() => state.courses)
+// Filtro como en Tareas (se recuerda)
+const filt = computed({ get: () => state.settings.courseFilter || 'curso', set: (v) => (state.settings.courseFilter = v) })
+const isDone = (c) => c.status === 'completado'
+const FILTERS = computed(() => [['curso', 'En curso', 'play', courses.value.filter((c) => !isDone(c)).length], ['hechos', 'Completados', 'check', courses.value.filter(isDone).length], ['todos', 'Todos', null, courses.value.length]])
+const shown = computed(() => courses.value.filter((c) => filt.value === 'todos' || (filt.value === 'hechos') === isDone(c)))
 const totalH = computed(() => courses.value.reduce((a, c) => a + (c.hours || 0), 0))
 const goal = (c) => state.goals.find((g) => g.id === c.goalId)
 const proj = (c) => state.projects.find((p) => p.id === c.projectId)
@@ -26,8 +33,13 @@ function startCourse(c) { const t = A.addTask({ title: `Estudiar: ${c.title}`, c
       <div class="grow"><h2 style="font-size:17px">Aprendizaje con propósito</h2><p class="small">Nada de coleccionar certificados: cada curso se conecta con un objetivo, un proyecto y una práctica real.</p>
         <div class="tiny muted" style="margin-top:4px">{{ courses.filter((c) => c.status === 'completado').length }} completados · {{ totalH }} h registradas</div></div>
     </div>
-    <div class="row between"><h2 style="font-size:16px">Mis cursos</h2><button class="iconbtn add" aria-label="Nuevo curso" @click="ui.modal = { type: 'course', prefill: { platform: 'Platzi', status: 'en curso', progress: 0, hours: 0 } }"><Icon name="plus" /></button></div>
-    <div v-for="c in courses" :key="c.id" class="card">
+    <div class="row" style="gap:8px">
+      <Seg v-model="filt" :options="FILTERS" label="Qué cursos ver" class="grow" style="min-width:0" />
+      <button class="iconbtn add" aria-label="Nuevo curso" @click="ui.modal = { type: 'course', prefill: { platform: 'Platzi', status: 'en curso', progress: 0, hours: 0 } }"><Icon name="plus" /></button>
+    </div>
+    <ListBar :count="shown.length" one="curso" />
+    <p v-if="!shown.length" class="small muted" style="text-align:center">{{ filt === 'hechos' ? 'Todavía no terminas ningún curso. Ya llegará.' : 'No hay cursos aquí. Toca + para agregar uno.' }}</p>
+    <div v-for="c in shown" :key="c.id" class="card">
       <div class="row"><Ring :value="c.progress" :size="52" color="var(--lav-500)" :label="c.title" />
         <div class="grow"><div class="b small">{{ c.title }}</div><div class="tiny muted">{{ c.platform }} · {{ c.skill }} · {{ c.hours }} h · {{ (c.sessions || []).length }} sesiones</div></div>
         <button class="iconbtn" aria-label="Editar curso" @click="ui.modal = { type: 'course', id: c.id }"><Icon name="edit" :size="16" /></button></div>

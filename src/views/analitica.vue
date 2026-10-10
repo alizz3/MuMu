@@ -5,7 +5,8 @@ import * as A from '../store/actions'
 import { insights, series } from '../engine/insights'
 import { habitStats, overallConsistency } from '../engine/game'
 import { fmtDur, WEEKDAYS } from '../engine/time'
-import { Icon, Pet, Ring, Bar, Chip } from '../components/ui'
+import { Icon, Pet, Ring, Bar } from '../components/ui'
+import Seg from '../components/Seg.vue'
 import { habitIcon } from '../components/iconFor'
 
 const range = ref(14)
@@ -32,7 +33,7 @@ const CHARTS = [
     </div>
     <p v-if="!ins.length" class="small muted">Aún no hay suficientes datos. Con unos días de registros aparecerán patrones.</p>
 
-    <div class="chips"><Chip v-for="r in [7, 14, 28]" :key="r" :active="range === r" @click="range = r">Últimos {{ r }} días</Chip></div>
+    <Seg v-model="range" :options="[[7, '7 días'], [14, '14 días'], [28, '28 días']]" label="Periodo: últimos días" />
     <div class="grid2">
       <div class="kpi"><b>{{ fmtDur(sum('focus')) }}</b><span>de enfoque</span></div>
       <div class="kpi"><b>{{ sum('tasks') }}</b><span>tareas completadas</span></div>

@@ -254,3 +254,40 @@ textarea.input { min-height: 80px; resize: vertical; }
 .badge.dim { opacity: .55; }
 a.btn, a.btn:hover { text-decoration: none; }
 .offline-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--lav-100); color: var(--lav-700); font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 0 0 12px 12px; text-align: center; }
+
+/* ---------- Espacio con Dios: pasos, preguntas con dictado y oración ---------- */
+.god-steps { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
+.god-steps b { color: var(--ink); }
+.god-q { gap: 4px; }
+.god-qt { font-family: var(--serif); font-style: italic; font-size: 16.5px; color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
+.god-n { font-family: var(--font); font-style: normal; font-size: 11px; font-weight: 700; flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--lav-100); color: var(--lav-700); transform: translateY(-2px); }
+.god-in { position: relative; margin-top: 4px; }
+.god-in .input { padding-right: 52px; }
+.god-in textarea.input { min-height: 72px; }
+.god-in .mic-btn { position: absolute; right: 6px; top: 6px; }
+.god-in input.input + .mic-btn { top: 50%; transform: translateY(-50%); }
+.mic-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--lav-100); color: var(--lav-700); transition: background .2s, color .2s; }
+.mic-btn.sm { width: 34px; height: 34px; }
+.mic-btn.on { background: linear-gradient(135deg, #BE5279, #A84268); color: #fff; animation: micPulse 1.4s ease-out infinite; }
+@keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(233, 138, 166, .6) } 100% { box-shadow: 0 0 0 14px rgba(233, 138, 166, 0) } }
+@media (prefers-reduced-motion: reduce) { .mic-btn.on { animation: none; outline: 3px solid var(--pink-300); } }
+.mic-live { color: var(--pink-700); font-weight: 500; }
+.prayer-card { background: linear-gradient(150deg, var(--pink-50), var(--lav-50)); border-color: var(--lav-100); }
+.prayer-text { font-size: 17.5px; line-height: 1.6; margin-top: 10px; color: var(--ink); }
+.god-talk { border-bottom: 0; border-radius: 14px; padding: 12px; background: var(--surface-2); }
+.god-talk.on { background: var(--lav-100); }
+.god-talk input { width: 20px; height: 20px; accent-color: #A84268; flex: none; }
+.god-past summary { cursor: pointer; color: var(--pink-700); margin-top: 4px; }
+.god-past p { margin-top: 6px; line-height: 1.55; color: var(--ink-2); }
+
+/* ---------- Enfoque en pantalla completa ---------- */
+.focus-full { position: fixed; inset: 0; z-index: 200; background: var(--bg); background-image: var(--bg-grad); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px 16px; text-align: center; overflow-y: auto; }
+.focus-full:fullscreen { background-color: var(--bg); }
+.focus-full::backdrop { background: var(--bg); }
+.focus-full-x { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; }
+.focus-full-title { font-size: clamp(20px, 5vw, 32px); max-width: 680px; }
+.focus-full-ring { position: relative; width: min(86vw, 62vh, 460px); aspect-ratio: 1; display: grid; place-items: center; }
+.focus-full-ring .ring, .focus-full-ring .ring svg { width: 100% !important; height: 100% !important; }
+.focus-full-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.focus-full-in .pet { width: 34%; height: auto; }
+.focus-full-time { font-size: clamp(56px, 16vw, 112px); font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }

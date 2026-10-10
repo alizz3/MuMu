@@ -4,6 +4,8 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { keyPlus, fmtDur, relDay, fmt12s } from '../engine/time'
 import { Icon, Pet } from '../components/ui'
+import ListBar from '../components/ListBar.vue'
+import GroupCard from '../components/GroupCard.vue'
 
 // Cada tipo de momento con su ícono y color, del mismo estilo que el resto de MuMu
 const TYPES = {
@@ -17,6 +19,16 @@ const QUICK = [['familia', 'Tiempo con mis papás', 60], ['mascotas', 'Jugar con
 const week = computed(() => state.life.filter((l) => l.date >= keyPlus(-6)))
 const minutes = computed(() => week.value.reduce((a, l) => a + (l.minutes || 0), 0))
 const byType = computed(() => week.value.reduce((m, l) => ((m[l.type] = (m[l.type] || 0) + (l.minutes || 0)), m), {}))
+// Momentos agrupados por época, plegables como en Tareas
+const PERIODS = [{ key: 'semana', label: 'Esta semana', icon: 'sun', color: '#FFE29A', from: () => keyPlus(-6) }, { key: 'mes', label: 'Este mes', icon: 'calendar', color: '#C3B3D4', from: () => keyPlus(-30) }, { key: 'antes', label: 'Antes', icon: 'clock', color: '#B9DCCB', from: () => '' }]
+const lFold = computed(() => (state.settings.lifeFolded ||= {}))
+const lifeGroups = computed(() => {
+  const g = PERIODS.map((p) => ({ ...p, v: [] }))
+  state.life.forEach((l) => g.find((p) => (l.date || '') >= p.from()).v.push(l))
+  return g.filter((p) => p.v.length)
+})
+const allFolded = computed(() => lifeGroups.value.length > 0 && lifeGroups.value.every((g) => lFold.value[g.key]))
+const foldAll = () => { const v = !allFolded.value; lifeGroups.value.forEach((g) => (lFold.value[g.key] = v)) }
 const when = (l) => [relDay(l.date), l.start && l.end ? `${fmt12s(l.start)} – ${fmt12s(l.end)}` : '', l.minutes ? fmtDur(l.minutes) : ''].filter(Boolean).join(' · ')
 </script>
 
@@ -44,10 +56,10 @@ const when = (l) => [relDay(l.date), l.start && l.end ? `${fmt12s(l.start)} – 
       </div>
     </div>
 
-    <div class="card">
-      <h3>Momentos</h3>
+    <ListBar :count="state.life.length" one="momento" :foldable="lifeGroups.length > 1" :all-folded="allFolded" @fold="foldAll" />
+    <GroupCard v-for="g in lifeGroups" :key="g.key" :title="g.label" :icon="g.icon" :color="g.color" :count="g.v.length" :open="!lFold[g.key]" @toggle="lFold[g.key] = !lFold[g.key]">
       <div class="list">
-        <button v-for="l in state.life" :key="l.id" class="item mom" @click="ui.modal = { type: 'life', id: l.id }">
+        <button v-for="l in g.v" :key="l.id" class="item mom" @click="ui.modal = { type: 'life', id: l.id }">
           <span class="gico big" :style="tint(T(l.type).color)"><Icon :name="T(l.type).icon" :size="18" /></span>
           <div class="grow" style="min-width:0">
             <div class="title-line">{{ l.title }}</div>
@@ -57,9 +69,9 @@ const when = (l) => [relDay(l.date), l.start && l.end ? `${fmt12s(l.start)} – 
           </div>
           <a v-if="l.photos" class="btn sm lav" :href="l.photos" target="_blank" rel="noopener" @click.stop><Icon name="image" :size="14" />Fotos</a>
         </button>
-        <p v-if="!state.life.length" class="tiny muted" style="padding:10px 0">Aún no hay momentos. Toca uno de arriba cuando pase algo bonito.</p>
       </div>
-    </div>
+    </GroupCard>
+    <p v-if="!state.life.length" class="tiny muted" style="text-align:center">Aún no hay momentos. Toca uno de arriba cuando pase algo bonito.</p>
   </div>
 </template>
 

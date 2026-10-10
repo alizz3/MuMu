@@ -6,7 +6,9 @@ import { relDay, dayKey } from '../engine/time'
 import { syncGmail, canUseBackend, canOrganize, gmailAction } from '../services/api'
 import { toast, ask } from '../engine/game'
 import { inScope } from '../engine/modoU'
-import { Icon, Chip, Empty } from '../components/ui'
+import { Icon, Empty } from '../components/ui'
+import Seg from '../components/Seg.vue'
+import ListBar from '../components/ListBar.vue'
 import Contact from '../components/Contact.vue'
 
 const cat = ref('importante')
@@ -17,6 +19,8 @@ const inCat = (e, c) => (c === 'ignorado' ? e.status === 'ignorado' : e.category
 const scoped = computed(() => state.emails.filter((e) => inScope('email', e)))
 const list = computed(() => scoped.value.filter((e) => inCat(e, cat.value)).filter((e) => acc.value === 'todas' || e.account === acc.value))
 const accounts = computed(() => ['todas', ...new Set(scoped.value.map((e) => e.account))])
+const catOpts = computed(() => CATS.map((c) => [c[0], c[1], c[2], scoped.value.filter((e) => inCat(e, c[0])).length]))
+const accOpts = computed(() => accounts.value.map((a) => [a, a === 'todas' ? 'Todas' : a[0].toUpperCase() + a.slice(1)]))
 const evFor = ref(null)
 const ev = ref({ date: dayKey(), start: '10:00', end: '11:00' })
 const noteFor = ref(null)
@@ -59,8 +63,8 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
     </div>
     <p v-if="gmailOn && !organizeOn" class="notice"><Icon name="lock" :size="14" class="inl" /> Para mandar a la papelera y crear etiquetas en tu Gmail, dale a tu cuenta el permiso <b>"Organizar Gmail"</b> en Configuración → Cuentas.</p>
     <p v-if="state.emails.some((e) => e.demo)" class="notice"><Icon name="flask" :size="14" class="inl" /> Los correos marcados “ejemplo” no son reales: muestran cómo se verán tus correos clasificados.</p>
-    <div class="chips"><Chip v-for="c in CATS" :key="c[0]" :active="cat === c[0]" @click="cat = c[0]"><Icon :name="c[2]" :size="14" />{{ c[1] }} · {{ scoped.filter((e) => inCat(e, c[0])).length }}</Chip></div>
-    <div class="chips"><Chip v-for="a in accounts" :key="a" :active="acc === a" @click="acc = a">{{ a }}</Chip></div>
+    <Seg v-model="cat" :options="catOpts" label="Categoría de correo" />
+    <ListBar :count="list.length" one="correo" :views="accounts.length > 2 ? accOpts : null" v-model:view="acc" views-label="Cuenta" verb="Cuenta:" />
 
     <!-- Acciones en grupo -->
     <div v-if="list.length && organizeOn" class="card tight row wrap" style="gap:8px">

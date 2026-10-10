@@ -99,3 +99,13 @@ export const ICONS = {
   face4: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 10h.01M15 10h.01M9 14.5c1.5 1.3 4.5 1.3 6 0',
   face5: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 10h.01M15 10h.01M8 14c2 3 6 3 8 0z',
 }
+// Iconos de Espacio con Dios y Enfoque (dictado, voz, flotante, pantalla completa)
+Object.assign(ICONS, {
+  speaker: 'M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12',
+  stopsq: 'M7 7h10v10H7z',
+  pip: 'M3 5h18v14H3zM12 12h7v5h-7z',
+  fullscreen: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  minimize: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
+  hands: 'M12 21v-6M12 15l-3-4V5a1.5 1.5 0 0 1 3 0v6M12 15l3-4V5a1.5 1.5 0 0 0-3 0M9 11l-3 3v3l3 4M15 11l3 3v3l-3 4',
+  save: 'M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6',
+})
