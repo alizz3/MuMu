@@ -82,8 +82,8 @@ const SCHEMAS = {
     { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' }, { k: 'url', l: 'Enlace del curso (Tu Aula, Classroom…)', t: 'url' },
     { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'projectId', l: 'Semestre (proyecto)', t: 'select', o: opts(state.projects.filter((p) => p.area === 'universidad')) },
     { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
-    { k: 'cipa', l: 'Mi CIPA (nombre del grupo)', t: 'text' }, { k: 'cipaMembers', l: 'Integrantes de la CIPA (uno por línea: Nombre · celular)', t: 'textarea' },
-    { k: 'cipaLink', l: 'Grupo de WhatsApp de la CIPA (enlace)', t: 'url' },
+    { k: 'cipa', l: 'Mi CIPA (nombre del grupo)', t: 'text' }, { k: 'cipaMembers', l: 'Integrantes de la CIPA (uno por línea: Nombre · correo o celular)', t: 'textarea' },
+    { k: 'cipaLink', l: 'Chat de la CIPA (enlace de Google Chat o WhatsApp)', t: 'url' },
   ] }),
   course: () => ({ title: 'Curso', coll: 'courses', fields: [
     { k: 'title', l: 'Curso', t: 'text', req: true }, { k: 'platform', l: 'Plataforma', t: 'text' }, { k: 'skill', l: 'Habilidad', t: 'text' },
@@ -254,15 +254,28 @@ const prettyVal = (f, v) => {
 // Dictar en vez de escribir (título de tareas y captura rápida)
 const dict = useDictado()
 function talk(id, set) { if (!dict.supported) return toast(DICTADO_FALLBACK); dict.toggle(id, set) }
-// CIPA de la materia: nombre, integrantes (Nombre · celular) y enlace del grupo
+// CIPA de la materia: nombre, integrantes (Nombre · correo o celular) y enlace del chat del grupo
+const UT_ACC = 'azmejiaf@ut.edu.co'
 function cipaOf(t) {
   const sj = state.subjects.find((x) => x.id === t?.subjectId)
   if (!sj) return null
   const members = String(sj.cipaMembers || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
-    const phone = (l.match(/\+?\d[\d\s-]{6,}\d/) || [''])[0].replace(/[\s-]/g, '')
-    return { name: l.replace(phone ? l.match(/\+?\d[\d\s-]{6,}\d/)[0] : '', '').replace(/[·,\-–|:]+\s*$/, '').trim() || 'Integrante', phone }
+    const em = l.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] || ''
+    const ph = l.match(/\+?\d[\d\s-]{6,}\d/)?.[0] || ''
+    const name = l.replace(em, '').replace(ph, '').replace(/[·,\-–|:<>()]+/g, ' ').replace(/\s+/g, ' ').trim()
+    return { name: name || em || 'Integrante', email: em, phone: ph.replace(/[\s-]/g, '') }
   })
-  return { name: sj.cipa || '', members, link: sj.cipaLink || '' }
+  const link = sj.cipaLink || ''
+  return { name: sj.cipa || '', members, link, google: /chat\.google\.com|mail\.google\.com\/chat/.test(link) }
+}
+// Copia un mensajito sobre la tarea y abre el chat del grupo (Google Chat con la cuenta de la U)
+async function toGroup(t) {
+  const c = cipaOf(t); if (!c?.link) return
+  const msg = `Hola equipo, sobre «${t.title}»${t.due ? ` (vence ${relDay(t.due)}${/^\d{2}:\d{2}$/.test(t.dueTime || '') ? ' ' + fmt12s(t.dueTime) : ''})` : ''}: ${t.uploader ? `la sube ${t.uploader.split(' ')[0]}. ` : ''}`
+  try { await navigator.clipboard.writeText(msg); toast('Mensaje copiado: pégalo en el chat') } catch { /* sin portapapeles */ }
+  let url = c.link
+  if (c.google) { try { const u = new URL(url); u.searchParams.set('authuser', UT_ACC); url = u.toString() } catch { /* enlace raro */ } }
+  window.open(url, '_blank', 'noopener')
 }
 </script>
 
@@ -355,7 +368,11 @@ function cipaOf(t) {
           <label class="row small" style="gap:8px"><input type="checkbox" :checked="!!task.group" @change="task.group = $event.target.checked" /><b class="wi"><Icon name="users" :size="14" />En grupo{{ cipaOf(task)?.name ? ' · ' + cipaOf(task).name : ' (CIPA)' }}</b></label>
           <template v-if="task.group">
             <div v-if="cipaOf(task)?.members.length" class="row wrap" style="gap:4px 12px">
-              <Contact v-for="mb in cipaOf(task).members" :key="mb.name" class="small" :value="mb.phone || mb.name" kind="phone" :label="mb.name" :text="`Hola ${mb.name.split(' ')[0]}, sobre «${task.title}»: `" />
+              <template v-for="mb in cipaOf(task).members" :key="mb.name">
+                <Contact v-if="mb.email" class="small" :value="mb.email" kind="email" :as="UT_ACC" :label="mb.name" :text="`Hola ${mb.name.split(' ')[0]}, sobre «${task.title}»: `" />
+                <Contact v-else-if="mb.phone" class="small" :value="mb.phone" kind="phone" :label="mb.name" :text="`Hola ${mb.name.split(' ')[0]}, sobre «${task.title}»: `" />
+                <span v-else class="small">{{ mb.name }}</span>
+              </template>
             </div>
             <p v-else class="tiny muted" style="margin:0">Agrega los integrantes de tu CIPA editando la materia.</p>
             <div class="row wrap" style="gap:6px;align-items:center">
@@ -365,7 +382,7 @@ function cipaOf(t) {
                 <option v-for="mb in cipaOf(task)?.members || []" :key="mb.name" :value="mb.name">{{ mb.name }}</option>
                 <option v-if="task.uploader && !(cipaOf(task)?.members || []).some((mb) => mb.name === task.uploader)" :value="task.uploader">{{ task.uploader }}</option>
               </select>
-              <a v-if="cipaOf(task)?.link" class="btn sm ghost" :href="cipaOf(task).link" target="_blank" rel="noopener"><Icon name="chat" :size="14" />Grupo</a>
+              <button v-if="cipaOf(task)?.link" class="btn sm ghost" @click="toGroup(task)"><Icon name="chat" :size="14" />{{ cipaOf(task).google ? 'Google Chat' : 'Chat del grupo' }}</button>
             </div>
             <button v-if="task.uploader && task.status !== 'completada'" class="btn sm lav" style="align-self:flex-start" @click="task.notes = `${task.notes ? task.notes + '\n' : ''}La subió ${task.uploader} (CIPA).`; A.completeTask(task.id)"><Icon name="check" :size="14" />Ya la subió {{ task.uploader.split(' ')[0] }}</button>
           </template>
