@@ -30,6 +30,7 @@ const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filte
         <span v-else-if="proj">· {{ proj.name }}</span>
         <span v-if="subs" class="wi" style="gap:3px">· <Icon name="check" :size="12" />{{ subs }}</span>
         <span v-if="SRC[t.source] && !compact" class="wi" style="gap:3px" :aria-label="SRC[t.source][1] || 'Google Calendar'">· <Icon :name="SRC[t.source][0]" :size="12" />{{ SRC[t.source][1] }}</span>
+        <span v-if="t.group" class="wi" style="gap:3px">· <Icon name="users" :size="12" />CIPA{{ t.uploader ? ' · la sube ' + t.uploader.split(' ')[0] : '' }}</span>
         <span v-if="t.demo" class="badge demo">ejemplo</span>
       </div>
     </button>

@@ -12,6 +12,7 @@ import { planTask, remaining } from '../engine/planner'
 import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { goalIcon } from './iconFor'
+import Contact from './Contact.vue'
 import { toast, ask } from '../engine/game'
 import { useDictado, juntar, DICTADO_FALLBACK } from '../services/dictado'
 
@@ -35,6 +36,8 @@ const SCHEMAS = {
       { k: 'projectId', l: 'Proyecto', t: 'select', o: opts(state.projects) },
       { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) },
       { k: 'subjectId', l: 'Materia', t: 'select', o: opts(state.subjects) },
+      { k: 'group', l: 'Es en grupo (CIPA)', t: 'bool' },
+      { k: 'uploader', l: '¿Quién la sube? (vacío = yo)', t: 'text' },
       { k: 'source', l: 'Fuente', t: 'select', o: ['manual', 'gmail', 'aula', 'classroom', 'calendario', 'proyecto', 'aprendizaje', 'rutina', 'objetivo'] },
       { k: 'tags', l: 'Etiquetas (separadas por coma)', t: 'tags' },
     ],
@@ -79,6 +82,8 @@ const SCHEMAS = {
     { k: 'institution', l: 'Institución', t: 'select', o: ['UT', 'Classroom', 'Otra'] }, { k: 'teacher', l: 'Docente', t: 'text' }, { k: 'url', l: 'Enlace del curso (Tu Aula, Classroom…)', t: 'url' },
     { k: 'teacherEmail', l: 'Correo del docente (sus correos salen como importantes)', t: 'text' }, { k: 'teacherPhone', l: 'Celular del docente', t: 'text' }, { k: 'projectId', l: 'Semestre (proyecto)', t: 'select', o: opts(state.projects.filter((p) => p.area === 'universidad')) },
     { k: 'color', l: 'Color', t: 'color' }, { k: 'schedule', l: 'Horario', t: 'schedule' }, { k: 'notes', l: 'Notas y recursos', t: 'textarea' },
+    { k: 'cipa', l: 'Mi CIPA (nombre del grupo)', t: 'text' }, { k: 'cipaMembers', l: 'Integrantes de la CIPA (uno por línea: Nombre · celular)', t: 'textarea' },
+    { k: 'cipaLink', l: 'Grupo de WhatsApp de la CIPA (enlace)', t: 'url' },
   ] }),
   course: () => ({ title: 'Curso', coll: 'courses', fields: [
     { k: 'title', l: 'Curso', t: 'text', req: true }, { k: 'platform', l: 'Plataforma', t: 'text' }, { k: 'skill', l: 'Habilidad', t: 'text' },
@@ -249,6 +254,16 @@ const prettyVal = (f, v) => {
 // Dictar en vez de escribir (título de tareas y captura rápida)
 const dict = useDictado()
 function talk(id, set) { if (!dict.supported) return toast(DICTADO_FALLBACK); dict.toggle(id, set) }
+// CIPA de la materia: nombre, integrantes (Nombre · celular) y enlace del grupo
+function cipaOf(t) {
+  const sj = state.subjects.find((x) => x.id === t?.subjectId)
+  if (!sj) return null
+  const members = String(sj.cipaMembers || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const phone = (l.match(/\+?\d[\d\s-]{6,}\d/) || [''])[0].replace(/[\s-]/g, '')
+    return { name: l.replace(phone ? l.match(/\+?\d[\d\s-]{6,}\d/)[0] : '', '').replace(/[·,\-–|:]+\s*$/, '').trim() || 'Integrante', phone }
+  })
+  return { name: sj.cipa || '', members, link: sj.cipaLink || '' }
+}
 </script>
 
 <template>
@@ -334,6 +349,27 @@ function talk(id, set) { if (!dict.supported) return toast(DICTADO_FALLBACK); di
           <span class="small muted">%</span>
         </div>
         <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ linkLabel }}</a>
+
+        <!-- En grupo (CIPA) -->
+        <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft stack" style="gap:8px;margin-top:10px">
+          <label class="row small" style="gap:8px"><input type="checkbox" :checked="!!task.group" @change="task.group = $event.target.checked" /><b class="wi"><Icon name="users" :size="14" />En grupo{{ cipaOf(task)?.name ? ' · ' + cipaOf(task).name : ' (CIPA)' }}</b></label>
+          <template v-if="task.group">
+            <div v-if="cipaOf(task)?.members.length" class="row wrap" style="gap:4px 12px">
+              <Contact v-for="mb in cipaOf(task).members" :key="mb.name" class="small" :value="mb.phone || mb.name" kind="phone" :label="mb.name" :text="`Hola ${mb.name.split(' ')[0]}, sobre «${task.title}»: `" />
+            </div>
+            <p v-else class="tiny muted" style="margin:0">Agrega los integrantes de tu CIPA editando la materia.</p>
+            <div class="row wrap" style="gap:6px;align-items:center">
+              <span class="small">La sube:</span>
+              <select class="input" style="width:auto;padding:6px 10px" :value="task.uploader || ''" @change="task.uploader = $event.target.value || null" aria-label="Quién la sube">
+                <option value="">Yo</option>
+                <option v-for="mb in cipaOf(task)?.members || []" :key="mb.name" :value="mb.name">{{ mb.name }}</option>
+                <option v-if="task.uploader && !(cipaOf(task)?.members || []).some((mb) => mb.name === task.uploader)" :value="task.uploader">{{ task.uploader }}</option>
+              </select>
+              <a v-if="cipaOf(task)?.link" class="btn sm ghost" :href="cipaOf(task).link" target="_blank" rel="noopener"><Icon name="chat" :size="14" />Grupo</a>
+            </div>
+            <button v-if="task.uploader && task.status !== 'completada'" class="btn sm lav" style="align-self:flex-start" @click="task.notes = `${task.notes ? task.notes + '\n' : ''}La subió ${task.uploader} (CIPA).`; A.completeTask(task.id)"><Icon name="check" :size="14" />Ya la subió {{ task.uploader.split(' ')[0] }}</button>
+          </template>
+        </div>
 
         <div class="card tight soft" style="margin-top:14px">
           <div class="small b" style="margin-bottom:6px">Subtareas</div>
