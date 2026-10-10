@@ -35,6 +35,16 @@ export function sessionForTitle(title) {
 export function sessionsOf(subjectId) {
   return state.events.filter((e) => !e.recurring && e.type !== 'recordatorio').map((e) => decorate(e, e.date)).filter((e) => e.subjectId === subjectId).sort((a, b) => (a.date + a.start < b.date + b.start ? -1 : 1))
 }
+// La sesión en curso (si es ahora) o la próxima de una materia
+export function nextSessionOf(subjectId, now = ui.now) {
+  const k = dayKey(now), m = nowMin(now)
+  for (const e of sessionsOf(subjectId)) {
+    if (e.date < k) continue
+    if (e.date === k && hm(e.end) <= m) continue
+    return { ...e, live: e.date === k && hm(e.start) <= m }
+  }
+  return null
+}
 function decorate(e, k) {
   const meta = state.eventMeta?.[e.id] || {}
   const subj = e.subjectId ? state.subjects.find((x) => x.id === e.subjectId) : (meta.subjectId === '' ? null : (meta.subjectId && state.subjects.find((x) => x.id === meta.subjectId)) || (e.type !== 'recordatorio' && /UT|universidad/i.test(`${e.calendarName || ''} ${e.account || ''}`) ? subjectForTitle(e.title) : null))
@@ -48,6 +58,7 @@ export function itemsOn(k) {
     if (e.date === k || (e.recurring && e.recurring.includes(wd) && e.date <= k && !(e.skip || []).includes(k))) out.push(decorate(e, k))
   }
   for (const s of state.subjects) {
+    if ((s.schedule || []).length && out.some((x) => x.subjectId === s.id)) continue // ya está en tu calendario: no se duplica
     for (const sl of s.schedule || []) if (sl.weekday === wd) out.push({ id: `${s.id}_${k}_${sl.start}`, title: `Clase: ${s.short || s.name}`, start: sl.start, end: sl.end, type: 'clase', subjectId: s.id, color: s.color, kind: 'class', source: s.institution })
   }
   for (const t of state.tasks) for (const b of t.blocks || []) if (b.date === k) out.push({ id: `${t.id}_${b.start}`, title: t.title, start: b.start, end: b.end, type: 'bloque', taskId: t.id, kind: 'block', done: b.done })
