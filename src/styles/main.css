@@ -291,3 +291,4 @@ a.btn, a.btn:hover { text-decoration: none; }
 .focus-full-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .focus-full-in .pet { width: 34%; height: auto; }
 .focus-full-time { font-size: clamp(56px, 16vw, 112px); font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+.dt-h { display: flex; align-items: center; gap: 5px; margin: 10px 0 2px; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }

@@ -448,3 +448,20 @@ export function markVisit() {
     if (away >= 2) award(10, 10, 'Volviste. Eso es lo que importa')
   }
 }
+
+// Una sola vez: quita las clases de ejemplo del domingo (las clases reales vienen de Google Calendar)
+// y pone los colores y el orden de las materias como los quiere Aliz.
+const SUBJ_ORDER = [[/ingl/i, '#A9C8F0'], [/program|poo\b|objetos/i, '#C3B3D4'], [/[eé]tica/i, '#F6DC8B'], [/sistemas/i, '#A8E0D8'], [/estad/i, '#F7B6C2'], [/c[aá]lculo/i, '#F7B6C2']]
+export function fixSubjects() {
+  const st = state.settings
+  if (!st.migNoSunday) {
+    state.subjects.forEach((s) => { if (s.schedule?.length) s.schedule = s.schedule.filter((h) => h.weekday !== 0) })
+    st.migNoSunday = true
+  }
+  if (!st.migSubjColors) {
+    const rank = (s) => { const i = SUBJ_ORDER.findIndex(([re]) => re.test(s.name)); return i < 0 ? 99 : i }
+    state.subjects.forEach((s) => { const i = rank(s); if (i < 99) s.color = SUBJ_ORDER[i][1] })
+    state.subjects = [...state.subjects].sort((a, b) => rank(a) - rank(b))
+    st.migSubjColors = true
+  }
+}

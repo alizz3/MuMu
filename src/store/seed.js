@@ -28,10 +28,10 @@ export function seed() {
   ]
 
   const subjects = [
-    { id: 's1', name: 'Programación Orientada a Objetos', short: 'POO', institution: 'UT', color: '#C3B3D4', teacher: 'Edwin Mateus', schedule: [{ weekday: 0, start: '08:00', end: '10:00' }], notes: '' },
-    { id: 's2', name: 'Ética Profesional', short: 'Ética', institution: 'UT', color: '#F6DC8B', teacher: 'María Arévalo', schedule: [{ weekday: 0, start: '10:30', end: '12:00' }], notes: '' },
-    { id: 's3', name: 'Teoría de Sistemas', short: 'Sistemas', institution: 'UT', color: '#B9DCCB', teacher: 'Edna Triana', schedule: [{ weekday: 0, start: '13:00', end: '15:00' }], notes: '' },
-    { id: 's4', name: 'Estadística', short: 'Estadística', institution: 'UT', color: '#F7B6C2', teacher: '', schedule: [{ weekday: 0, start: '15:30', end: '17:00' }], notes: '' },
+    { id: 's1', name: 'Programación Orientada a Objetos', short: 'POO', institution: 'UT', color: '#C3B3D4', teacher: 'Edwin Mateus', schedule: [], notes: '' },
+    { id: 's2', name: 'Ética Profesional', short: 'Ética', institution: 'UT', color: '#F6DC8B', teacher: 'María Arévalo', schedule: [], notes: '' },
+    { id: 's3', name: 'Teoría de Sistemas', short: 'Sistemas', institution: 'UT', color: '#B9DCCB', teacher: 'Edna Triana', schedule: [], notes: '' },
+    { id: 's4', name: 'Estadística', short: 'Estadística', institution: 'UT', color: '#F7B6C2', teacher: '', schedule: [], notes: '' },
   ]
 
   const T = (o) => ({ status: 'pendiente', priority: 'media', tags: [], subtasks: [], notes: '', postponed: 0, createdAt: past(3), source: 'manual', estimate: 30, category: 'personal', ...o })
