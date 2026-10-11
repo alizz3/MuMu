@@ -8,7 +8,7 @@ export const GOAL_ICON = {
 }
 export const goalIcon = (g) => (g && GOAL_ICON[g.category]) || 'target'
 
-const HABIT_WORDS = [
+const HABIT_WORDS = [[/cuarto|habitaci|ordenar|arreglar|tender la cama/i, 'bed'], 
   [/dios|ora(r|ción)|biblia|devocional/i, 'dove'], [/dorm|sueño|acostar/i, 'moon'], [/despert|madrug/i, 'sun'],
   [/ingl[eé]s|idioma/i, 'globe'], [/estudi|leer|lectura|libro/i, 'book'], [/proyecto|c[oó]digo|program|portafolio/i, 'laptop'],
   [/agua|tomar/i, 'drop'], [/ejercicio|caminar|correr|gym|entren/i, 'zap'], [/familia|pap[aá]s|mam[aá]/i, 'heart'],
