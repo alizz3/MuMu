@@ -49,6 +49,7 @@ const uToday = computed(() => uniTimes(k.value))
 
 function startNow() {
   const r = rec.value
+  if (r.kind === 'away') return r.task ? (ui.modal = { type: 'task', id: r.task.id }) : A.go('agenda')
   if (r.kind === 'rest') return A.go('rutinas')
   if (r.kind === 'life') return A.go('vida')
   A.startFocus({ taskId: r.task?.id, minutes: r.minutes || 25, mode: r.kind === 'micro' ? 'empezar' : 'pomodoro' })

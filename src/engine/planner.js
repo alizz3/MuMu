@@ -35,6 +35,15 @@ export function sessionForTitle(title) {
 export function sessionsOf(subjectId) {
   return state.events.filter((e) => !e.recurring && e.type !== 'recordatorio').map((e) => decorate(e, e.date)).filter((e) => e.subjectId === subjectId).sort((a, b) => (a.date + a.start < b.date + b.start ? -1 : 1))
 }
+// En un día de U, entre que sales y vuelves a la casa no se sugiere hacer cosas de la casa
+export function awayForUni(k, m) {
+  const cls = itemsOn(k).filter((i) => !i.allDay && (i.type === 'clase' || (i.subjectId && /UT|universidad/i.test(`${i.calendarName || ''} ${i.account || ''}`))))
+  if (!cls.length) return false
+  const p = state.settings.uniPlan || {}
+  const leave = hm(p.overrides?.[k]?.leave || p.leave || '06:30')
+  const back = Math.max(...cls.map((c) => hm(c.end))) + (p.commute || 40)
+  return m >= leave && m < back
+}
 // La sesión en curso (si es ahora) o la próxima de una materia
 export function nextSessionOf(subjectId, now = ui.now) {
   const k = dayKey(now), m = nowMin(now)
@@ -150,6 +159,12 @@ export function recommend(now = ui.now) {
   const prefs = learnedPrefs()
   const name = state.settings.ownerName
 
+  // Fuera de casa (o en la U): nada de "hagamos tal cosa"; solo lo que debes tener presente hoy
+  const away = (state.presence && !state.presence.home && Date.now() - state.presence.at < 14 * 3600e3) || awayForUni(ctx.k, ctx.m)
+  if (away && !ctx.inNow) {
+    const today = rankedTasks(ctx).map((r) => r.t).filter((t) => t.due && daysUntil(t.due) <= 0)
+    return { kind: 'away', pose: 'happy', title: 'Estás fuera de casa', minutes: 0, reason: today.length ? `Para tener presente: hoy vence "${today[0].title}"${today.length > 1 ? ` y ${today.length - 1} más` : ''}. Cuando llegues lo vemos con calma.` : 'Disfruta donde estás. Cuando llegues te sugiero qué hacer.', task: today[0] || null, ctx }
+  }
   if (ctx.night) {
     return { kind: 'rest', pose: 'sleep', title: 'Ir cerrando el día', minutes: 15, reason: `Ya es tarde, ${name}. Lo mejor ahora es la rutina de noche y dejar mañana preparado. Descansar también es avanzar.`, actions: ['rutina'], ctx }
   }

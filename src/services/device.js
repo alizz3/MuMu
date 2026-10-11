@@ -103,7 +103,7 @@ export function alarms() {
   return state.settings.alarms
 }
 
-const CASA_IDS = new Set(['manana', 'medio', 'habitos', 'hoy'])
+const CASA_IDS = new Set() // los avisos llegan igual estés o no en tu casa
 
 // ---------- ¿Estás en tu casa? ----------
 export function setPresence(home, via = 'boton') {

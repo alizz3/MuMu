@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { itemsOn, freeBlocks, dueOn, rankedTasks, isOpen } from '../engine/planner'
+import { itemsOn, freeBlocks, dueOn, rankedTasks, isOpen, awayForUni } from '../engine/planner'
 import { dayKey, parseDay, addDays, WEEKDAYS, MONTHS, fmt12s, fmt12, fmtDur, hm, toHM, longDate, relDay, nowMin } from '../engine/time'
 import { syncCalendar, canUseBackend } from '../services/api'
 import { Icon, Pet } from '../components/ui'
@@ -19,7 +19,9 @@ const timeline = computed(() => {
   const k = sel.value
   const from = k === dayKey() ? nowMin() : null
   const items = itemsOn(k).filter((i) => inScope('event', i)).map((i) => ({ ...i, at: i.allDay ? -1 : hm(i.start) }))
-  const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b }))
+  // Fuera de casa (en la U o porque saliste) el hueco se muestra, pero sin sugerirte cosas de la casa
+  const outNow = k === dayKey() && state.presence && !state.presence.home && Date.now() - state.presence.at < 14 * 3600e3
+  const free = freeBlocks(k, from).map((b) => ({ id: 'free' + b.start, free: true, at: b.start, ...b, away: awayForUni(k, b.start) || (outNow && b.start <= nowMin(ui.now) + 30) }))
   const tasks = dueOn(k).filter((t) => timed(t) && inScope('task', t)).map((t) => ({ id: 'tk' + t.id, task: t, at: hm(t.dueTime) }))
   // Línea de "ahora", como en Google Calendar (solo hoy)
   let now = []
@@ -105,8 +107,8 @@ const googleOn = computed(() => state.integrations.google.some((a) => a.services
           <div v-else-if="i.task" class="tl-task" :class="{ hecha: i.task.status === 'completada' }"><TaskRow :task="i.task" compact /></div>
           <div v-else-if="i.free" class="tl-card free">
             <Icon name="sparkles" :size="18" />
-            <div class="grow small"><b>Tienes {{ fmtDur(i.minutes) }} libres</b><div class="tiny" v-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
-            <button v-if="suggestion && i.minutes >= 20" class="btn sm lav" @click="useFree(i)">Usar</button>
+            <div class="grow small"><b>{{ i.away ? `${fmtDur(i.minutes)} sin nada agendado` : `Tienes ${fmtDur(i.minutes)} libres` }}</b><div class="tiny" v-if="i.away">Estás fuera de casa: descansa o aprovecha para repasar</div><div class="tiny" v-else-if="suggestion">Podrías avanzar: {{ suggestion.title }}</div></div>
+            <button v-if="!i.away && suggestion && i.minutes >= 20" class="btn sm lav" @click="useFree(i)">Usar</button>
           </div>
           <div v-else class="tl-card" :class="{ click: i.kind === 'event' || i.kind === 'class', rem: i.type === 'recordatorio', dim: ['otro', 'recordatorio', 'hecho'].includes(i.mark?.status) }" :style="{ borderLeftColor: i.color || (i.type === 'clase' ? 'var(--lav-300)' : i.type === 'bloque' ? 'var(--butter)' : i.type === 'familia' || i.type === 'vida' ? 'var(--mint)' : 'var(--pink-300)'), background: i.type === 'familia' || i.type === 'vida' ? 'color-mix(in srgb, var(--mint) 22%, var(--surface))' : '' }" @click="openEv(i)">
             <span v-if="i.nowPct != null" class="now-over" :style="{ top: i.nowPct + '%' }" :title="fmt12(nowMin(ui.now))"><i></i></span>
