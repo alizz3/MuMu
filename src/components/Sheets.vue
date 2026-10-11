@@ -296,6 +296,7 @@ const prettyVal = (f, v) => {
 }
 // Dictar en vez de escribir (título de tareas y captura rápida)
 const dict = useDictado()
+watch(() => dict.error.value, (v) => { if (v) toast(v) })
 function talk(id, set) { if (!dict.supported) return toast(DICTADO_FALLBACK); dict.toggle(id, set) }
 // CIPA de la materia: nombre, integrantes (Nombre · correo o celular) y enlace del chat del grupo
 const UT_ACC = 'azmejiaf@ut.edu.co'
