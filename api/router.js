@@ -24,7 +24,7 @@ const ROUTES = {
   'google/start': googleStart, 'google/callback': googleCallback, 'google/accounts': googleAccounts,
   'gmail/inbox': gmailInbox, 'gmail/action': gmailAction, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
   'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/sync': cronSync, 'cron/aula': cronSync, 'finance/summary': financeSummary, 'gtasks/sync': gtasksSync, 'drive/list': driveList,
-  'device/link': device.link, 'device/plan': device.plan, 'device/uso': device.uso,
+  'device/link': device.link, 'device/plan': device.plan, 'device/uso': device.uso, 'device/casa': device.casa,
 }
 
 export default async function router(req, res) {

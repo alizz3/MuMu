@@ -9,7 +9,7 @@ import { Icon, Pet, Ring } from '../components/ui'
 import { habitIcon, goalIcon } from '../components/iconFor'
 import TaskRow from '../components/TaskRow.vue'
 import { inScope } from '../engine/modoU'
-import { uniTimes, uniRoutine, nextUniDay } from '../services/device'
+import { uniTimes, uniRoutine, nextUniDay, setPresence } from '../services/device'
 import { addDays } from '../engine/time'
 
 const k = computed(() => dayKey(ui.now))
@@ -41,7 +41,8 @@ const casaIdeas = computed(() => [
   habitsLeft.value[0] && { icon: 'heart', t: `Hábito: ${habitsLeft.value[0].name}`, go: () => A.go('habitos') },
   { icon: 'leaf', t: 'Descansar o compartir en familia', go: () => A.go('vida') },
 ].filter(Boolean))
-function marcarCasa() { state.settings.enCasaAt = Date.now() }
+function marcarCasa() { setPresence(true, 'boton') }
+const fuera = computed(() => state.presence && !state.presence.home)
 // Mañana hay U: la maleta
 const uTomorrow = computed(() => { const kk = dayKey(addDays(ui.now, 1)); const u = uniTimes(kk); const r = uniRoutine(); if (!u || !r || ui.now.getHours() < 14) return null; const antes = r.steps.map((s, i) => [s, i]).filter(([s]) => s.sec === 'antes'); const log = state.routineLogs[kk]?.[r.id] || []; return { ...u, n: antes.length, done: antes.filter(([, i]) => log.includes(i)).length } })
 const uToday = computed(() => uniTimes(k.value))
@@ -65,7 +66,11 @@ const welcome = () => { d.value.welcomed = true }
         <div>
           <div class="hero-greet">{{ greeting(ui.now) }}, {{ state.settings.ownerName }}! <Icon :name="ui.now.getHours() < 18 ? 'sun' : 'moon'" :size="20" class="inl" /></div>
           <div class="muted">{{ longDate(ui.now) }} · {{ fmt12(nowMin(ui.now)) }}</div>
-          <button v-if="!enCasa" class="chip casa-btn" @click="marcarCasa"><Icon name="home" :size="14" />Estoy en mi casa</button>
+          <div class="row" style="gap:6px;margin-top:8px;align-items:center">
+            <span v-if="state.presence" class="tiny muted wi" style="gap:4px"><Icon :name="state.presence.home ? 'home' : 'pin'" :size="13" />{{ state.presence.home ? 'En casa' : 'Fuera de casa' }}</span>
+            <button v-if="!state.presence?.home" class="chip" @click="marcarCasa"><Icon name="home" :size="14" />Estoy en mi casa</button>
+            <button v-else class="chip" @click="setPresence(false, 'boton')"><Icon name="pin" :size="14" />Salí</button>
+          </div>
         </div>
         <div class="row" style="align-items:center">
           <div class="speech grow" @click="welcome">{{ pet.msg }}</div>

@@ -183,6 +183,7 @@ export function seed() {
     eventMarks: {},
     eventMeta: {}, // nombre, sesión y materia que tú le pones a un evento de Google en MuMu
     device: {}, // plan de alarmas, recordatorios y widget para la app de Android
+    presence: null, // { home: true/false, at, via }: si estás en tu casa (ubicación o botón)
     usoCelular: null, // tiempo de pantalla que sube la app de Android
   }
 }

@@ -103,6 +103,29 @@ export function alarms() {
   return state.settings.alarms
 }
 
+const CASA_IDS = new Set(['manana', 'medio', 'habitos', 'hoy'])
+
+// ---------- ¿Estás en tu casa? ----------
+export function setPresence(home, via = 'boton') {
+  const cur = state.presence
+  if (cur && cur.home === home && Date.now() - cur.at < 5 * 60e3) return
+  state.presence = { home, at: Date.now(), via }
+  if (home && (!cur || !cur.home)) state.settings.enCasaAt = Date.now()
+  if (!home) state.settings.enCasaAt = null
+}
+const dist = (a, b) => { const R = 6371e3, r = Math.PI / 180, dLa = (b.lat - a.lat) * r, dLo = (b.lng - a.lng) * r; const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)) }
+// Con la app abierta: si ya diste permiso de ubicación, revisa cada 10 min si estás en tu casa
+async function checkHere() {
+  const home = state.settings.home
+  if (!home || !navigator.geolocation || document.hidden) return
+  try { const p = await navigator.permissions?.query({ name: 'geolocation' }); if (p && p.state !== 'granted') return } catch { return }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const d = dist(home, { lat: pos.coords.latitude, lng: pos.coords.longitude })
+    const r = (home.r || 150) + Math.min(150, pos.coords.accuracy || 0)
+    if (d <= r) setPresence(true, 'ubicacion'); else if (d > r * 1.6) setPresence(false, 'ubicacion')
+  }, () => {}, { enableHighAccuracy: false, maximumAge: 5 * 60e3, timeout: 20000 })
+}
+
 // ---------- El plan ----------
 const at = (k, min) => { const d = parseDay(k); d.setMinutes(min); return d.getTime() }
 function inQuiet(min) {
@@ -121,7 +144,8 @@ export function computePlan(now = new Date()) {
     const t = at(k, min)
     if (t <= now.getTime() || t > now.getTime() + 8 * 864e5) return
     if (kind === 'notif' && inQuiet(min)) return
-    plan.push({ id: `${id}-${k}`, at: t, kind, title, text, open })
+    // Los "¿cómo vas?" de tareas y hábitos solo suenan si estás en tu casa (si estás fuera, te los dice al llegar)
+    plan.push({ id: `${id}-${k}`, at: t, kind, title, text, open, ...(CASA_IDS.has(id) ? { casa: true } : {}) })
   }
   const open = state.tasks.filter(isOpen)
   const habitDay = dayKey(now)
@@ -208,6 +232,9 @@ export function initDevice() {
     try { importUso(JSON.parse(state.usoCelular.json)) } catch { /* datos dañados */ }
   }, { immediate: true })
   handleHash()
+  setTimeout(checkHere, 4000)
+  setInterval(checkHere, 10 * 60e3)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkHere() })
   window.addEventListener('hashchange', handleHash)
 }
 
@@ -218,7 +245,7 @@ function handleHash() {
   history.replaceState(null, '', location.pathname + location.search)
   const go = (v) => import('../store/actions').then((A) => A.go(v))
   if (m[1] === 'nueva') setTimeout(() => { ui.modal = { type: 'task', prefill: { due: dayKey() } } }, 600)
-  if (m[1] === 'casa') { state.settings.enCasaAt = Date.now(); go('home') }
+  if (m[1] === 'casa') { setPresence(m[2] !== 'sali', 'boton'); go('home') }
   if (m[1] === 'ir') go(m[2] === 'plan' ? 'rutinas' : m[2])
 }
 

@@ -25,6 +25,7 @@ public class Aviso extends BroadcastReceiver {
             i.putExtra("title", x.optString("title"));
             i.putExtra("text", x.optString("text"));
             i.putExtra("open", x.optString("open"));
+            i.putExtra("casa", x.optBoolean("casa", false));
         }
         return PendingIntent.getBroadcast(c, id.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
@@ -59,6 +60,13 @@ public class Aviso extends BroadcastReceiver {
         String id = i.getStringExtra("id");
         if (id == null) return;
         String title = i.getStringExtra("title"), text = i.getStringExtra("text"), open = i.getStringExtra("open");
+        // "¿Cómo vas?" de tareas y hábitos: si sabemos que estás fuera de casa, se guarda para cuando llegues
+        if (i.getBooleanExtra("casa", false) && Store.p(c).contains("enCasa") && !Store.p(c).getBoolean("enCasa", true)) {
+            java.util.Set<String> p = new java.util.HashSet<>(Store.p(c).getStringSet("pendientes", new java.util.HashSet<>()));
+            p.add(title);
+            Store.p(c).edit().putStringSet("pendientes", p).apply();
+            return;
+        }
         if ("alarm".equals(i.getStringExtra("kind"))) Alarma.sonar(c, id, title, text, open);
         else notificar(c, id.hashCode(), title, text, open);
     }

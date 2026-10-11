@@ -33,6 +33,7 @@ function setHome() {
   locating.value = true
   navigator.geolocation.getCurrentPosition((pos) => {
     state.settings.home = { lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5), r: 150 }
+    state.presence = { home: true, at: Date.now(), via: 'ubicacion' }
     locating.value = false; toast('Listo: esta es tu casa')
   }, () => { locating.value = false; toast('No pude leer la ubicación. Revisa el permiso.') }, { enableHighAccuracy: true, timeout: 15000 })
 }
@@ -85,11 +86,13 @@ function setHome() {
           <a class="btn sm ghost" href="mumu://probar"><Icon name="alarm" :size="15" />Probar alarma (10 s)</a>
         </div>
         <p class="tiny muted" style="margin:0">Para que salga la pantalla de alarma con la canción, en "Permitir…" activa también <b>notificaciones a pantalla completa</b>. Si al probar solo llega una notificación, ese es el permiso que falta.</p>
-        <div class="small b wi" style="margin-top:6px"><Icon name="home" :size="15" />Aviso al llegar a casa</div>
-        <div class="row wrap" style="gap:6px">
-          <button class="btn sm ghost" :disabled="locating" @click="setHome">{{ state.settings.home ? 'Actualizar ubicación de mi casa' : 'Estoy en mi casa: guardar ubicación' }}</button>
-          <a v-if="state.settings.home" class="btn sm ghost" href="mumu://ubicacion">Activar aviso</a>
-        </div>
+        <div class="small b wi" style="margin-top:6px"><Icon name="home" :size="15" />Mi casa</div>
+        <p class="tiny muted" style="margin:0">MuMu sabe cuándo estás en tu casa y cuándo no: si estás fuera, los "¿cómo vas?" de tareas y hábitos no suenan, y te los dice cuando llegas.</p>
+        <ol class="tiny pasos">
+          <li :class="{ ok: state.settings.home }">Estando en tu casa, guarda la ubicación. <button class="btn sm ghost" :disabled="locating" @click="setHome">{{ state.settings.home ? 'Actualizar' : 'Guardar mi casa aquí' }}</button></li>
+          <li>Dale permiso a la app para saber cuándo llegas o sales, aunque esté cerrada (elige <b>"Permitir todo el tiempo"</b>). <a class="btn sm ghost" href="mumu://ubicacion">Dar permiso</a></li>
+        </ol>
+        <p v-if="state.presence" class="tiny wi" style="margin:0;gap:4px"><Icon :name="state.presence.home ? 'home' : 'pin'" :size="13" />Ahora: <b>{{ state.presence.home ? 'en casa' : 'fuera de casa' }}</b> <span class="muted">({{ { celular: 'por el celular', ubicacion: 'por la ubicación', boton: 'lo marcaste tú' }[state.presence.via] || '' }})</span></p>
       </div>
     </GroupCard>
 
@@ -121,4 +124,7 @@ function setHome() {
 .dias { display: flex; gap: 6px; flex-wrap: wrap; }
 .dia { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font: inherit; font-weight: 600; cursor: pointer; }
 .dia.on { background: var(--pink-300); border-color: var(--pink-300); color: #fff; }
+.pasos { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.pasos li.ok { color: var(--muted); }
+.pasos .btn { margin-left: 6px; }
 </style>

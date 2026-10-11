@@ -44,3 +44,12 @@ export const uso = handler(async (req, res) => {
   await db.collection('users').doc(uid).collection('data').doc('usoCelular').set({ items: { at: Date.now(), json } })
   res.json({ ok: true })
 }, { methods: ['POST'], limit: 20 })
+
+// POST /api/device/casa { home: true|false } → la app de Android avisa si llegaste o saliste de tu casa
+export const casa = handler(async (req, res) => {
+  const { db, uid } = await deviceUid(req)
+  const b = body(req)
+  if (typeof b?.home !== 'boolean') throw new HttpError(400, 'Datos inválidos')
+  await db.collection('users').doc(uid).collection('data').doc('presence').set({ items: { home: b.home, at: Date.now(), via: 'celular' }, updatedAt: Date.now() })
+  res.json({ ok: true })
+}, { methods: ['POST'], limit: 30 })

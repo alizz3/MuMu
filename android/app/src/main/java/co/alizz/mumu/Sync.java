@@ -57,7 +57,7 @@ final class Sync {
         Widget.actualizar(c);
     }
 
-    private static String http(Context c, String metodo, String ruta, String body) throws Exception {
+    static String http(Context c, String metodo, String ruta, String body) throws Exception {
         HttpURLConnection h = (HttpURLConnection) new URL(Store.WEB + ruta).openConnection();
         h.setConnectTimeout(15000);
         h.setReadTimeout(20000);

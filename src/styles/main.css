@@ -311,3 +311,5 @@ a.btn, a.btn:hover { text-decoration: none; }
 .ses-pill.live { background: color-mix(in srgb, #E5484D 18%, var(--surface)); color: var(--ink); }
 .ses-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #E5484D; animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
+.res-link { display: flex; padding: 7px 0; color: inherit; text-decoration: none; border-top: 1px solid var(--line); gap: 6px; overflow-wrap: anywhere; }
+a.res-link:hover { color: var(--pink-700); }

@@ -70,6 +70,7 @@ const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))
 const dragId = ref(null), overCol = ref(null)
 function drop(st) { const p = state.projects.find((x) => x.id === dragId.value); if (p) p.status = st; dragId.value = null; overCol.value = null }
 const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p.status = FLOW[Math.max(0, Math.min(FLOW.length - 1, i + dir))][0] }
+const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replace(/^www\./, '') + u.pathname).replace(/\/$/, '') } catch { return r } }
 </script>
 
 <template>
@@ -113,7 +114,7 @@ const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p
       </div>
       <div class="card" v-if="(sel.resources || []).length || coursesOf(sel).length">
         <h3>Recursos y aprendizaje</h3>
-        <div v-for="r in sel.resources" :key="r" class="small wi" style="padding:4px 0;display:flex"><Icon name="link" :size="14" />{{ r }}</div>
+        <component :is="/^https?:\/\//.test(r) ? 'a' : 'div'" v-for="r in sel.resources" :key="r" class="small wi res-link" :href="/^https?:\/\//.test(r) ? r : undefined" target="_blank" rel="noopener"><Icon name="link" :size="14" /><span>{{ prettyUrl(r) }}</span><Icon v-if="/^https?:\/\//.test(r)" name="chev" :size="13" class="muted" style="margin-left:auto" /></component>
         <div v-for="c in coursesOf(sel)" :key="c.id" class="small wi" style="padding:4px 0;display:flex"><Icon name="book" :size="14" />{{ c.title }} — práctica: {{ c.practice }}</div>
       </div>
     </template>
