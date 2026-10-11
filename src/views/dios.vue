@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, reactive, onUnmounted } from 'vue'
+import { watch, computed, ref, reactive, onUnmounted } from 'vue'
 import { state } from '../store'
 import * as A from '../store/actions'
 import { dayKey, longDate, parseDay } from '../engine/time'
@@ -34,6 +34,7 @@ const QUESTIONS = [
 
 // ---------- Dictado ----------
 const d = useDictado()
+watch(() => d.error.value, (v) => { if (v) toast(v) })
 function mic(key) {
   const ok = d.toggle(key, (txt) => { e[key] = juntar(e[key], txt); save() })
   if (ok === false && d.error.value) toast(d.error.value)

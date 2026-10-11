@@ -23,41 +23,54 @@ export function useDictado({ lang = 'es-CO' } = {}) {
   const active = ref(null) // id del campo que escucha
   const interim = ref('') // lo que va entendiendo (aún no confirmado)
   const error = ref('')
-  let rec = null, onFinal = null, wanted = false
+  let rec = null, onFinal = null, wanted = false, pending = '', heard = false
+  // En Android el modo continuo falla (no entrega el texto final): ahí se escucha por frases y se reinicia solo
+  const android = /android/i.test(navigator.userAgent)
+  const commit = () => { const t = pending.trim(); pending = ''; interim.value = ''; if (t) onFinal?.(t) }
 
   function start(id, cb) {
     error.value = ''
     if (!SR) { error.value = DICTADO_FALLBACK; return false }
     stop()
-    onFinal = cb; active.value = id; interim.value = ''; wanted = true
-    rec = new SR()
-    rec.lang = lang
-    rec.interimResults = true
-    try { rec.continuous = true } catch { /* algunos navegadores no lo permiten */ }
-    rec.onresult = (ev) => {
-      let fin = '', mid = ''
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const r = ev.results[i]
-        if (r.isFinal) fin += r[0].transcript; else mid += r[0].transcript
+    onFinal = cb; active.value = id; interim.value = ''; wanted = true; pending = ''; heard = false
+    const listen = () => {
+      rec = new SR()
+      rec.lang = lang
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+      rec.continuous = !android
+      rec.onresult = (ev) => {
+        heard = true
+        let fin = '', mid = ''
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const r = ev.results[i]
+          if (r.isFinal) fin += r[0].transcript + ' '; else mid += r[0].transcript
+        }
+        if (fin.trim()) { pending = ''; interim.value = ''; onFinal?.(fin.trim()) }
+        if (mid.trim()) { pending = mid; interim.value = mid }
       }
-      if (fin.trim()) onFinal?.(fin.trim())
-      interim.value = mid
+      rec.onerror = (ev) => {
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { error.value = 'MuMu no tiene permiso del micrófono. Dale permiso cuando te lo pida (o en Ajustes de la app), o usa el micrófono del teclado de Google.'; wanted = false }
+        else if (ev.error === 'network') { error.value = 'El dictado necesita internet. Mientras tanto, usa el micrófono del teclado de Google.'; wanted = false }
+        else if (ev.error === 'audio-capture') { error.value = 'Otro programa está usando el micrófono. Ciérralo e intenta de nuevo.'; wanted = false }
+      }
+      // Se apaga tras un silencio: guarda lo que entendió y vuelve a escuchar mientras no lo detengas
+      rec.onend = () => {
+        commit()
+        if (wanted) { try { listen(); return } catch { /* sigue abajo */ } }
+        active.value = null; rec = null
+      }
+      rec.start()
     }
-    rec.onerror = (ev) => {
-      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { error.value = 'No me diste permiso del micrófono. Actívalo en el candadito de la barra, o usa el micrófono del teclado de Google.'; wanted = false }
-      else if (ev.error === 'network') { error.value = 'El dictado necesita internet. Mientras tanto, usa el micrófono del teclado de Google.'; wanted = false }
-    }
-    // En Android se apaga solo tras un silencio: lo volvemos a prender mientras ella no lo detenga
-    rec.onend = () => {
-      if (wanted && rec) { try { rec.start(); return } catch { /* sigue abajo */ } }
-      active.value = null; interim.value = ''; rec = null
-    }
-    try { rec.start() } catch { error.value = DICTADO_FALLBACK; active.value = null; return false }
+    try { listen() } catch { error.value = DICTADO_FALLBACK; active.value = null; return false }
+    // Si en 8 segundos no entendió nada, avisa (algunos celulares no dejan dictar dentro de apps)
+    setTimeout(() => { if (wanted && !heard && active.value === id) error.value = 'No te estoy escuchando. Revisa el permiso del micrófono, o usa el micrófono del teclado de Google.' }, 8000)
     return true
   }
   function stop() {
     wanted = false
-    if (rec) { try { rec.stop() } catch { /* ya parado */ } }
+    commit()
+    if (rec) { const r = rec; rec = null; r.onend = null; r.onresult = null; try { r.abort() } catch { /* ya parado */ } }
     active.value = null; interim.value = ''
   }
   function toggle(id, cb) { if (active.value === id) { stop(); return false } return start(id, cb) }
