@@ -31,6 +31,7 @@ export const NAV = [
   { group: 'Sistema', items: [
     { id: 'alarmas', label: 'Alarmas', icon: 'alarm' },
     { id: 'notificaciones', label: 'Notificaciones', icon: 'bell' },
+    { id: 'guia', label: 'Guía de MuMu', icon: 'book' },
     { id: 'ajustes', label: 'Configuración', icon: 'settings' },
   ] },
 ]

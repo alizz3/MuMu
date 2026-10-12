@@ -4,6 +4,8 @@ Mi sistema operativo personal: agenda + segundo cerebro + asistente + hábitos +
 
 > El nombre es provisional: se cambia en `src/config/brand.js` o desde **Configuración → Apariencia**, sin tocar nada más.
 
+> **¿Qué hace MuMu?** Lee la guía completa en [docs/MUMU.md](docs/MUMU.md) (también está dentro de la app: Más → Guía de MuMu).
+
 ## Cómo está armado
 
 ```
