@@ -7,3 +7,4 @@ dist-preview
 .vercel
 *serviceAccount*.json
 secretos-mumu-android.txt
+CLAUDE.md
