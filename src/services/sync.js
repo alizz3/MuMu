@@ -4,7 +4,7 @@ import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { UNI_STEPS } from './device'
 import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks } from '../store/actions'
-import { syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
+import { syncGmail, syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
 import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
@@ -129,6 +129,10 @@ function autoSync() {
   const cr = state.integrations.classroom
   if (state.integrations.google.some((g) => g.services.includes('classroom')) && old(cr?.lastSync)) syncClassroom().catch(() => {})
   startGTasks()
+  // Correo: se revisa al abrir y cada 20 minutos (te aviso si escribe un profe o alguien que vigilas)
+  const mail = () => { if (navigator.onLine && state.integrations.google.some((g) => g.services.includes('gmail')) && old2(state.integrations.gmailLast)) syncGmail({ quiet: true }).catch(() => {}) }
+  const old2 = (iso) => !iso || Date.now() - new Date(iso).getTime() > 15 * 60e3
+  setTimeout(mail, 5000); setInterval(mail, 20 * 60e3)
 }
 // Google Tasks: se revisa al abrir y cada 20 minutos con la app abierta; lo que hagas en MuMu se manda a los pocos segundos
 let gtStarted = false

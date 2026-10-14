@@ -40,7 +40,9 @@ export function profesMap() {
   return m
 }
 
-export async function syncGmail() {
+// Remitentes que siempre te avisan (además de los correos de tus profes)
+export const watchedSenders = () => (state.settings.mailWatch || []).map((x) => String(x).toLowerCase().trim()).filter(Boolean)
+export async function syncGmail({ quiet = false } = {}) {
   const accs = state.integrations.google.filter((a) => a.services.includes('gmail'))
   state.emails = state.emails.filter((e) => !e.demo) // al conectar lo real, se van los ejemplos
   const profes = profesMap()
@@ -54,7 +56,14 @@ export async function syncGmail() {
       if (sj) { e.category = 'importante'; e.profe = sj.teacher || sj.short || sj.name; e.subjectId = sj.id }
       const ex = state.emails.find((x) => x.id === e.id)
       if (ex) Object.assign(ex, { category: ex.manualCategory ? ex.category : e.category, snippet: e.snippet, profe: e.profe, subjectId: e.subjectId, accountId: a.id, fromEmail: e.fromEmail })
-      else { state.emails.unshift({ ...e, account: a.label, accountId: a.id, status: 'nuevo' }); n++ }
+      else {
+        state.emails.unshift({ ...e, account: a.label, accountId: a.id, status: 'nuevo' }); n++
+        // Correo de un profe o de alguien que vigilas: te aviso (puede ser una tarea o un aviso importante)
+        if ((sj || watchedSenders().includes(e.fromEmail)) && e.unread !== false) {
+          import('../engine/notify').then(({ push }) => push(`mail:${e.id}`, `Correo de ${e.profe || e.from}: ${e.subject}`, { go: 'correo', subject: sj?.name || null, kind: 'info' }))
+          if (!sj) e.category = 'importante'
+        }
+      }
       if (sj && !e.labels?.includes('STARRED')) toStar.push(e.id)
     }
     // Marcar en tu Gmail real los correos de profes (si diste el permiso de organizar)
@@ -64,7 +73,8 @@ export async function syncGmail() {
     }
   }
   state.emails = state.emails.slice(0, 250)
-  toast(n ? `${n} correos nuevos clasificados` : 'Correo al día')
+  state.integrations.gmailLast = new Date().toISOString()
+  if (!quiet) toast(n ? `${n} correos nuevos clasificados` : 'Correo al día')
 }
 
 export const canOrganize = (accountId) => !!state.integrations.google.find((a) => a.id === accountId)?.services.includes('gmail-organize')

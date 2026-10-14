@@ -52,7 +52,7 @@ final class Sync {
         } catch (Exception ignored) { }
         // 2) Traer el plan
         String plan = http(c, "GET", "/api/device/plan", null);
-        if (plan != null && plan.startsWith("{")) Store.plan(c, plan);
+        if (plan != null && plan.startsWith("{")) { Store.plan(c, plan); alertas(c, plan); }
         programar(c);
         Widget.actualizar(c);
     }
@@ -77,6 +77,28 @@ final class Sync {
             while ((n = in.read(b)) > 0) out.write(b, 0, n);
             return out.toString("UTF-8");
         } finally { h.disconnect(); }
+    }
+
+    /** Correos de tus profes o de quien vigilas: una notificación por correo nuevo (no se repiten). */
+    static void alertas(Context c, String planJson) {
+        try {
+            JSONArray a = new JSONObject(planJson).optJSONArray("alerts");
+            if (a == null) return;
+            boolean primera = !Store.p(c).contains("alertas");
+            Set<String> vistas = new HashSet<>(Store.p(c).getStringSet("alertas", new HashSet<>()));
+            long ahora = System.currentTimeMillis();
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject x = a.getJSONObject(i);
+                String id = x.optString("id");
+                if (id.isEmpty() || vistas.contains(id)) continue;
+                vistas.add(id);
+                // La primera vez no se avisan los correos viejos, solo los de las últimas 3 horas
+                if (primera && ahora - x.optLong("at") > 3 * 3600 * 1000L) continue;
+                Aviso.notificar(c, id.hashCode(), x.optString("title"), x.optString("text"), x.optString("open"));
+            }
+            if (vistas.size() > 300) vistas = new HashSet<>(new java.util.ArrayList<>(vistas).subList(vistas.size() - 200, vistas.size()));
+            Store.p(c).edit().putStringSet("alertas", vistas).apply();
+        } catch (Exception ignored) { }
     }
 
     /** Cancela lo programado antes y programa lo del plan nuevo. */

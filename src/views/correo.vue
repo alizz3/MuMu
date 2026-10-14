@@ -1,4 +1,5 @@
 <script setup>
+import GroupCard from '../components/GroupCard.vue'
 import { computed, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
@@ -51,6 +52,13 @@ async function run(action, emails = chosen(), label) {
   } catch (e) { toast(e.message) } finally { busy.value = false }
 }
 const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
+// Remitentes vigilados (ej. la instructora del SENA)
+if (!state.settings.mailWatch) state.settings.mailWatch = []
+const watched = computed(() => state.settings.mailWatch)
+const newWatch = ref('')
+function addWatch() { const v = newWatch.value.trim().toLowerCase(); if (/^\S+@\S+\.\S+$/.test(v) && !watched.value.includes(v)) watched.value.push(v); newWatch.value = '' }
+const profesCount = computed(() => state.subjects.filter((x) => x.teacherEmail).length)
+const watchSub = computed(() => `${profesCount.value} ${profesCount.value === 1 ? 'profe' : 'profes'}${watched.value.length ? ` + ${watched.value.length} más` : ''}`)
 </script>
 
 <template>
@@ -61,6 +69,14 @@ const labelFor = () => `MuMu/${NAMES[cat.value] || 'Revisado'}`
       <button v-if="gmailOn && canUseBackend()" class="btn sm primary" :disabled="busy" @click="sync"><Icon name="refresh" :size="14" />{{ busy ? '…' : 'Revisar' }}</button>
       <button v-else class="btn sm lav" @click="A.go('ajustes')">Conectar</button>
     </div>
+    <!-- Remitentes que siempre te avisan -->
+    <GroupCard title="Avisarme cuando escriba…" :sub="watchSub" icon="bell" color="#FFE29A" :count="watched.length || null" :open="!!state.settings.mailWatchOpen" @toggle="state.settings.mailWatchOpen = !state.settings.mailWatchOpen">
+      <p class="tiny muted" style="margin:8px 0">Además de tus profes (los correos que pones en cada materia), MuMu te avisa con una notificación cuando llegue un correo de estas personas. También en el celular, aunque MuMu esté cerrada.</p>
+      <div class="chips" style="flex-wrap:wrap">
+        <span v-for="em in watched" :key="em" class="chip on">{{ em }}<button class="x" :aria-label="`Quitar ${em}`" @click="watched.splice(watched.indexOf(em), 1)"><Icon name="x" :size="12" /></button></span>
+      </div>
+      <form class="row" style="gap:6px;margin-top:8px" @submit.prevent="addWatch"><input class="input grow" v-model="newWatch" type="email" placeholder="correo@ejemplo.com" aria-label="Correo para vigilar" /><button class="btn sm lav">Agregar</button></form>
+    </GroupCard>
     <p v-if="gmailOn && !organizeOn" class="notice"><Icon name="lock" :size="14" class="inl" /> Para mandar a la papelera y crear etiquetas en tu Gmail, dale a tu cuenta el permiso <b>"Organizar Gmail"</b> en Configuración → Cuentas.</p>
     <p v-if="state.emails.some((e) => e.demo)" class="notice"><Icon name="flask" :size="14" class="inl" /> Los correos marcados “ejemplo” no son reales: muestran cómo se verán tus correos clasificados.</p>
     <Seg v-model="cat" :options="catOpts" label="Categoría de correo" />

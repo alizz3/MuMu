@@ -4,6 +4,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { handler, body, HttpError } from '../_lib/http.js'
 import { requireUser, initDb } from '../_lib/firebase.js'
+import { accountsRef, accessToken, gget } from '../_lib/google.js'
 
 const sha = (t) => createHash('sha256').update(t).digest('hex')
 const tokens = (db) => db.collection('secrets').doc('_devices').collection('t')
@@ -26,11 +27,41 @@ export const link = handler(async (req, res) => {
   res.json({ token: t })
 }, { methods: ['POST'], limit: 10 })
 
-// GET /api/device/plan → { plan, widget, home, at }
+// Correos recientes de tus profes o de remitentes que vigilas → avisos para el celular
+async function mailAlerts(db, uid) {
+  const data = db.collection('users').doc(uid).collection('data')
+  const [subj, sett] = await Promise.all([data.doc('subjects').get(), data.doc('settings').get()])
+  const senders = new Set()
+  for (const s of subj.exists ? subj.data().items || [] : []) for (const em of String(s.teacherEmail || '').toLowerCase().split(/[,;\s]+/)) if (em.includes('@')) senders.add(em)
+  for (const em of (sett.exists ? sett.data().items?.mailWatch : []) || []) if (String(em).includes('@')) senders.add(String(em).toLowerCase())
+  if (!senders.size) return []
+  const q = encodeURIComponent(`newer_than:2d in:inbox from:(${[...senders].slice(0, 30).join(' OR ')})`)
+  const out = []
+  const accs = await accountsRef(uid).get()
+  for (const doc of accs.docs) {
+    if (!(doc.data().services || []).includes('gmail')) continue
+    try {
+      const { token } = await accessToken(uid, doc.id, 'gmail')
+      const base = 'https://gmail.googleapis.com/gmail/v1/users/me'
+      const list = await gget(token, `${base}/messages?maxResults=10&q=${q}`)
+      const msgs = await Promise.all((list.messages || []).map((m) => gget(token, `${base}/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`)))
+      for (const m of msgs) {
+        const h = Object.fromEntries((m.payload?.headers || []).map((x) => [x.name.toLowerCase(), x.value]))
+        const from = (h.from || '').replace(/<.*>/, '').replace(/"/g, '').trim() || h.from || ''
+        out.push({ id: `gm_${m.id}`, at: Number(m.internalDate), title: `Correo de ${from}`, text: h.subject || '(sin asunto)', open: 'ir=correo' })
+      }
+    } catch { /* esa cuenta no respondió: se intenta en la próxima */ }
+  }
+  return out.sort((a, b) => b.at - a.at).slice(0, 15)
+}
+
+// GET /api/device/plan → { plan, widget, home, at, alerts }
 export const plan = handler(async (req, res) => {
   const { db, uid } = await deviceUid(req)
   const snap = await db.collection('users').doc(uid).collection('data').doc('device').get()
-  res.json(snap.exists ? (snap.data().items || {}) : {})
+  const out = snap.exists ? (snap.data().items || {}) : {}
+  try { out.alerts = await mailAlerts(db, uid) } catch { out.alerts = [] }
+  res.json(out)
 }, { methods: ['GET'], limit: 30 })
 
 // POST /api/device/uso { d: { "2026-10-09": { t, a: { paquete: min } } }, l: { paquete: nombre } }

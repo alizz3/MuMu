@@ -48,6 +48,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Profes:** plantillas de mensaje (duda, más tiempo, no pude asistir, envío mi trabajo) para mandar por Gmail, WhatsApp o copiar.
 - **Mi CIPA** por materia: nombre del grupo, integrantes y enlace del chat.
 - Drive del semestre y de cada materia con vista previa.
+- También caben **cursos de otras instituciones** (por ejemplo del SENA), con su instructor, sus sesiones en la agenda y sus tareas.
 
 ## Proyectos
 
@@ -112,7 +113,8 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 
 - **Objetivos:** por categoría, con progreso que sale de tareas y proyectos.
 - **Vida:** momentos con familia, mascotas y descanso, con iconos, rango de horas, enlace a las fotos y nota.
-- **Sueño, Mi cerebro** (lo que aprendes y sus principios), **Experimentos, Cursos, Trabajo y carrera, Finanzas, Correo** (Gmail con importantes de los profes) y **Analítica**.
+- **Correo:** Gmail de tus cuentas, con los correos de tus profes como importantes. Se revisa solo cada 20 minutos y **te avisa** cuando escribe un profe o alguien de tu lista **"Avisarme cuando escriba…"**, también en el celular aunque MuMu esté cerrada.
+- **Sueño, Mi cerebro** (lo que aprendes y sus principios), **Experimentos, Cursos, Trabajo y carrera, Finanzas** y **Analítica**.
 - **Notificaciones:** agrupadas por día como Facebook, se borran deslizando o con la ✕, "borrar todas", y al tocarlas te llevan justo a lo que dicen.
 - **Casa de la vaquita:** dormitorio, cocina, patio, baño y estudio; ropa y juguetes para la vaquita, Leo y Negra, y cuidarlos (darle de comer te lleva a la cocina, bañarla al baño…). Las recompensas se dan una sola vez.
 
@@ -123,4 +125,4 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
-Última actualización: 12 de octubre de 2026.
+Última actualización: 14 de octubre de 2026.

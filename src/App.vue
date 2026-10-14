@@ -99,11 +99,11 @@ if (pendingImport) {
     history.replaceState(null, '', location.pathname)
     try {
       const data = JSON.parse(decodeURIComponent(escape(atob(pendingImport.replace(/-/g, '+').replace(/_/g, '/')))))
-      const parts = [data.project?.name && `el proyecto "${data.project.name}"`, data.habits?.length && `${data.habits.length} hábito${data.habits.length === 1 ? '' : 's'}`, data.tasks?.length && `${data.tasks.length} tarea${data.tasks.length === 1 ? '' : 's'}`].filter(Boolean)
+      const parts = [data.subjects?.length && `${data.subjects.map((x) => `«${x.name}»`).join(', ')}${data.events?.length ? ` con ${data.events.length} sesiones en la agenda` : ''}`, data.project?.name && `el proyecto "${data.project.name}"`, data.habits?.length && `${data.habits.length} hábito${data.habits.length === 1 ? '' : 's'}`, data.tasks?.length && `${data.tasks.length} tarea${data.tasks.length === 1 ? '' : 's'}`].filter(Boolean)
       if (!(await ask(`¿Agregar ${parts.join(', ')}?`))) return
       const p = importProject(data)
       if (p) { go('proyectos', { id: p.id }); toast(`Proyecto ${p.name} agregado`) }
-      else { go(data.habits?.length ? 'habitos' : 'tareas'); toast('Listo, agregado') }
+      else { go(data.subjects?.length ? 'universidad' : data.habits?.length ? 'habitos' : 'tareas'); toast('Listo, agregado') }
     } catch (e) { toast('Ese enlace de proyecto no se pudo leer') }
   }, { immediate: true })
 }
