@@ -32,7 +32,7 @@ const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.catego
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
 const subjOf = (id) => state.subjects.find((s) => s.id === id)
 const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['profes', 'Profes', 'users'], ['aula', 'Tu Aula · Classroom', 'globe']]
-const INSTS = [['todas', 'Todas'], ['UT', 'U. Tolima'], ['Classroom', 'Classroom']]
+const INSTS = [['todas', 'Todas'], ['UT', 'U. Tolima'], ['Classroom', 'Classroom'], ['SENA', 'SENA']]
 // Tareas de la U agrupadas por materia, plegables como en Tareas
 const uFold = computed(() => (state.settings.uniFolded ||= {}))
 const uniGroups = computed(() => {
