@@ -163,7 +163,7 @@ export async function syncAula() {
 }
 export async function disconnectAula() { await call('aula/connect', { method: 'DELETE' }); state.integrations.aula = { status: 'no-conectado', method: null, lastSync: null, site: state.integrations.aula.site } }
 
-export async function askAssistant(message, context) { return call('assistant', { method: 'POST', body: { message, context } }) }
+export async function askAssistant(message, context, history = []) { return call('assistant', { method: 'POST', body: { message, context, history } }) }
 export async function financeSummary() { return call('finance/summary') }
 
 // Estado de Tu Aula (en línea / caída). Se guarda 5 minutos para no revisar a cada rato.

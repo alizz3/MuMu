@@ -82,20 +82,21 @@ async function send() {
   input.value = ''
   say(text, 'me')
   const s = text.toLowerCase()
-  const mm = s.match(/(\d+)\s*(min|minutos|h|hora)/)
+  const corto = !canUseBackend() || text.length < 40 // con IA, las preguntas largas van directo a ella
+  const mm = corto && s.match(/(\d+)\s*(min|minutos|h|hora)/)
   if (/no quiero|procrastin|me da pereza|no puedo empezar/.test(s)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
   if (mm) {
     const mins = Number(mm[1]) * (mm[2].startsWith('h') ? 60 : 1)
     const t = rankedTasks().map((r) => r.t).find((x) => (x.estimate - (x.spent || 0)) <= mins + 10) || rankedTasks()[0]?.t
     say(t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro.'); return
   }
-  if (/qu[eé] hago|ahora|recomi/.test(s)) { say(shown.value.reason); return }
-  if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); say(b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.'); return }
-  if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); say(p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!'); return }
-  if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); say(d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.'); return }
+  if (corto && /qu[eé] hago|ahora|recomi/.test(s)) { say(shown.value.reason); return }
+  if (corto && /libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); say(b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.'); return }
+  if (corto && /h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); say(p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!'); return }
+  if (corto && /vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); say(d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.'); return }
   if (canUseBackend()) {
     busy.value = true
-    try { const r = await askAssistant(text, summary()); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) } finally { busy.value = false }
+    try { const r = await askAssistant(text, summary(), msgs.value.slice(-7, -1)); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) } finally { busy.value = false }
   } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Y desde cualquier pantalla puedes tocarme para ver qué te recomiendo.')
 }
 
