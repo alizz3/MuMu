@@ -232,6 +232,14 @@ export function initDevice() {
     try { importUso(JSON.parse(state.usoCelular.json)) } catch { /* datos dañados */ }
   }, { immediate: true })
   handleHash()
+  // Si MuMu ya estaba abierta, la app de Android la enfoca sin recargarla y le pasa el enlace por aquí
+  if ('launchQueue' in window) window.launchQueue.setConsumer((p) => {
+    try {
+      const h = new URL(p.targetURL).hash
+      if (/^#uso=/.test(h)) import('./androidUso').then((m) => m.initAndroidUso(h))
+      else if (h) { location.hash = h }
+    } catch { /* enlace raro */ }
+  })
   setTimeout(checkHere, 4000)
   setInterval(checkHere, 10 * 60e3)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkHere() })

@@ -413,6 +413,14 @@ import { ROOMS } from '../engine/rooms'
 export function importProject(data) {
   const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
   const p = data?.project
+  // Objetivos
+  const GCATS = ['carrera', 'universidad', 'trabajo', 'dinero', 'aprendizaje', 'inglés', 'vida personal', 'familia', 'espiritualidad', 'proyectos', 'bienestar']
+  const newGoals = (Array.isArray(data?.goals) ? data.goals : []).slice(0, 10).map((g) => {
+    if (!s(g?.name)) return null
+    const x = { id: uid('g'), name: s(g.name, 100), description: s(g.description, 1500), category: GCATS.includes(g.category) ? g.category : 'proyectos', due: /^\d{4}-\d{2}-\d{2}$/.test(g.due || '') ? g.due : null, progress: 0, manual: false }
+    state.goals.push(x); return x
+  })
+  if (p && Number.isInteger(p.goal) && newGoals[p.goal]) p.goalId = newGoals[p.goal].id
   // Materias o cursos (ej. un curso del SENA) con sus sesiones en la agenda
   const newSubjects = (Array.isArray(data?.subjects) ? data.subjects : []).slice(0, 10).map((x) => {
     if (!s(x?.name)) return null
@@ -428,7 +436,7 @@ export function importProject(data) {
     const sj = Number.isInteger(t.subject) ? newSubjects[t.subject] : null
     if (s(t?.title)) addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), subjectId: sj?.id || null, category: 'aprendizaje', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, dueTime: /^\d{2}:\d{2}$/.test(t.dueTime || '') ? t.dueTime : null, estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)) }, { quiet: true })
   })
-  if (newSubjects.some(Boolean) && !p && !data?.habits?.length && !data?.tasks?.length) return null
+  if ((newSubjects.some(Boolean) || newGoals.some(Boolean)) && !p && !data?.habits?.length && !data?.tasks?.length) return null
   // Hábitos que vengan en el enlace
   ;(Array.isArray(data?.habits) ? data.habits : []).slice(0, 10).forEach((h) => {
     if (!s(h?.name)) return
@@ -442,7 +450,7 @@ export function importProject(data) {
     throw new Error('Enlace inválido')
   }
   const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']
-  const proj = { id: uid('p'), goalId: state.goals.some((g) => g.id === p.goalId) ? p.goalId : null, name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: (Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
+  const proj = { id: uid('p'), goalId: state.goals.some((g) => g.id === p.goalId) ? p.goalId : null, name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: [], links: [...(Array.isArray(p.links) ? p.links : []).filter((l) => /^https?:\/\//.test(l?.url || '')).map((l) => ({ id: uid('l'), name: s(l.name, 80) || s(l.url, 80), url: s(l.url, 500) })), ...(Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).map((u) => ({ id: uid('l'), name: u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''), url: u }))].slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
   state.projects.unshift(proj)
   // Semestre: une las materias que pidas (o todas las de la U) a este proyecto
   if (data.linkSubjects === 'all') state.subjects.forEach((x) => { if (!x.projectId) x.projectId = proj.id })

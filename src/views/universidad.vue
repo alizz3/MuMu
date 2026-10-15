@@ -4,7 +4,7 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { daily } from '../engine/game'
 import { isOpen, sessionsOf, nextSessionOf } from '../engine/planner'
-import { relDay, WEEKDAYS, fmt12s, dayKey } from '../engine/time'
+import { relDay, WEEKDAYS, fmt12s, dayKey, daysUntil } from '../engine/time'
 import { syncAula, syncClassroom, canUseBackend } from '../services/api'
 import { toast, ask } from '../engine/game'
 import { Icon, Pet, Ring } from '../components/ui'
@@ -35,8 +35,25 @@ const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['pr
 const INSTS = [['todas', 'Todas'], ['UT', 'U. Tolima'], ['Classroom', 'Classroom'], ['SENA', 'SENA']]
 // Tareas de la U agrupadas por materia, plegables como en Tareas
 const uFold = computed(() => (state.settings.uniFolded ||= {}))
+// Agrupar por materia o por fecha (como en Tareas); se recuerda lo que elijas
+const U_VIEWS = [['materia', 'Materia', 'cap'], ['fecha', 'Fecha', 'calendar']]
+const uGroup = computed({ get: () => (state.settings.uniTaskGroup === 'fecha' ? 'fecha' : 'materia'), set: (v) => (state.settings.uniTaskGroup = v) })
+function dateMeta(t) {
+  if (!t.due) return { key: 'f5', order: 5, label: 'Sin fecha', icon: 'list', color: '#E7E1EE' }
+  const d = daysUntil(t.due)
+  if (d < 0) return { key: 'f0', order: 0, label: 'Atrasadas (sin culpa)', icon: 'clock', color: '#F7B6C2' }
+  if (d === 0) return { key: 'f1', order: 1, label: 'Hoy', icon: 'sun', color: '#FFE29A' }
+  if (d === 1) return { key: 'f2', order: 2, label: 'Mañana', icon: 'calendar', color: '#C3B3D4' }
+  if (d <= 7) return { key: 'f3', order: 3, label: 'Esta semana', icon: 'calendar', color: '#BFD7F0' }
+  return { key: 'f4', order: 4, label: 'Más adelante', icon: 'calendar', color: '#B9DCCB' }
+}
+const dueKey = (t) => (t.due ? t.due + ' ' + (/^\d{2}:\d{2}$/.test(t.dueTime || '') ? t.dueTime : '99:99') : 'z')
 const uniGroups = computed(() => {
   const g = {}
+  if (uGroup.value === 'fecha') {
+    ;[...uniTasks.value].sort((a, b) => (dueKey(a) < dueKey(b) ? -1 : dueKey(a) > dueKey(b) ? 1 : 0)).forEach((t) => { const mt = dateMeta(t); (g[mt.key] ||= { ...mt, v: [] }).v.push(t) })
+    return Object.values(g).sort((a, b) => a.order - b.order)
+  }
   uniTasks.value.forEach((t) => { const s = subjOf(t.subjectId); const k = s ? s.id : 'none'; (g[k] ||= { key: k, label: s ? s.name : 'Sin materia', color: s?.color || '#E7E1EE', icon: s ? 'cap' : 'list', v: [] }).v.push(t) })
   return Object.values(g).sort((a, b) => (a.key === 'none') - (b.key === 'none') || a.label.localeCompare(b.label))
 })
@@ -156,7 +173,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     <Profes v-else-if="tab === 'profes'" />
 
     <template v-else-if="tab === 'tareas'">
-      <ListBar :count="uniTasks.length" one="tarea pendiente" many="tareas pendientes" :foldable="uniGroups.length > 1" :all-folded="uAllFolded" @fold="uFoldAll" />
+      <ListBar :count="uniTasks.length" one="tarea pendiente" many="tareas pendientes" :foldable="uniGroups.length > 1" :all-folded="uAllFolded" :views="U_VIEWS" v-model:view="uGroup" @fold="uFoldAll" />
       <GroupCard v-for="g in uniGroups" :key="g.key" :title="g.label" :icon="g.icon" :color="g.color" :count="g.v.length" :open="!uFold[g.key]" @toggle="uFold[g.key] = !uFold[g.key]">
         <div class="list"><TaskRow v-for="t in g.v" :key="t.id" :task="t" /></div>
       </GroupCard>

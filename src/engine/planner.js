@@ -247,3 +247,23 @@ export function dayLoad(k = dayKey()) {
   const work = items.filter((i) => i.type === 'trabajo').reduce((a, i) => a + (hm(i.end) - hm(i.start)), 0)
   return { busy, study, work, free: freeMinutes(k) }
 }
+
+// La próxima clase de una materia que todavía no ha empezado (si hay una en curso, la siguiente).
+// Primero las sesiones de tu Google Calendar; si no hay, el horario semanal de la materia.
+export function nextClassAfterNow(subjectId, now = ui.now || new Date()) {
+  const k = dayKey(now), m = nowMin(now)
+  for (const e of sessionsOf(subjectId)) {
+    if (e.date < k || (e.date === k && hm(e.start) <= m)) continue
+    return { date: e.date, start: e.start, end: e.end, session: e.session || null, from: 'calendar' }
+  }
+  const s = state.subjects.find((x) => x.id === subjectId)
+  const sched = (s?.schedule || []).filter((sl) => sl && sl.start != null && sl.weekday != null)
+  if (!sched.length) return null
+  for (let i = 0; i <= 7; i++) {
+    const d = new Date(now); d.setDate(d.getDate() + i)
+    const dk = dayKey(d), wd = d.getDay()
+    const hit = sched.filter((sl) => +sl.weekday === wd && (i > 0 || hm(sl.start) > m)).sort((a, b) => hm(a.start) - hm(b.start))[0]
+    if (hit) return { date: dk, start: hit.start, end: hit.end, session: null, from: 'schedule' }
+  }
+  return null
+}

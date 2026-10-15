@@ -3,12 +3,21 @@ import { registerSW } from 'virtual:pwa-register'
 import { ui } from '../store'
 import { toast } from '../engine/game'
 
-// Versión nueva: se instala sola, sin botón. Solo espera a que no estés en medio de algo
-// (escribiendo, con una ventanita abierta o en una sesión de enfoque) para no perder nada.
+// Versión nueva: se instala sola, sin botón y sin interrumpirte. Se aplica cuando dejas MuMu
+// en segundo plano, o si llevas 3 minutos sin tocar nada (y no estás escribiendo ni en enfoque).
 const busy = () => !!ui.modal || !!ui.focus || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+let lastTouch = Date.now()
+;['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => { lastTouch = Date.now() }, { passive: true, capture: true }))
 export function initPWA() {
   let pending = false
-  const apply = () => { if (!pending) return; if (busy() && document.visibilityState === 'visible') return; pending = false; try { sessionStorage.setItem('mumu-updated', '1') } catch {} ; updateSW(true) }
+  const apply = () => {
+    if (!pending) return
+    const hidden = document.visibilityState === 'hidden'
+    if (!hidden && (busy() || Date.now() - lastTouch < 3 * 60e3)) return
+    pending = false
+    if (!hidden) { try { sessionStorage.setItem('mumu-updated', '1') } catch {} }
+    updateSW(true)
+  }
   const updateSW = registerSW({
     onNeedRefresh() { pending = true; apply() },
     onOfflineReady() { toast('MuMu ya funciona sin internet') },

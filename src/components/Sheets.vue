@@ -8,8 +8,8 @@ function setGrade(t, k, v, max) {
 import { computed, reactive, ref, watch } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { planTask, remaining, SESSIONS } from '../engine/planner'
-import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
+import { planTask, remaining, SESSIONS, nextClassAfterNow } from '../engine/planner'
+import { dayKey, fmtDur, relDay, shortDate, uid, fmt12s, parseDay, daysUntil, WEEKDAYS, WEEKDAYS_LONG, MONTHS, hm } from '../engine/time'
 import { Icon, Pet, Chip } from './ui'
 import { goalIcon } from './iconFor'
 import Contact from './Contact.vue'
@@ -51,7 +51,7 @@ const SCHEMAS = {
     { k: 'status', l: 'Estado', t: 'select', o: ['idea', 'plan', 'progreso', 'pausado', 'completado'] },
     { k: 'area', l: 'Área', t: 'select', o: ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'] },
     { k: 'goalId', l: 'Objetivo', t: 'select', o: opts(state.goals) }, { k: 'due', l: 'Fecha', t: 'date' },
-    { k: 'skills', l: 'Habilidades (coma)', t: 'tags' }, { k: 'resources', l: 'Recursos / links (coma)', t: 'tags' }, { k: 'color', l: 'Color', t: 'color' },
+    { k: 'skills', l: 'Habilidades (coma)', t: 'tags' }, { k: 'color', l: 'Color', t: 'color' },
   ] }),
   habit: () => ({ title: 'Hábito', coll: 'habits', fields: [
     { k: 'name', l: 'Nombre', t: 'text', req: true },
@@ -200,6 +200,17 @@ function save() {
     close()
   }
 }
+// "Para la próxima clase": si la lista es una materia, la fecha límite puede ser su próxima clase
+const nextClass = computed(() => {
+  const v = String(form.lista || '')
+  return m.value?.type === 'task' && v.startsWith('s:') ? nextClassAfterNow(v.slice(2)) : undefined
+})
+const classText = (c) => { const d = parseDay(c.date); return `${WEEKDAYS[d.getDay()].toLowerCase()} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} · ${fmt12s(c.start)}` }
+const isNextClass = computed(() => !!nextClass.value && form.due === nextClass.value.date && (form.dueTime || '') === nextClass.value.start)
+function useNextClass() { const c = nextClass.value; if (!c) return; form.due = c.date; form.dueTime = c.start }
+// Cancelar: en una tarea vuelve al detalle; en lo demás cierra
+const cancelEdit = () => (m.value?.type === 'task' && m.value?.id ? (editMode.value = false) : close())
+
 async function remove() {
   const sc = schema.value
   if (!(await ask('¿Eliminar? No se puede deshacer.'))) return
@@ -264,6 +275,29 @@ const chain = computed(() => {
 const plan = computed(() => (task.value ? planTask(task.value) : []))
 const newSub = ref('')
 function addSub() { if (newSub.value.trim()) { A.addSubtask(task.value.id, newSub.value.trim()); newSub.value = '' } }
+// Recursos de la tarea (guía, video, Drive…): [{ id, name, url }] en task.links
+const resName = ref(''), resUrl = ref(''), resAdding = ref(false)
+const RES_KINDS = [[/youtube\.com|youtu\.be|vimeo\.com/, 'play'], [/drive\.google\.com\/drive\/(u\/\d+\/)?folders/, 'folder'], [/drive\.google\.com|docs\.google\.com/, 'note'], [/meet\.google\.com|zoom\.us|teams\.microsoft/, 'video'], [/tuaulavirtual|moodle|classroom\.google/, 'cap']]
+const resIcon = (u) => RES_KINDS.find(([re]) => re.test(u))?.[1] || 'link'
+const resHost = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return '' } }
+function addRes() {
+  let u = resUrl.value.trim(); if (!u) return toast('Pega el enlace')
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  if (!/^https?:\/\/[^\s]+$/i.test(u)) return toast('Ese enlace no se ve bien')
+  task.value.links = [...(task.value.links || []), { id: uid('l'), name: resName.value.trim() || resHost(u) || 'Enlace', url: u }]
+  resName.value = ''; resUrl.value = ''; resAdding.value = false
+}
+async function delRes(l) { if (await ask(`¿Quitar "${l.name}"?`)) task.value.links = (task.value.links || []).filter((x) => x.id !== l.id) }
+watch(() => m.value?.id, () => { resName.value = ''; resUrl.value = ''; resAdding.value = false })
+// Notas con enlaces que se pueden tocar: primero se escapa todo el HTML y luego se envuelven las URL
+const escHtml = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+function linkify(text) {
+  return escHtml(text).replace(/https?:\/\/[^\s<]+/gi, (raw) => {
+    const tail = raw.match(/(?:[.,;:!?)\]]|&#39;|&quot;)+$/)?.[0] || ''
+    const url = tail ? raw.slice(0, -tail.length) : raw
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${tail}`
+  })
+}
 function start(minutes, mode = 'pomodoro') { A.startFocus({ taskId: task.value.id, minutes, mode }); close(); A.go('enfoque') }
 
 // ---------- búsqueda / captura rápida ----------
@@ -437,7 +471,7 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
         <div v-if="chain.length" class="row wrap" style="gap:6px;margin-top:10px">
           <span v-for="(c, i) in chain" :key="i" class="badge"><Icon :name="c.icon" :size="13" />{{ c.text }}</span>
         </div>
-        <p v-if="task.notes && !/^Materia: [^\n]*$/.test(task.notes)" class="small" style="margin-top:10px;white-space:pre-line">{{ task.notes }}</p>
+        <p v-if="task.notes && !/^Materia: [^\n]*$/.test(task.notes)" class="small notes-linked" style="margin-top:10px;white-space:pre-line" v-html="linkify(task.notes)"></p>
         <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft row wrap" style="gap:8px;margin-top:10px">
           <b class="small wi"><Icon name="target" :size="14" />Nota</b>
           <input class="input" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="0.0 – 5.0" style="width:110px" :value="task.grade ?? ''" @change="setGrade(task, 'grade', $event.target.value, 5)" aria-label="Nota de la tarea" />
@@ -446,6 +480,20 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
           <span class="small muted">%</span>
         </div>
         <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ linkLabel }}</a>
+
+        <!-- Recursos: guía, video, Drive… -->
+        <div class="card tight soft" style="margin-top:10px">
+          <div class="row between"><b class="small wi"><Icon name="link" :size="14" />Recursos</b><button type="button" class="link small" @click="resAdding = !resAdding">{{ resAdding ? 'Cancelar' : '+ Recurso' }}</button></div>
+          <div v-for="l in task.links || []" :key="l.id" class="res-row">
+            <a :href="l.url" target="_blank" rel="noopener noreferrer"><Icon :name="resIcon(l.url)" :size="14" /><span class="res-name">{{ l.name }}</span><span class="tiny muted res-host">{{ resHost(l.url) }}</span></a>
+            <button type="button" class="iconbtn sm" :aria-label="`Quitar ${l.name}`" @click="delRes(l)"><Icon name="x" :size="14" /></button>
+          </div>
+          <p v-if="!(task.links || []).length && !resAdding" class="tiny muted" style="margin:4px 0 0">Guarda aquí la guía, el video o la carpeta de Drive de esta tarea.</p>
+          <form v-if="resAdding" class="stack" style="gap:6px;margin-top:8px" @submit.prevent="addRes">
+            <input class="input" v-model="resName" placeholder="Nombre (ej. Guía, Video de la clase)" aria-label="Nombre del recurso" />
+            <div class="row"><input class="input grow" v-model="resUrl" inputmode="url" placeholder="https://…" aria-label="Enlace del recurso" /><button type="submit" class="btn sm primary">Agregar</button></div>
+          </form>
+        </div>
 
         <!-- En grupo (CIPA) -->
         <div v-if="task.subjectId || task.category === 'universidad'" class="card tight soft stack" style="gap:8px;margin-top:10px">
@@ -497,9 +545,11 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
 
       <!-- Formularios -->
       <template v-else-if="schema">
-        <div class="row between" style="margin-bottom:12px">
-          <h2>{{ m.id ? 'Editar' : 'Nuevo' }}: {{ schema.title.toLowerCase() }}</h2>
-          <button class="iconbtn" aria-label="Cerrar" @click="close"><Icon name="x" :size="18" /></button>
+        <div class="sheet-head">
+          <h2 class="grow">{{ m.id ? 'Editar' : 'Nuevo' }}: {{ schema.title.toLowerCase() }}</h2>
+          <button v-if="m.id" type="button" class="btn sm ghost" @click="cancelEdit">Cancelar</button>
+          <button type="button" class="btn sm primary" @click="save">Guardar</button>
+          <button type="button" class="iconbtn" aria-label="Cerrar" @click="close"><Icon name="x" :size="18" /></button>
         </div>
         <form class="stack" @submit.prevent="save">
           <label v-for="f in schema.fields" :key="f.k" class="field">
@@ -526,12 +576,20 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
             </div>
             <div v-else-if="f.k === 'title' || f.k === 'name'" class="row" style="gap:6px"><input class="input grow" type="text" v-model="form[f.k]" />
               <button type="button" class="iconbtn" :class="{ on: dict.active.value === f.k }" :aria-label="dict.active.value === f.k ? 'Dejar de dictar' : 'Dictar'" @click.prevent="talk(f.k, (t) => (form[f.k] = juntar(form[f.k], t)))"><Icon name="mic" :size="18" /></button></div>
+            <div v-else-if="f.t === 'date' && f.k === 'due' && m.type === 'task'" class="stack" style="gap:6px">
+              <input class="input" type="date" v-model="form[f.k]" />
+              <div v-if="nextClass !== undefined" class="row wrap" style="gap:6px 8px">
+                <button v-if="nextClass" type="button" class="chip" :class="{ on: isNextClass }" :aria-pressed="isNextClass" @click.prevent="useNextClass"><Icon name="cap" :size="14" />Para la próxima clase</button>
+                <span v-if="nextClass" class="tiny muted">{{ classText(nextClass) }}{{ nextClass.session ? ' · ' + nextClass.session : '' }}</span>
+                <span v-else class="tiny muted">No encontré la próxima clase de esta materia (ni en tu calendario ni en su horario).</span>
+              </div>
+            </div>
             <input v-else class="input" :type="{ number: 'number', date: 'date', time: 'time', color: 'color' }[f.t] || 'text'" v-model="form[f.k]" :inputmode="f.t === 'url' ? 'url' : undefined" :placeholder="f.t === 'url' ? 'https://…' : undefined" />
           </label>
           <div class="row" style="margin-top:6px">
             <button v-if="m.id" type="button" class="btn ghost" @click="remove"><Icon name="trash" :size="16" />Eliminar</button>
             <span class="grow"></span>
-            <button v-if="m.id && m.type === 'task'" type="button" class="btn ghost" @click="editMode = false">Cancelar</button>
+            <button v-if="m.id" type="button" class="btn ghost" @click="cancelEdit">Cancelar</button>
             <button type="submit" class="btn primary">Guardar</button>
           </div>
         </form>

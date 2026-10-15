@@ -47,6 +47,8 @@
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="https://mu-mu-blond.vercel.app/" />
             <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR" android:resource="@color/rosa" />
             <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR" android:resource="@color/crema" />
+            <!-- Si MuMu ya está abierta, se enfoca sin recargar (la página recibe el enlace por launchQueue) -->
+            <meta-data android:name="android.support.customtabs.trusted.LAUNCH_HANDLER_CLIENT_MODE" android:value="focus-existing" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

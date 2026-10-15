@@ -1,16 +1,17 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue'
+import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { shortDate } from '../engine/time'
+import { shortDate, uid } from '../engine/time'
 import { Icon, Ring, Bar } from '../components/ui'
 import { goalIcon } from '../components/iconFor'
-import { ask } from '../engine/game'
+import { ask, toast } from '../engine/game'
 import { resumen, f1 } from '../engine/notas'
 import TaskRow from '../components/TaskRow.vue'
 import Seg from '../components/Seg.vue'
 import ListBar from '../components/ListBar.vue'
 import GroupCard from '../components/GroupCard.vue'
+import ProjectLinks from '../components/ProjectLinks.vue'
 
 const FLOW = [['idea', 'Idea'], ['plan', 'Plan'], ['progreso', 'En progreso'], ['pausado', 'Pausado'], ['completado', 'Completado']]
 // Vista y área se recuerdan, como en Tareas
@@ -66,11 +67,170 @@ function foldAll() {
   else listGroups.value.forEach((g) => (lfold.value[g.key] = v))
 }
 const tint = (c) => ({ background: `color-mix(in srgb, ${c} 38%, var(--surface))`, color: 'var(--ink)' })
-// Arrastrar y soltar entre columnas (en celular: flechitas en cada tarjeta)
-const dragId = ref(null), overCol = ref(null)
-function drop(st) { const p = state.projects.find((x) => x.id === dragId.value); if (p) p.status = st; dragId.value = null; overCol.value = null }
 const move = (p, dir) => { const i = FLOW.findIndex((f) => f[0] === p.status); p.status = FLOW[Math.max(0, Math.min(FLOW.length - 1, i + dir))][0] }
 const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replace(/^www\./, '') + u.pathname).replace(/\/$/, '') } catch { return r } }
+
+// ---------- Enlaces del proyecto ----------
+// Antes eran "recursos": una lista de URLs sueltas. Al abrir el proyecto se pasan a enlaces con nombre
+// ({ id, name, url }). Lo que no parezca un enlace se queda en resources (se muestra como nota).
+const looksUrl = (r) => /^(https?:\/\/)?[^\s/]+\.[a-z]{2,}(\/\S*)?$/i.test(String(r || '').trim())
+function migrateLinks(p) {
+  if (!p || !Array.isArray(p.resources) || !p.resources.some(looksUrl)) return
+  const have = new Set((p.links || []).map((l) => l.url))
+  const add = []
+  p.resources.filter(looksUrl).forEach((r) => {
+    let u = String(r).trim(); if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+    if (!have.has(u)) { have.add(u); add.push({ id: uid('l'), name: prettyUrl(u), url: u }) }
+  })
+  p.links = [...(p.links || []), ...add]
+  p.resources = p.resources.filter((r) => !looksUrl(r))
+}
+watch(sel, migrateLinks, { immediate: true })
+
+// ---------- Tareas: abiertas arriba, terminadas plegadas abajo ----------
+const openTasks = computed(() => (sel.value ? tasksOf(sel.value).filter((t) => t.status !== 'completada') : []))
+const doneTasks = computed(() => (sel.value ? tasksOf(sel.value).filter((t) => t.status === 'completada') : []))
+const doneOpen = computed({ get: () => !!state.settings.projDoneOpen, set: (v) => (state.settings.projDoneOpen = v) })
+
+// ---------- Orden dentro de cada columna ----------
+const SORTS = [['manual', 'Manual'], ['name', 'Nombre (A–Z)'], ['created', 'Fecha de creación'], ['due', 'Fecha límite'], ['progress', 'Progreso']]
+const sortOf = (col) => state.settings.kanbanSort?.[col] || 'manual'
+const sortName = (col) => SORTS.find((s) => s[0] === sortOf(col))[1]
+function setSort(col, v) { (state.settings.kanbanSort ||= {})[col] = v; sortOpen.value = null }
+const sortOpen = ref(null)
+const idxOf = (p) => state.projects.indexOf(p)
+const ordOf = (p) => (typeof p.order === 'number' ? p.order : 1e6 + idxOf(p))
+const CMP = {
+  manual: (a, b) => ordOf(a) - ordOf(b),
+  name: (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base', numeric: true }),
+  created: (a, b) => idxOf(a) - idxOf(b), // los nuevos entran de primeros en state.projects: más recientes arriba
+  due: (a, b) => (a.due || '9999').localeCompare(b.due || '9999'),
+  progress: (a, b) => A.projectProgress(b) - A.projectProgress(a),
+}
+const cols = computed(() => Object.fromEntries(FLOW.map(([st]) => [st, byStatus(st).slice().sort(CMP[sortOf(st)] || CMP.manual)])))
+// Pone el proyecto en la columna st, en la posición index (contando sin él). Si la columna está ordenada por
+// otro criterio y reordenas dentro de ella, pasa a orden manual partiendo de lo que ves.
+function place(p, st, index) {
+  if (sortOf(st) !== 'manual' && p.status !== st) { p.status = st; return }
+  const list = cols.value[st].filter((x) => x !== p) // en el orden que se ve ahora
+  if (sortOf(st) !== 'manual') { setSort(st, 'manual'); toast(`${COL[st].name}: ahora en orden manual`) }
+  list.splice(Math.max(0, Math.min(index, list.length)), 0, p)
+  p.status = st
+  list.forEach((x, i) => (x.order = i))
+}
+function nudge(p, dir) {
+  const i = cols.value[p.status].indexOf(p)
+  place(p, p.status, i + dir)
+  nextTick(() => document.querySelector(`[data-pid="${p.id}"] .mv-${dir < 0 ? 'up' : 'down'}:not(:disabled)`)?.focus())
+}
+
+// ---------- Arrastrar (pointer events: mouse y touch) ----------
+// Mouse: arrastra al moverlo 5px. Touch: mantén presionado ~0,3 s y luego arrastra (si mueves antes, es scroll).
+const drag = ref(null) // { id, col, index, x, y, w, h, ox, oy, name, color }
+let pend = null, raf = 0, justDragged = false
+const board = ref(null)
+function onDown(e, p) {
+  if (e.button > 0 || e.target.closest('button')) return
+  const el = e.currentTarget, r = el.getBoundingClientRect()
+  pend = { p, el, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, touch: e.pointerType !== 'mouse', timer: 0 }
+  if (pend.touch) pend.timer = setTimeout(() => pend && start(pend.x, pend.y), 300)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onCancel)
+}
+function start(x, y) {
+  const { p, ox, oy, w, h } = pend
+  const from = cols.value[p.status].indexOf(p)
+  drag.value = { id: p.id, col: p.status, from, index: from, x, y, w, h, ox, oy, name: p.name, color: p.color }
+  navigator.vibrate?.(15)
+  raf = requestAnimationFrame(tick)
+}
+function onMove(e) {
+  if (!pend) return
+  pend.x = e.clientX; pend.y = e.clientY
+  if (!drag.value) {
+    const d = Math.hypot(e.clientX - pend.sx, e.clientY - pend.sy)
+    if (pend.touch) { if (d > 8) cleanup() } // se está desplazando, no arrastrando
+    else if (d > 5) start(e.clientX, e.clientY)
+    return
+  }
+  drag.value.x = e.clientX; drag.value.y = e.clientY
+  locate()
+}
+function locate() {
+  const d = drag.value; if (!d) return
+  const colEl = document.elementFromPoint(d.x, d.y)?.closest?.('[data-col]')
+  if (!colEl) return
+  const st = colEl.dataset.col
+  const cards = [...colEl.querySelectorAll('.kcard:not(.lifted)')]
+  let i = cards.findIndex((c) => { const r = c.getBoundingClientRect(); return d.y < r.top + r.height / 2 })
+  d.col = st; d.index = i < 0 ? cards.length : i
+}
+// Desplaza solo el tablero / la columna cuando el dedo llega al borde
+function tick() {
+  const d = drag.value; if (!d) return
+  const k = board.value
+  if (k) {
+    const r = k.getBoundingClientRect(), edge = 44
+    if (d.x < r.left + edge) k.scrollLeft -= 10; else if (d.x > r.right - edge) k.scrollLeft += 10
+  }
+  const body = document.querySelector(`[data-col="${d.col}"] .col-body`)
+  if (body) {
+    const r = body.getBoundingClientRect(), edge = 40
+    if (d.y < r.top + edge && d.y > r.top - 30) body.scrollTop -= 8; else if (d.y > r.bottom - edge && d.y < r.bottom + 30) body.scrollTop += 8
+  }
+  locate()
+  raf = requestAnimationFrame(tick)
+}
+function onUp() {
+  const d = drag.value
+  if (d) {
+    const p = state.projects.find((x) => x.id === d.id)
+    if (p && (d.col !== p.status || d.index !== d.from)) place(p, d.col, d.index)
+    justDragged = true; setTimeout(() => (justDragged = false), 0)
+  }
+  cleanup()
+}
+function onCancel() { cleanup() }
+function cleanup() {
+  if (pend?.timer) clearTimeout(pend.timer)
+  pend = null; drag.value = null; cancelAnimationFrame(raf)
+  window.removeEventListener('pointermove', onMove)
+  window.removeEventListener('pointerup', onUp)
+  window.removeEventListener('pointercancel', onCancel)
+}
+// Mientras se arrastra con el dedo, la página no se desplaza
+const blockTouch = (e) => { if (drag.value) e.preventDefault() }
+const blockMenu = (e) => { if (pend?.touch || drag.value) e.preventDefault() }
+const openCard = (p) => { if (!justDragged) A.go('proyectos', { id: p.id }) }
+// La tarjeta que se arrastra no se quita del DOM (solo se oculta): si se quitara, el navegador dejaría de
+// mandarnos los touchmove y la página empezaría a hacer scroll en vez de arrastrar.
+const colCards = (st) => (drag.value ? cols.value[st].filter((p) => p.id !== drag.value.id) : cols.value[st])
+const visIdx = (st, p) => colCards(st).indexOf(p)
+
+// ---------- Alto del tablero: llega justo hasta encima de la barra de abajo ----------
+const boardH = ref(null)
+function fit() {
+  const el = board.value; if (!el) return
+  const top = el.getBoundingClientRect().top + window.scrollY
+  const nav = document.querySelector('nav.bottom'), nr = nav?.getBoundingClientRect()
+  const limit = nr && nr.height ? nr.top - 10 : window.innerHeight - 16
+  boardH.value = Math.max(320, Math.floor(limit - top))
+}
+let ro = null, fitT = 0
+onMounted(() => {
+  window.addEventListener('resize', fit)
+  window.addEventListener('touchmove', blockTouch, { passive: false })
+  window.addEventListener('contextmenu', blockMenu)
+  ro = new ResizeObserver(() => fit())
+  watch(board, (el) => { ro.disconnect(); if (el) { ro.observe(el.parentElement); fit(); clearTimeout(fitT); fitT = setTimeout(fit, 400) } }, { immediate: true, flush: 'post' })
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', fit)
+  window.removeEventListener('touchmove', blockTouch)
+  window.removeEventListener('contextmenu', blockMenu)
+  ro?.disconnect(); clearTimeout(fitT); cleanup()
+})
 </script>
 
 <template>
@@ -110,11 +270,18 @@ const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replac
           <label v-for="t in tasksOf(sel)" :key="t.id" class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.includes(t.id)" @change="picked = picked.includes(t.id) ? picked.filter((x) => x !== t.id) : [...picked, t.id]" /> <span class="grow" :class="{ 'done-txt': t.status === 'completada' }">{{ t.title }}</span><span v-if="t.gtask" class="tiny muted">Google</span></label>
           <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm ghost" :disabled="!picked.length" @click="doneMany">Marcar hechas</button><button class="btn sm primary" :disabled="!picked.length" @click="delMany"><Icon name="trash" :size="14" />Borrar {{ picked.length || '' }}</button></div>
         </template>
-        <div v-else class="list"><TaskRow v-for="t in tasksOf(sel)" :key="t.id" :task="t" /></div>
+        <template v-else>
+          <div v-if="openTasks.length" class="list"><TaskRow v-for="t in openTasks" :key="t.id" :task="t" /></div>
+          <p v-else class="tiny muted" style="margin-top:6px">{{ doneTasks.length ? 'Todo al día: no quedan tareas pendientes.' : 'Aún no hay tareas en este proyecto.' }}</p>
+        </template>
       </div>
+      <GroupCard v-if="doneTasks.length && !picking" title="Tareas terminadas" icon="check" color="#B9DCCB" :count="doneTasks.length" :open="doneOpen" @toggle="doneOpen = !doneOpen">
+        <div class="list"><TaskRow v-for="t in doneTasks" :key="t.id" :task="t" /></div>
+      </GroupCard>
+      <ProjectLinks :target="sel" field="links" />
       <div class="card" v-if="(sel.resources || []).length || coursesOf(sel).length">
-        <h3>Recursos y aprendizaje</h3>
-        <component :is="/^https?:\/\//.test(r) ? 'a' : 'div'" v-for="r in sel.resources" :key="r" class="small wi res-link" :href="/^https?:\/\//.test(r) ? r : undefined" target="_blank" rel="noopener"><Icon name="link" :size="14" /><span>{{ prettyUrl(r) }}</span><Icon v-if="/^https?:\/\//.test(r)" name="chev" :size="13" class="muted" style="margin-left:auto" /></component>
+        <h3>Aprendizaje</h3>
+        <div v-for="r in sel.resources" :key="r" class="small wi" style="padding:4px 0;display:flex"><Icon name="note" :size="14" />{{ r }}</div>
         <div v-for="c in coursesOf(sel)" :key="c.id" class="small wi" style="padding:4px 0;display:flex"><Icon name="book" :size="14" />{{ c.title }} — práctica: {{ c.practice }}</div>
       </div>
     </template>
@@ -127,8 +294,8 @@ const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replac
       </div>
       <ListBar :count="projects.length" one="proyecto" foldable :all-folded="allFolded" :views="[['tablero', 'Tablero', 'grid'], ['lista', 'Lista', 'list']]" v-model:view="view" views-label="Vista" verb="Ver como" @fold="foldAll" />
 
-      <div v-if="view === 'tablero'" class="kanban">
-        <section v-for="f in FLOW" :key="f[0]" :data-col="f[0]" class="col" :class="{ over: overCol === f[0], folded: isFolded(f[0]) }" @dragover.prevent="overCol = f[0]" @dragleave="overCol = overCol === f[0] ? null : overCol" @drop.prevent="drop(f[0])">
+      <div v-if="view === 'tablero'" ref="board" class="kanban" :class="{ dragging: drag }" :style="boardH ? { height: boardH + 'px' } : null">
+        <section v-for="f in FLOW" :key="f[0]" :data-col="f[0]" class="col" :class="{ over: drag && drag.col === f[0], folded: isFolded(f[0]) }">
           <!-- Plegada: tira angosta; tocar en cualquier parte la abre -->
           <button v-if="isFolded(f[0])" type="button" class="strip-btn" :aria-expanded="false" :aria-label="`Expandir columna ${COL[f[0]].name} (${byStatus(f[0]).length})`" :title="`Expandir ${COL[f[0]].name}`" @click="toggleCol(f[0])">
             <span class="gico" :style="tint(COL[f[0]].color)"><Icon :name="COL[f[0]].icon" :size="15" /></span>
@@ -144,26 +311,39 @@ const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replac
                 <span class="badge">{{ byStatus(f[0]).length }}</span>
                 <span class="fold-ic"><Icon name="collapse" :size="14" style="transform:rotate(90deg)" /></span>
               </button>
+              <button class="mini" :class="{ on: sortOf(f[0]) !== 'manual' }" :aria-expanded="sortOpen === f[0]" :aria-label="`Ordenar ${COL[f[0]].name}: ${sortName(f[0])}`" :title="`Orden: ${sortName(f[0])}`" @click.stop="sortOpen = sortOpen === f[0] ? null : f[0]"><Icon name="menu" :size="14" /></button>
               <button class="mini" :aria-label="`Nuevo proyecto en ${COL[f[0]].name}`" @click.stop="ui.modal = { type: 'project', prefill: { status: f[0] } }"><Icon name="plus" :size="14" /></button>
             </header>
+            <div v-if="sortOpen === f[0]" class="sortmenu" role="menu" :aria-label="`Orden de ${COL[f[0]].name}`">
+              <button v-for="o in SORTS" :key="o[0]" type="button" role="menuitemradio" :aria-checked="sortOf(f[0]) === o[0]" :class="{ on: sortOf(f[0]) === o[0] }" @click="setSort(f[0], o[0])"><span class="ck"><Icon v-if="sortOf(f[0]) === o[0]" name="check" :size="13" /></span>{{ o[1] }}</button>
+            </div>
             <div class="col-body">
-              <article v-for="p in byStatus(f[0])" :key="p.id" class="kcard" draggable="true" :class="{ dragging: dragId === p.id }" @dragstart="dragId = p.id" @dragend="dragId = null; overCol = null" @click="A.go('proyectos', { id: p.id })">
+              <template v-for="(p, i) in cols[f[0]]" :key="p.id">
+              <div v-if="drag && drag.col === f[0] && drag.id !== p.id && drag.index === visIdx(f[0], p)" class="kdrop" :style="{ height: drag.h + 'px' }"></div>
+              <article class="kcard" :class="{ lifted: drag && drag.id === p.id }" :data-pid="p.id" @pointerdown="onDown($event, p)" @click="openCard(p)">
                 <span class="strip" :style="{ background: p.color || 'var(--lav-300)' }"></span>
                 <div class="b small kname">{{ p.name }}</div>
                 <div class="tiny muted kmeta"><span>{{ p.area }}</span><span v-if="p.due">· {{ shortDate(p.due) }}</span></div>
                 <Bar :value="A.projectProgress(p)" style="margin-top:8px" :color="p.color" />
                 <div class="row between" style="margin-top:8px">
                   <span class="tiny muted row" style="gap:4px"><Icon name="check" :size="12" />{{ tasksOf(p).filter((t) => t.status === 'completada').length }}/{{ tasksOf(p).length }}</span>
-                  <span class="row" style="gap:2px">
+                  <span class="row" style="gap:0">
+                    <button class="mini mv-up" :disabled="i === 0" :aria-label="`Subir ${p.name} en la columna`" @click.stop="nudge(p, -1)"><Icon name="chev" :size="13" style="transform:rotate(-90deg)" /></button>
+                    <button class="mini mv-down" :disabled="i === cols[f[0]].length - 1" :aria-label="`Bajar ${p.name} en la columna`" @click.stop="nudge(p, 1)"><Icon name="chev" :size="13" style="transform:rotate(90deg)" /></button>
                     <button class="mini" :disabled="f[0] === FLOW[0][0]" :aria-label="`Mover ${p.name} a la etapa anterior`" @click.stop="move(p, -1)"><Icon name="back" :size="13" /></button>
                     <button class="mini" :disabled="f[0] === FLOW[FLOW.length - 1][0]" :aria-label="`Mover ${p.name} a la siguiente etapa`" @click.stop="move(p, 1)"><Icon name="chev" :size="13" /></button>
                   </span>
                 </div>
               </article>
-              <p v-if="!byStatus(f[0]).length" class="tiny muted empty-col">Arrastra un proyecto aquí</p>
+              </template>
+              <div v-if="drag && drag.col === f[0] && drag.index >= colCards(f[0]).length" class="kdrop" :style="{ height: drag.h + 'px' }"></div>
+              <p v-if="!colCards(f[0]).length && !(drag && drag.col === f[0])" class="tiny muted empty-col">Arrastra un proyecto aquí</p>
             </div>
           </template>
         </section>
+    <div v-if="drag" class="kghost" :style="{ left: drag.x - drag.ox + 'px', top: drag.y - drag.oy + 'px', width: drag.w + 'px' }" aria-hidden="true">
+          <span class="strip" :style="{ background: drag.color || 'var(--lav-300)' }"></span><div class="b small kname">{{ drag.name }}</div>
+        </div>
       </div>
 
       <template v-else>
@@ -181,10 +361,11 @@ const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replac
 </template>
 
 <style scoped>
-.kanban { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding: 0 4px 8px; margin: 0 -4px; scroll-snap-type: x proximity; }
-.col { flex: 1 0 250px; min-width: 0; background: var(--surface-3); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 160px; scroll-snap-align: start; transition: flex-basis .28s ease, flex-grow .28s ease, box-shadow .15s, padding .28s; overflow: hidden; }
+.kanban { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 0 4px 6px; margin: 0 -4px; scroll-snap-type: x proximity; min-height: 320px; overscroll-behavior-x: contain; }
+.kanban.dragging { scroll-snap-type: none; user-select: none; }
+.col { flex: 1 0 250px; min-width: 0; background: var(--surface-3); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 0; scroll-snap-align: start; transition: flex-basis .28s ease, flex-grow .28s ease, box-shadow .15s, padding .28s; overflow: hidden; }
 .col.over { box-shadow: inset 0 0 0 2px var(--pink-300); }
-.col.folded { flex: 0 0 48px; padding: 6px 0; min-height: 230px; }
+.col.folded { flex: 0 0 48px; padding: 6px 0; }
 .col-head { display: flex; align-items: center; gap: 4px; font-size: 14px; padding: 2px 0 0 2px; cursor: pointer; }
 .col-toggle { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; border-radius: 10px; }
 .col-toggle:focus-visible, .strip-btn:focus-visible { outline: 2px solid var(--pink-300); outline-offset: 2px; }
@@ -197,16 +378,24 @@ const prettyUrl = (r) => { try { const u = new URL(r); return (u.hostname.replac
 .xbtn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); background: var(--surface); flex: none; margin-top: auto; }
 .strip-btn:hover .xbtn { color: var(--pink-700); }
 .gico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; }
-.col-body { display: flex; flex-direction: column; gap: 8px; min-width: 228px; }
+.col-body { display: flex; flex-direction: column; gap: 8px; min-width: 228px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 2px 4px 6px; scrollbar-width: thin; }
 .prow { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .prow:last-child { border-bottom: 0; }
-.kcard { position: relative; background: var(--surface); border-radius: 14px; padding: 12px 12px 10px 16px; box-shadow: var(--shadow); cursor: grab; overflow: hidden; }
+.kcard { flex: none; touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; position: relative; background: var(--surface); border-radius: 14px; padding: 12px 12px 10px 16px; box-shadow: var(--shadow); cursor: grab; overflow: hidden; }
 .kcard:active { cursor: grabbing; }
-.kcard.dragging { opacity: .45; }
+.kcard.lifted { display: none; }
+.kdrop { flex: none; border-radius: 14px; border: 2px dashed var(--pink-300); background: color-mix(in srgb, var(--pink-100) 45%, transparent); }
+.kghost { position: fixed; z-index: 60; pointer-events: none; background: var(--surface); border-radius: 14px; padding: 12px 12px 12px 16px; box-shadow: var(--shadow-lg); overflow: hidden; transform: rotate(2deg); opacity: .95; }
+.mini.on { color: var(--pink-700); background: var(--pink-100); }
+.sortmenu { display: flex; flex-direction: column; background: var(--surface); border-radius: 12px; padding: 4px; box-shadow: var(--shadow); flex: none; }
+.sortmenu button { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13px; text-align: left; padding: 7px 8px; border-radius: 9px; cursor: pointer; }
+.sortmenu button:hover { background: var(--surface-3); }
+.sortmenu button.on { color: var(--pink-700); font-weight: 600; }
+.sortmenu .ck { width: 14px; display: grid; place-items: center; flex: none; }
 .strip { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
 .kname { overflow-wrap: anywhere; }
 .kmeta { display: flex; gap: 4px; margin-top: 2px; text-transform: capitalize; }
-.mini { width: 26px; height: 26px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.mini { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .mini:hover:not(:disabled) { background: var(--surface-3); color: var(--pink-700); }
 .mini:disabled { opacity: .3; cursor: default; }
 .subj { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; padding: 10px 2px; cursor: pointer; }

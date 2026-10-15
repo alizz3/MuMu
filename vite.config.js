@@ -14,6 +14,8 @@ const pwa = VitePWA({
     description: 'Mi vida organizada, pero bonita: agenda, hábitos, universidad y la casita de la vaquita.',
     lang: 'es-CO',
     start_url: '/',
+    // Al abrir desde el ícono o la app, vuelve a la MuMu que ya tenías abierta (sin recargar)
+    launch_handler: { client_mode: 'focus-existing' },
     scope: '/',
     display: 'standalone',
     theme_color: '#FCE4EC',

@@ -8,7 +8,8 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Funciona sin internet:** puedes agregar y marcar cosas sin conexión; se suben solas cuando vuelve el internet.
 - **Se actualiza sola:** cuando hay una versión nueva se instala sin que tengas que tocar nada (espera si estás escribiendo algo).
 - **Iconos propios:** toda la app usa iconos de línea, sin emojis.
-- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va.
+- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va. Al tocarla puedes **conversar con ella con IA gratis** (Groq), y conoce tus tareas, tiempos libres y hábitos.
+- **Abrir la app no recarga MuMu** si ya estaba abierta, y las versiones nuevas se instalan cuando la dejas en segundo plano.
 
 ## Inicio
 
@@ -35,12 +36,16 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 
 - Pestañas **Pendientes, Hoy, Semana, Hechas y Todas**, y vistas por **Listas, Fecha o Prioridad**, con grupos plegables y botón para plegar/desplegar todo.
 - Al crear una tarea eliges la **Lista**: proyecto, materia, hábito o lista de Google Tasks (recuerda la última que usaste).
+- En las de la U, botón **"Para la próxima clase"**: pone la fecha y hora de la siguiente sesión de esa materia.
+- **Guardar** siempre visible arriba del formulario.
+- **Recursos** de cada tarea (guía, video, Drive…) con nombre, y los enlaces que escribas en las notas se pueden tocar.
 - Campos: título (se puede **dictar**), notas, enlace, prioridad, estado, fecha y **hora límite** (solo se muestra si la tiene), duración, objetivo, etiquetas, subtareas y **nota** (0–5 con su porcentaje) en las de la U.
 - **Tareas en grupo (CIPA):** marcas que es en grupo, eliges quién la sube, abres el chat del grupo (Google Chat con la cuenta de la U o WhatsApp) con un mensaje ya copiado, y **"Ya la subió…"** la da por hecha.
 - **Google Tasks en las dos vías:** lo personal en tu cuenta personal y lo de la U en la de la U; una lista por materia, por proyecto y por hábito. Si borras o editas en un lado, cambia en el otro.
 
 ## Universidad
 
+- **Tareas de la U** agrupadas por **materia** o por **fecha** (lo que vence primero).
 - **Materias** en tu orden y con sus colores. Cada materia muestra:
   - la **sesión en curso o la próxima** (ej. "Tutoría 3 · ahora" o "Tutoría 4 · en 14 días"), sacada de tu Google Calendar;
   - **Sesiones** (plegable), profe con correo y celular (correo → Gmail de la U, celular → WhatsApp, con botón de copiar), Drive de la materia, enlaces, tareas y novedades del curso.
@@ -53,9 +58,11 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 ## Proyectos
 
 - Vista **tablero (kanban)**: idea, plan, en progreso, pausado y completado. Las columnas se **recogen hacia el lado** tocando su nombre (las vacías empiezan recogidas).
-- Vista de lista agrupada, filtro por área, tareas del proyecto y **recursos** que se abren con un toque.
+- Las columnas ocupan la pantalla hasta el menú y cada una se desplaza sola. Las tarjetas se **ordenan** arrastrándolas (mantener presionado en el celular) o por nombre, fecha de creación, fecha límite o progreso.
+- Vista de lista agrupada y filtro por área.
+- En cada proyecto: sus tareas, con las **terminadas** abajo en un grupo plegable, y **Enlaces** con nombre (repositorio, página, Drive…) que se agregan, editan y abren con un toque.
 - Los semestres de la U son proyectos unidos a sus materias.
-- Se pueden **importar** proyectos, tareas y hábitos con un enlace `…#importar=`.
+- Se pueden **importar** proyectos, objetivos, tareas, hábitos y cursos con un enlace `…#importar=` o pegando lo que te da otra IA en **Más → Importar con IA**.
 
 ## Hábitos
 
@@ -125,4 +132,4 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
-Última actualización: 14 de octubre de 2026.
+Última actualización: 15 de octubre de 2026.

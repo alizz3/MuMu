@@ -28,6 +28,7 @@ const subs = computed(() => t.value.subtasks?.length ? `${t.value.subtasks.filte
         <span v-if="!compact">· {{ fmtDur(t.estimate) }}</span>
         <span v-if="subj">· {{ subj.short }}</span>
         <span v-else-if="proj">· {{ proj.name }}</span>
+        <span v-if="t.links?.length" class="wi" style="gap:3px" :aria-label="`${t.links.length} ${t.links.length === 1 ? 'recurso' : 'recursos'}`">· <Icon name="link" :size="12" />{{ t.links.length }}</span>
         <span v-if="subs" class="wi" style="gap:3px">· <Icon name="check" :size="12" />{{ subs }}</span>
         <span v-if="SRC[t.source] && !compact" class="wi" style="gap:3px" :aria-label="SRC[t.source][1] || 'Google Calendar'">· <Icon :name="SRC[t.source][0]" :size="12" />{{ SRC[t.source][1] }}</span>
         <span v-if="t.group" class="wi" style="gap:3px">· <Icon name="users" :size="12" />CIPA{{ t.uploader ? ' · la sube ' + t.uploader.split(' ')[0] : '' }}</span>

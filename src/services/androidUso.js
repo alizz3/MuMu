@@ -40,10 +40,10 @@ export function importUso(data) {
 }
 
 // Al abrir desde la app: espera a que carguen tus datos y guarda el uso
-export function initAndroidUso() {
-  const m = location.hash.match(/^#uso=([\w-]+)/)
+export function initAndroidUso(hash = location.hash) {
+  const m = hash.match(/^#uso=([\w-]+)/)
   if (!m) return
-  history.replaceState(null, '', location.pathname + location.search)
+  if (hash === location.hash) history.replaceState(null, '', location.pathname + location.search)
   let data
   try { data = decode(m[1]) } catch { return }
   ui.inAndroid = true
@@ -54,8 +54,8 @@ export function initAndroidUso() {
     if (!ready || done) return
     done = true
     const n = importUso(data)
-    if (!data.permiso) toast('Para leer tu tiempo de pantalla, dale permiso a MuMu en Celular y redes.')
-    else if (n) toast(`Tiempo de pantalla actualizado (${n} días)`)
+    if (!data.permiso && ui.route === 'celular') toast('Para leer tu tiempo de pantalla, dale permiso a MuMu en Celular y redes.')
+    else if (n && ui.route === 'celular') toast(`Tiempo de pantalla actualizado (${n} días)`) // en silencio, salvo que estés mirando Celular
   }, { immediate: true })
   setTimeout(() => { if (!done && ui.authReady) { done = true; importUso(data) } }, 16000)
 }
