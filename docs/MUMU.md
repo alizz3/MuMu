@@ -43,7 +43,10 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Tareas en grupo (CIPA):** marcas que es en grupo, eliges quién la sube, abres el chat del grupo (Google Chat con la cuenta de la U o WhatsApp) con un mensaje ya copiado, y **"Ya la subió…"** la da por hecha.
 - **Google Tasks en las dos vías:** lo personal en tu cuenta personal y lo de la U en la de la U; una lista por materia, por proyecto y por hábito. Si borras o editas en un lado, cambia en el otro.
 
-## Universidad
+## Estudios (antes Universidad)
+
+- Arriba eliges qué ver: **Todo, U. Tolima, SENA, Classroom u Otros**; el filtro aplica a materias y tareas.
+- Pestaña **Cursos online** con tus cursos de Platzi y otros (antes estaba en Más).
 
 - **Tareas de la U** agrupadas por **materia** o por **fecha** (lo que vence primero).
 - **Materias** en tu orden y con sus colores. Cada materia muestra:
@@ -132,4 +135,4 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
-Última actualización: 15 de octubre de 2026.
+Última actualización: 15 de octubre de 2026 (tarde).

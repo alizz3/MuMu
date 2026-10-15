@@ -14,6 +14,7 @@ import GroupCard from '../components/GroupCard.vue'
 import TaskRow from '../components/TaskRow.vue'
 import AulaStatus from '../components/AulaStatus.vue'
 import Profes from '../components/Profes.vue'
+import Aprendizaje from './aprendizaje.vue'
 import Contact from '../components/Contact.vue'
 import Links from '../components/Links.vue'
 import DriveBrowser from '../components/DriveBrowser.vue'
@@ -23,16 +24,18 @@ import { resumen, f1, tono, PASA } from '../engine/notas'
 const tab = ref('cursos')
 const sel = ref(ui.openSubject || null)
 ui.openSubject = null
-const inst = ref('todas')
+// Estudios: filtra por institución (U. Tolima, SENA, Classroom, otras); se recuerda lo que elijas
+const inst = computed({ get: () => state.settings.studyInst || 'todas', set: (v) => (state.settings.studyInst = v) })
+const instOk = (sid) => inst.value === 'todas' || subjOf(sid)?.institution === inst.value
 const subjects = computed(() => state.subjects.filter((s) => inst.value === 'todas' || s.institution === inst.value).map((s) => {
   const ts = state.tasks.filter((t) => t.subjectId === s.id && t.status !== 'cancelada')
   return { ...s, ts, nota: resumen(ts), open: ts.filter(isOpen), p: ts.length ? Math.round(ts.filter((t) => t.status === 'completada').length / ts.length * 100) : 0 }
 }))
-const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId)).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
+const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId) && (inst.value === 'todas' || instOk(t.subjectId))).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
 const subjOf = (id) => state.subjects.find((s) => s.id === id)
-const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['profes', 'Profes', 'users'], ['aula', 'Tu Aula · Classroom', 'globe']]
-const INSTS = [['todas', 'Todas'], ['UT', 'U. Tolima'], ['Classroom', 'Classroom'], ['SENA', 'SENA']]
+const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['online', 'Cursos online', 'book'], ['profes', 'Profes', 'users'], ['aula', 'Tu Aula · Classroom', 'globe']]
+const INSTS = computed(() => [['todas', 'Todo'], ['UT', 'U. Tolima'], ['SENA', 'SENA'], ['Classroom', 'Classroom'], ['Otra', 'Otros']].filter(([v]) => v === 'todas' || v === 'UT' || state.subjects.some((x) => x.institution === v)))
 // Tareas de la U agrupadas por materia, plegables como en Tareas
 const uFold = computed(() => (state.settings.uniFolded ||= {}))
 // Agrupar por materia o por fecha (como en Tareas); se recuerda lo que elijas
@@ -91,7 +94,8 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
 <template>
   <div class="stack">
     <AulaStatus />
-    <div v-if="!selS" class="card stack" style="gap:10px">
+    <Seg v-if="!selS && INSTS.length > 2" v-model="inst" :options="INSTS" label="Institución" />
+    <div v-if="!selS && ['todas', 'UT'].includes(inst) && tab !== 'online'" class="card stack" style="gap:10px">
       <Links :target="state.settings" field="semesterLinks" title="Mi semestre" icon="book" hint="Pega aquí la carpeta de Drive del semestre: MuMu encuentra sola la carpeta de cada materia." />
       <template v-if="semesterFolder()">
         <DriveBrowser :root="semesterFolder()" :height="380" title="Drive del semestre" icon="folder" />
@@ -140,8 +144,8 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     </template>
 
     <template v-else-if="tab === 'cursos'">
-      <ListBar :count="subjects.length" one="materia" :views="INSTS" v-model:view="inst" views-label="Institución" verb="Ver">
-        <template #end><button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: 'UT', color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></template>
+      <ListBar :count="subjects.length" one="materia" >
+        <template #end><button class="iconbtn add" aria-label="Nueva materia" @click="ui.modal = { type: 'subject', prefill: { institution: inst === 'todas' ? 'UT' : inst, color: '#E8DDF5', schedule: [] } }"><Icon name="plus" /></button></template>
       </ListBar>
       <div v-if="autos.length && reales.length" class="card soft stack" style="gap:10px">
         <div><b class="small wi"><Icon name="puzzle" :size="15" />¿Cuál materia es cada una?</b><p class="tiny muted">Tu Aula y Classroom nombran los cursos con códigos. Dime a cuál de tus materias corresponde y MuMu lo recordará para siempre.</p></div>
@@ -171,6 +175,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
     </template>
 
     <Profes v-else-if="tab === 'profes'" />
+    <Aprendizaje v-else-if="tab === 'online'" />
 
     <template v-else-if="tab === 'tareas'">
       <ListBar :count="uniTasks.length" one="tarea pendiente" many="tareas pendientes" :foldable="uniGroups.length > 1" :all-folded="uAllFolded" :views="U_VIEWS" v-model:view="uGroup" @fold="uFoldAll" />

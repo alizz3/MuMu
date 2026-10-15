@@ -424,16 +424,23 @@ export function importProject(data) {
   // Materias o cursos (ej. un curso del SENA) con sus sesiones en la agenda
   const newSubjects = (Array.isArray(data?.subjects) ? data.subjects : []).slice(0, 10).map((x) => {
     if (!s(x?.name)) return null
+    // Si ya existe (mismo nombre), se reusa y se completa: el enlace se puede abrir dos veces sin duplicar
+    const ya = state.subjects.find((o) => o.name.trim().toLowerCase() === s(x.name, 120).toLowerCase())
+    if (ya) { ['short', 'teacher', 'teacherEmail', 'notes'].forEach((k) => { if (!ya[k] && s(x[k])) ya[k] = s(x[k], 1500) }); if (x.institution && ya.institution !== x.institution) ya.institution = x.institution; return ya }
     const sj = { id: uid('s'), name: s(x.name, 120), short: s(x.short, 40) || s(x.name, 40), institution: ['UT', 'Classroom', 'SENA', 'Otra'].includes(x.institution) ? x.institution : 'Otra', teacher: s(x.teacher, 80), teacherEmail: s(x.teacherEmail, 120), url: /^https?:\/\//.test(x.url || '') ? s(x.url, 500) : '', color: /^#[0-9a-f]{6}$/i.test(x.color || '') ? x.color : '#B9DCCB', notes: s(x.notes, 1500), schedule: [] }
     state.subjects.push(sj); return sj
   })
   ;(Array.isArray(data?.events) ? data.events : []).slice(0, 40).forEach((e) => {
     if (!s(e?.title) || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || !/^\d{2}:\d{2}$/.test(e.start || '')) return
     const sj = Number.isInteger(e.subject) ? newSubjects[e.subject] : null
+    const ya = state.events.find((o) => o.title === s(e.title, 120) && o.date === e.date)
+    if (ya) { if (sj && !ya.subjectId) ya.subjectId = sj.id; return }
     state.events.push({ id: uid('e'), source: 'manual', title: s(e.title, 120), date: e.date, start: e.start, end: /^\d{2}:\d{2}$/.test(e.end || '') ? e.end : e.start, type: 'clase', subjectId: sj?.id || null, url: /^https?:\/\//.test(e.url || '') ? s(e.url, 500) : undefined })
   })
   ;(Array.isArray(data?.subjectTasks) ? data.subjectTasks : []).slice(0, 40).forEach((t) => {
     const sj = Number.isInteger(t.subject) ? newSubjects[t.subject] : null
+    const ya = s(t?.title) && state.tasks.find((o) => o.title === s(t.title, 200) && o.status !== 'cancelada')
+    if (ya) { if (sj) { ya.subjectId = sj.id; ya.projectId = null } return }
     if (s(t?.title)) addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), subjectId: sj?.id || null, category: 'aprendizaje', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, dueTime: /^\d{2}:\d{2}$/.test(t.dueTime || '') ? t.dueTime : null, estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)) }, { quiet: true })
   })
   if ((newSubjects.some(Boolean) || newGoals.some(Boolean)) && !p && !data?.habits?.length && !data?.tasks?.length) return null

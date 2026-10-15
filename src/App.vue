@@ -176,7 +176,7 @@ const fmtLeft = computed(() => {
     <nav class="bottom" aria-label="Navegación rápida">
       <button v-for="id in BOTTOM" :key="id" :class="{ on: ui.route === id }" @click="go(id)">
         <Icon :name="{ home: 'home', agenda: 'calendar', habitos: 'heart', universidad: 'cap', mas: 'more' }[id]" :size="21" />
-        {{ { home: 'Inicio', agenda: 'Agenda', habitos: 'Hábitos', universidad: 'Universidad', mas: 'Más' }[id] }}
+        {{ { home: 'Inicio', agenda: 'Agenda', habitos: 'Hábitos', universidad: 'Estudios', mas: 'Más' }[id] }}
       </button>
     </nav>
 

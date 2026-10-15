@@ -10,7 +10,7 @@ import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
 
 const last = {}
-let uid = null, ready = false
+let uid = null, ready = false, holdWrites = false
 let unsubs = []
 
 // Nada debe dejar la vaquita de carga pegada: todo lo de red tiene tiempo límite
@@ -67,30 +67,45 @@ export async function initSync() {
     if (anyRemote) {
       snaps.forEach((s, i) => { if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items) } })
     }
+    // Si lo que se leyó es la copia guardada en el equipo (no la del servidor) y sí hay internet,
+    // NO se sube nada ni se corren arreglos/sincronizaciones hasta que llegue lo del servidor:
+    // así un celular con datos viejos no pisa lo que hiciste en otro lado (pasó con el curso del SENA).
+    const stale = navigator.onLine && snaps.some((x) => x.metadata?.fromCache)
+    holdWrites = stale
     ready = true
     ui.synced = true
-    listen(fb, uid)
-    markVisit()
-    dropSena()
-    cleanTitles()
-    fixSubjects()
-    fixUniRoutine(UNI_STEPS)
-    linkHabitTasks()
-    processInbox()
-    ensureAulaTasks()
-    autoSync()
-    if (!anyRemote) push(fb, doc, setDoc)
+    let started = false
+    const start = () => {
+      if (started) return
+      started = true; holdWrites = false
+      markVisit()
+      dropSena()
+      cleanTitles()
+      fixSubjects()
+      fixUniRoutine(UNI_STEPS)
+      linkHabitTasks()
+      processInbox()
+      ensureAulaTasks()
+      autoSync()
+      push(fb, doc, setDoc)
+    }
+    listen(fb, uid, stale ? start : null)
+    if (!stale) start()
+    else setTimeout(() => { if (!started) start() }, navigator.onLine ? 45000 : 1000)
   })
   onPersist(() => { if (ready && uid) push(fb, doc, setDoc) })
 }
 
 // En vivo: si cambias algo en otra pestaña o en el celular, esta pestaña se actualiza sola.
 // Así una pestaña vieja no vuelve a subir tareas que ya borraste.
-function listen(fb, id) {
+function listen(fb, id, onFresh = null) {
   unsubs.forEach((u) => u()); unsubs = []
   const { doc, onSnapshot } = fb.fs
-  for (const k of Object.keys(state)) {
+  const keys = Object.keys(state), fresh = new Set()
+  for (const k of keys) {
     unsubs.push(onSnapshot(doc(fb.db, 'users', id, 'data', k), (s) => {
+      // Cuando ya llegó lo del servidor para todas las colecciones, se sigue normal
+      if (onFresh && !s.metadata.fromCache) { fresh.add(k); if (fresh.size === keys.length) { onFresh(); onFresh = null } }
       if (!s.exists() || s.metadata.hasPendingWrites) return
       const json = JSON.stringify(s.data().items)
       if (json === last[k]) return
@@ -101,6 +116,7 @@ function listen(fb, id) {
 }
 
 async function push(fb, doc, setDoc) {
+  if (holdWrites) return // esperando lo del servidor
   // Sin await: sin internet la escritura queda guardada en el equipo y Firebase la sube sola al volver
   for (const k of Object.keys(state)) {
     const json = JSON.stringify(state[k])
