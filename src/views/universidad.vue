@@ -126,7 +126,7 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         </div>
         <p class="tiny muted" style="margin:6px 0 0">Toca una para ponerle la sesión o cambiarle el nombre en MuMu.</p>
       </GroupCard>
-      <div class="card"><Links :target="subjOf(selS.id)" title="Enlaces de la materia" icon="link" /></div>
+      <GroupCard title="Enlaces de la materia" icon="link" color="#BFD7F0" :count="(subjOf(selS.id)?.links || []).length || null" :open="!!state.settings.linksOpen?.[selS.id]" @toggle="state.settings.linksOpen = { ...(state.settings.linksOpen || {}), [selS.id]: !state.settings.linksOpen?.[selS.id] }"><Links :target="subjOf(selS.id)" title="" icon="" /></GroupCard>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">
         <div class="row between"><h3 class="wi"><Icon name="target" :size="17" />Notas</h3><span class="badge" :class="tono(selS.nota.promedio)" style="font-size:15px">{{ f1(selS.nota.promedio) }}</span></div>
         <p class="small muted" v-if="selS.nota.evaluado != null">Llevas {{ f1(selS.nota.acumulado) }} de 5.0 con el {{ Math.round(selS.nota.evaluado) }}% calificado.

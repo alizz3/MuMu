@@ -5,9 +5,14 @@ import { computed, ref, nextTick } from 'vue'
 import { toast, ask } from '../engine/game'
 import { uid } from '../engine/time'
 import { Icon } from './ui'
+import GroupCard from './GroupCard.vue'
+import { state } from '../store'
 
 const props = defineProps({ target: { type: Object, required: true }, field: { type: String, default: 'links' }, title: { type: String, default: 'Enlaces' }, hint: { type: String, default: '' } })
 const list = computed(() => props.target[props.field] || [])
+// Plegable como las demás tarjetas; se recuerda abierta o cerrada por proyecto
+const isOpen = computed(() => !!(state.settings.linksOpen || {})[props.target.id || props.title])
+function toggleOpen() { state.settings.linksOpen = { ...(state.settings.linksOpen || {}), [props.target.id || props.title]: !isOpen.value } }
 
 const KINDS = [
   [/github\.com|gitlab\.com|bitbucket\.org/, 'laptop', 'Repositorio'],
@@ -53,8 +58,8 @@ async function remove(l) { if (await ask(`¿Quitar "${l.name}"?`)) props.target[
 </script>
 
 <template>
-  <div class="card plk">
-    <div class="row between"><h3 class="wi"><Icon name="link" :size="16" />{{ title }}</h3><button class="link" @click="openAdd">{{ adding ? 'Cancelar' : '+ Enlace' }}</button></div>
+  <GroupCard :title="title" icon="link" color="#BFD7F0" :count="list.length || null" :sub="list.length ? '' : 'Repo, página, Figma, Drive…'" :open="isOpen" @toggle="toggleOpen">
+    <div class="row" style="justify-content:flex-end;margin-top:4px"><button class="link" @click="openAdd">{{ adding ? 'Cancelar' : '+ Enlace' }}</button></div>
     <ul v-if="list.length" class="plk-list">
       <li v-for="l in list" :key="l.id" class="plk-row">
         <template v-if="editId === l.id">
@@ -80,7 +85,7 @@ async function remove(l) { if (await ask(`¿Quitar "${l.name}"?`)) props.target[
       <input class="input" v-model="name" :placeholder="url ? `Nombre (${kindOf(normUrl(url))[2]})` : 'Nombre, ej. Repositorio de GitHub'" aria-label="Nombre del enlace" @keyup.enter="add" />
       <div class="row" style="justify-content:flex-end"><button class="btn sm primary" :disabled="!url.trim()" @click="add">Guardar enlace</button></div>
     </div>
-  </div>
+  </GroupCard>
 </template>
 
 <style scoped>
