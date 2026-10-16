@@ -31,6 +31,9 @@ const subjects = computed(() => state.subjects.filter((s) => inst.value === 'tod
   const ts = state.tasks.filter((t) => t.subjectId === s.id && t.status !== 'cancelada')
   return { ...s, ts, nota: resumen(ts), open: ts.filter(isOpen), p: ts.length ? Math.round(ts.filter((t) => t.status === 'completada').length / ts.length * 100) : 0 }
 }))
+const byDue = (a, b) => ((a.due || 'z') + (a.dueTime || '')).localeCompare((b.due || 'z') + (b.dueTime || ''))
+const selOpen = computed(() => (selS.value?.ts || []).filter(isOpen).sort(byDue))
+const selDone = computed(() => (selS.value?.ts || []).filter((t) => !isOpen(t)).sort((a, b) => String(b.completedAt || b.due || '').localeCompare(String(a.completedAt || a.due || ''))))
 const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId) && (inst.value === 'todas' || instOk(t.subjectId))).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
 const subjOf = (id) => state.subjects.find((s) => s.id === id)
@@ -140,7 +143,11 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
         <div v-for="t in selS.ts.filter((x) => x.grade != null)" :key="t.id" class="row small between" style="padding:2px 0"><span class="grow">{{ t.title }}</span><span class="muted">{{ t.weight ? t.weight + '%' : '' }}</span><b style="width:36px;text-align:right">{{ f1(t.grade) }}</b></div>
       </div>
       <div class="card"><div class="row between"><h3>Tareas</h3><button class="link" @click="ui.modal = { type: 'task', prefill: { subjectId: selS.id, category: 'universidad', goalId: 'g1' } }">+ Tarea</button></div>
-        <div class="list"><TaskRow v-for="t in selS.ts" :key="t.id" :task="t" /></div></div>
+        <div class="list"><TaskRow v-for="t in selOpen" :key="t.id" :task="t" /></div>
+        <p v-if="!selOpen.length" class="tiny muted" style="margin-top:6px">{{ selDone.length ? 'Todo al día: no quedan tareas pendientes.' : 'Aún no hay tareas en esta materia.' }}</p></div>
+      <GroupCard v-if="selDone.length" title="Tareas terminadas" icon="check" color="#B9DCCB" :count="selDone.length" :open="!!state.settings.doneOpen?.[selS.id]" @toggle="state.settings.doneOpen = { ...(state.settings.doneOpen || {}), [selS.id]: !state.settings.doneOpen?.[selS.id] }">
+        <div class="list"><TaskRow v-for="t in selDone" :key="t.id" :task="t" /></div>
+      </GroupCard>
       <div v-if="state.aula.some((x) => x.courseId === selS.id && !x.taskId)" class="card"><h3>Otras novedades del curso</h3>
         <div v-for="a in state.aula.filter((x) => x.courseId === selS.id && !x.taskId)" :key="a.id" class="row small" style="padding:6px 0;gap:8px"><span class="grow">{{ a.title }} <span class="muted">{{ a.due ? '· ' + relDay(a.due) : '' }}</span></span>
           <a v-if="a.url" class="btn sm ghost" :href="a.url" target="_blank" rel="noopener">Abrir</a>

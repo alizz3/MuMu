@@ -8,7 +8,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Funciona sin internet:** puedes agregar y marcar cosas sin conexión; se suben solas cuando vuelve el internet.
 - **Se actualiza sola:** cuando hay una versión nueva se instala sin que tengas que tocar nada (espera si estás escribiendo algo).
 - **Iconos propios:** toda la app usa iconos de línea, sin emojis.
-- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va. Al tocarla puedes **conversar con ella con IA gratis** (Groq), y conoce tus tareas, tiempos libres y hábitos.
+- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va. Al tocarla puedes **conversar con ella con IA gratis** (Groq): conoce tus proyectos (avance y lo que falta), materias, tareas, agenda de hoy y mañana, tiempos libres y hábitos. Arriba muestra pistas cortas (tiempo libre, algo sin empezar). Si la IA falla, responde lo que puede sin IA.
 - **Abrir la app no recarga MuMu** si ya estaba abierta, y las versiones nuevas se instalan cuando la dejas en segundo plano.
 
 ## Inicio
@@ -51,6 +51,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Tareas de la U** agrupadas por **materia** o por **fecha** (lo que vence primero).
 - **Materias** en tu orden y con sus colores. Cada materia muestra:
   - la **sesión en curso o la próxima** (ej. "Tutoría 3 · ahora" o "Tutoría 4 · en 14 días"), sacada de tu Google Calendar;
+  - sus tareas pendientes por fecha y las **terminadas** abajo en un grupo plegable;
   - **Sesiones** (plegable), profe con correo y celular (correo → Gmail de la U, celular → WhatsApp, con botón de copiar), Drive de la materia, enlaces, tareas y novedades del curso.
 - **Tu Aula y Classroom:** cada entrega o quiz nuevo se vuelve tarea sola, con fecha, hora y enlace a la actividad; si una tarea se pierde, se vuelve a crear. Si cambia la fecha, se actualiza. Puedes ignorar cursos que no necesitas.
 - **Profes:** plantillas de mensaje (duda, más tiempo, no pude asistir, envío mi trabajo) para mandar por Gmail, WhatsApp o copiar.
@@ -61,7 +62,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 ## Proyectos
 
 - Vista **tablero (kanban)**: idea, plan, en progreso, pausado y completado. Las columnas se **recogen hacia el lado** tocando su nombre (las vacías empiezan recogidas).
-- Las columnas ocupan la pantalla hasta el menú y cada una se desplaza sola. Las tarjetas se **ordenan** arrastrándolas (mantener presionado en el celular) o por nombre, fecha de creación, fecha límite o progreso.
+- Las columnas ocupan la pantalla hasta el menú y cada una se desplaza sola. El tablero se desliza de lado con el dedo, arrastrando el fondo con el mouse o con la rueda, sin barra fea abajo. Las tarjetas se **ordenan** arrastrándolas (mantener presionado en el celular) o por nombre, fecha de creación, fecha límite o progreso.
 - Vista de lista agrupada y filtro por área.
 - En cada proyecto: sus tareas, con las **terminadas** abajo en un grupo plegable, y **Enlaces** con nombre (repositorio, página, Drive…) que se agregan, editan y abren con un toque.
 - Los semestres de la U son proyectos unidos a sus materias.
@@ -135,4 +136,4 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
-Última actualización: 15 de octubre de 2026 (tarde).
+Última actualización: 15 de octubre de 2026 (noche).

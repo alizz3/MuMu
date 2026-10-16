@@ -199,6 +199,23 @@ function cleanup() {
   window.removeEventListener('pointerup', onUp)
   window.removeEventListener('pointercancel', onCancel)
 }
+// Deslizar el tablero de lado: con el dedo es nativo; con el mouse, arrastrando el fondo; con la rueda o el touchpad, sobre los títulos o el fondo
+let pan = null
+function onBoardDown(e) {
+  if (e.pointerType !== 'mouse' || e.button > 0 || e.target.closest('.kcard, button, a, input, select, .col-body')) return
+  pan = { x: e.clientX, left: board.value.scrollLeft, moved: false }
+  board.value.classList.add('panning')
+  window.addEventListener('pointermove', onPanMove); window.addEventListener('pointerup', onPanUp)
+}
+function onPanMove(e) { if (!pan) return; const dx = e.clientX - pan.x; if (Math.abs(dx) > 3) pan.moved = true; board.value.scrollLeft = pan.left - dx }
+function onPanUp() { pan = null; board.value?.classList.remove('panning'); window.removeEventListener('pointermove', onPanMove); window.removeEventListener('pointerup', onPanUp) }
+function onWheel(e) {
+  const k = board.value; if (!k || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+  const body = e.target.closest('.col-body')
+  if (body && body.scrollHeight > body.clientHeight + 1) return // dentro de una columna con scroll: baja normal
+  if (k.scrollWidth <= k.clientWidth) return
+  e.preventDefault(); k.scrollLeft += e.deltaY
+}
 // Mientras se arrastra con el dedo, la página no se desplaza
 const blockTouch = (e) => { if (drag.value) e.preventDefault() }
 const blockMenu = (e) => { if (pend?.touch || drag.value) e.preventDefault() }
@@ -226,6 +243,7 @@ onMounted(() => {
   watch(board, (el) => { ro.disconnect(); if (el) { ro.observe(el.parentElement); fit(); clearTimeout(fitT); fitT = setTimeout(fit, 400) } }, { immediate: true, flush: 'post' })
 })
 onBeforeUnmount(() => {
+  onPanUp()
   window.removeEventListener('resize', fit)
   window.removeEventListener('touchmove', blockTouch)
   window.removeEventListener('contextmenu', blockMenu)
@@ -294,7 +312,7 @@ onBeforeUnmount(() => {
       </div>
       <ListBar :count="projects.length" one="proyecto" foldable :all-folded="allFolded" :views="[['tablero', 'Tablero', 'grid'], ['lista', 'Lista', 'list']]" v-model:view="view" views-label="Vista" verb="Ver como" @fold="foldAll" />
 
-      <div v-if="view === 'tablero'" ref="board" class="kanban" :class="{ dragging: drag }" :style="boardH ? { height: boardH + 'px' } : null">
+      <div v-if="view === 'tablero'" ref="board" class="kanban" @pointerdown="onBoardDown" @wheel="onWheel" :class="{ dragging: drag }" :style="boardH ? { height: boardH + 'px' } : null">
         <section v-for="f in FLOW" :key="f[0]" :data-col="f[0]" class="col" :class="{ over: drag && drag.col === f[0], folded: isFolded(f[0]) }">
           <!-- Plegada: tira angosta; tocar en cualquier parte la abre -->
           <button v-if="isFolded(f[0])" type="button" class="strip-btn" :aria-expanded="false" :aria-label="`Expandir columna ${COL[f[0]].name} (${byStatus(f[0]).length})`" :title="`Expandir ${COL[f[0]].name}`" @click="toggleCol(f[0])">
@@ -362,7 +380,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .kanban { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 0 4px 6px; margin: 0 -4px; scroll-snap-type: x proximity; min-height: 320px; overscroll-behavior-x: contain; }
-.kanban.dragging { scroll-snap-type: none; user-select: none; }
+.kanban.dragging, .kanban.panning { scroll-snap-type: none; user-select: none; }
+.kanban { scrollbar-width: none; touch-action: pan-x pan-y; cursor: grab; -webkit-overflow-scrolling: touch; }
+.kanban::-webkit-scrollbar { display: none; }
+.kanban.panning { cursor: grabbing; }
 .col { flex: 1 0 250px; min-width: 0; background: var(--surface-3); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 0; scroll-snap-align: start; transition: flex-basis .28s ease, flex-grow .28s ease, box-shadow .15s, padding .28s; overflow: hidden; }
 .col.over { box-shadow: inset 0 0 0 2px var(--pink-300); }
 .col.folded { flex: 0 0 48px; padding: 6px 0; }
@@ -378,7 +399,8 @@ onBeforeUnmount(() => {
 .xbtn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); background: var(--surface); flex: none; margin-top: auto; }
 .strip-btn:hover .xbtn { color: var(--pink-700); }
 .gico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; }
-.col-body { display: flex; flex-direction: column; gap: 8px; min-width: 228px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 2px 4px 6px; scrollbar-width: thin; }
+.col-body { display: flex; flex-direction: column; gap: 8px; min-width: 228px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; margin: 0 -4px; padding: 2px 4px 6px; scrollbar-width: none; touch-action: pan-x pan-y; }
+.col-body::-webkit-scrollbar { display: none; }
 .prow { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .prow:last-child { border-bottom: 0; }
 .kcard { flex: none; touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; position: relative; background: var(--surface); border-radius: 14px; padding: 12px 12px 10px 16px; box-shadow: var(--shadow); cursor: grab; overflow: hidden; }

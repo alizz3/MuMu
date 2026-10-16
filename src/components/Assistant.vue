@@ -2,7 +2,8 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
-import { recommend, freeBlocks, rankedTasks, isOpen, currentContext } from '../engine/planner'
+import { projectProgress } from '../store/actions'
+import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
 import { dayKey, fmtDur, relDay, toHM, daysUntil } from '../engine/time'
@@ -26,9 +27,9 @@ const busy = ref(false)
 const contextual = computed(() => {
   const out = []
   const ctx = currentContext()
-  if (ctx.freeNow) out.push({ text: `${state.settings.ownerName}, tienes ${fmtDur(ctx.freeNow.minutes)} libres.`, icon: 'clock' })
+  if (ctx.freeNow && !freeBlocks(dayKey(), ctx.m).some((x) => x.minutes >= 45)) out.push({ text: `Tienes ${fmtDur(ctx.freeNow.minutes)} libres.`, icon: 'clock' })
   const aulaPending = state.tasks.find((t) => t.source === 'aula' && t.status === 'pendiente' && !(t.spent > 0))
-  if (aulaPending) out.push({ text: `Hay una tarea de Aula que todavía no empezaste: "${aulaPending.title}".`, icon: 'cap', task: aulaPending })
+  if (aulaPending) out.push({ text: `Sin empezar: ${aulaPending.title}`, icon: 'cap', task: aulaPending })
   const stuck = state.tasks.find((t) => isOpen(t) && (t.postponed || 0) >= 2)
   if (stuck) {
     const p = state.principles.find((x) => x.tags.includes('empezar'))
@@ -36,10 +37,10 @@ const contextual = computed(() => {
     if (p) out.push({ text: `Esto se parece a algo que aprendiste de ${src?.title || p.author}: "${p.text}". ¿5 minutos con "${stuck.title}"?`, icon: 'brain', task: stuck, five: true })
   }
   const b = freeBlocks(dayKey(), ctx.m).find((x) => x.minutes >= 45)
-  if (b) out.push({ text: `Tu calendario está libre entre ${b.label.replace(' – ', ' y ')} ¿Quieres que usemos ese bloque?`, icon: 'calendar', block: b })
+  if (b) out.push({ text: `Libre ${b.label} (${fmtDur(b.minutes)})`, icon: 'calendar', block: b })
   const ins = insights()[0]
-  if (ins) out.push({ text: `Detecté algo: ${ins.text}`, icon: ins.icon || 'eye' })
-  return out.slice(0, 4)
+  if (ins) out.push({ text: ins.text, icon: ins.icon || 'eye' })
+  return out.slice(0, 3)
 })
 
 function useBlock(b) {
@@ -65,39 +66,57 @@ function say(text, from = 'pet') { msgs.value.push({ from, text }); nextTick(() 
 function summary() {
   const k = dayKey()
   const open = state.tasks.filter(isOpen)
+  const subj = (id) => state.subjects.find((x) => x.id === id)
+  const t2 = (t) => ({ titulo: t.title, vence: t.due || undefined, hora: t.dueTime || undefined, prioridad: t.priority, estado: t.status, min: t.estimate || undefined })
+  const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return dayKey(d) }
   return {
-    hoy: k, hora: toHM(new Date().getHours() * 60 + new Date().getMinutes()),
-    tareas: open.slice(0, 15).map((t) => ({ titulo: t.title, vence: t.due, prioridad: t.priority, min: t.estimate, pospuesta: t.postponed })),
-    libres: freeBlocks(k).map((b) => b.label),
-    habitosPendientes: state.habits.filter((h) => !state.habitLogs[h.id]?.[k]?.done).map((h) => h.name),
+    hoy: k, hora: toHM(new Date().getHours() * 60 + new Date().getMinutes()), enCasa: state.presence?.home,
+    proyectos: state.projects.filter((p) => p.status !== 'completado').map((p) => ({
+      nombre: p.name, estado: p.status, vence: p.due || undefined, avance: `${projectProgress(p)}%`, descripcion: (p.description || '').slice(0, 160) || undefined,
+      pendientes: open.filter((t) => t.projectId === p.id).slice(0, 12).map(t2),
+      hechas: state.tasks.filter((t) => t.projectId === p.id && t.status === 'completada').length,
+    })),
+    proyectosTerminados: state.projects.filter((p) => p.status === 'completado').map((p) => p.name),
+    estudios: state.subjects.filter((s) => !s.archived).map((s) => ({ materia: s.name, institucion: s.institution, pendientes: open.filter((t) => t.subjectId === s.id).slice(0, 8).map(t2) })),
+    otrasTareas: open.filter((t) => !t.projectId && !t.subjectId).slice(0, 20).map(t2),
+    agendaHoy: itemsOn(k).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
+    agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
+    libresHoy: freeBlocks(k, currentContext().m).map((b) => b.label),
+    habitos: state.habits.map((h) => ({ nombre: h.name, hechoHoy: !!state.habitLogs[h.id]?.[k]?.done })),
     objetivos: state.goals.map((g) => g.name),
-    principios: state.principles.filter((p) => p.status !== 'descartado').map((p) => `${p.text} (${p.author})`),
-    aprendizajes: state.experiments.filter((x) => x.status === 'terminado').map((x) => x.conclusion),
+    principios: state.principles.filter((p) => p.status !== 'descartado').slice(0, 8).map((p) => `${p.text} (${p.author})`),
     sueñoAnoche: state.sleep.find((s) => s.date === k)?.minutes,
   }
+}
+
+// Respuestas sin IA (instantáneas, y de respaldo si la IA falla)
+function localReply(text) {
+  const s = text.toLowerCase()
+  const mm = s.match(/(\d+)\s*(min|minutos|h|hora)/)
+  if (mm) {
+    const mins = Number(mm[1]) * (mm[2].startsWith('h') ? 60 : 1)
+    const t = rankedTasks().map((r) => r.t).find((x) => (x.estimate - (x.spent || 0)) <= mins + 10) || rankedTasks()[0]?.t
+    return t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro.'
+  }
+  if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); return b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.' }
+  if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); return p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!' }
+  if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); return d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.' }
+  const pr = state.projects.find((p) => s.includes(String(p.name).toLowerCase()))
+  if (pr) { const ts = state.tasks.filter((t) => t.projectId === pr.id && isOpen(t)); return `${pr.name} va en ${projectProgress(pr)}%. ${ts.length ? `Te falta:\n${ts.slice(0, 8).map((t) => `• ${t.title}${t.due ? ` — ${relDay(t.due)}` : ''}`).join('\n')}` : 'No tiene tareas pendientes.'}` }
+  if (/qu[eé] hago|ahora|recomi/.test(s)) return shown.value.reason
+  return null
 }
 
 async function send() {
   const text = input.value.trim(); if (!text) return
   input.value = ''
   say(text, 'me')
-  const s = text.toLowerCase()
-  const corto = !canUseBackend() || text.length < 40 // con IA, las preguntas largas van directo a ella
-  const mm = corto && s.match(/(\d+)\s*(min|minutos|h|hora)/)
-  if (/no quiero|procrastin|me da pereza|no puedo empezar/.test(s)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
-  if (mm) {
-    const mins = Number(mm[1]) * (mm[2].startsWith('h') ? 60 : 1)
-    const t = rankedTasks().map((r) => r.t).find((x) => (x.estimate - (x.spent || 0)) <= mins + 10) || rankedTasks()[0]?.t
-    say(t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro.'); return
-  }
-  if (corto && /qu[eé] hago|ahora|recomi/.test(s)) { say(shown.value.reason); return }
-  if (corto && /libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); say(b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.'); return }
-  if (corto && /h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); say(p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!'); return }
-  if (corto && /vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); say(d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.'); return }
-  if (canUseBackend()) {
-    busy.value = true
-    try { const r = await askAssistant(text, summary(), msgs.value.slice(-7, -1)); say(r.reply) } catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) } finally { busy.value = false }
-  } else say('Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos" o "tiempo libre". Y desde cualquier pantalla puedes tocarme para ver qué te recomiendo.')
+  if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
+  if (!canUseBackend()) { say(localReply(text) || 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
+  busy.value = true
+  try { const r = await askAssistant(text, summary(), msgs.value.slice(-7, -1)); say(r.reply || localReply(text) || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
+  catch (e) { const l = localReply(text); say(l ? `${l}\n\n(Sin IA por ahora: ${e.message})` : `No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) }
+  finally { busy.value = false }
 }
 
 watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.value.length) say(pet.value.msg) } })
@@ -127,20 +146,17 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
         </div>
       </div>
 
-      <div class="stack" style="gap:8px;margin-top:12px">
-        <div v-for="(c, i) in contextual" :key="i" class="row card tight" style="align-items:flex-start">
-          <span class="ico lav" style="width:32px;height:32px"><Icon :name="c.icon" :size="16" /></span>
-          <div class="grow small">{{ c.text }}
-            <div class="row" style="margin-top:6px;gap:6px">
-              <button v-if="c.block" class="btn sm lav" @click="useBlock(c.block)">Usar bloque</button>
-              <button v-if="c.five" class="btn sm lav" @click="A.startFocus({ taskId: c.task.id, minutes: 5, mode: 'empezar' }); ui.assistantOpen = false; A.go('enfoque')">5 min</button>
-              <button v-else-if="c.task" class="btn sm ghost" @click="ui.modal = { type: 'task', id: c.task.id }">Ver</button>
-            </div>
-          </div>
+      <div v-if="contextual.length" class="card tight hints">
+        <div v-for="(c, i) in contextual" :key="i" class="hint">
+          <Icon :name="c.icon" :size="14" class="hico" />
+          <span class="grow">{{ c.text }}</span>
+          <button v-if="c.block" class="link" @click="useBlock(c.block)">Usar</button>
+          <button v-if="c.five" class="link" @click="A.startFocus({ taskId: c.task.id, minutes: 5, mode: 'empezar' }); ui.assistantOpen = false; A.go('enfoque')">5 min</button>
+          <button v-else-if="c.task" class="link" @click="ui.modal = { type: 'task', id: c.task.id }">Ver</button>
         </div>
       </div>
 
-      <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:30dvh;overflow-y:auto">
+      <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:38dvh;overflow-y:auto">
         <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight" :class="{ pink: mm.from === 'me' }">{{ mm.text }}</div>
         <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
@@ -151,3 +167,12 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
     </div>
   </div>
 </template>
+
+<style scoped>
+.hints { margin-top: 10px; padding: 6px 12px; display: flex; flex-direction: column; }
+.hint { display: flex; align-items: center; gap: 8px; font-size: 12.5px; line-height: 1.3; padding: 6px 0; color: var(--ink-2, inherit); }
+.hint + .hint { border-top: 1px solid var(--line); }
+.hint .grow { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hico { flex: none; opacity: .7; }
+.hint .link { flex: none; font-size: 12.5px; }
+</style>
