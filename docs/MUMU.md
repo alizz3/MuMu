@@ -8,7 +8,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Funciona sin internet:** puedes agregar y marcar cosas sin conexión; se suben solas cuando vuelve el internet.
 - **Se actualiza sola:** cuando hay una versión nueva se instala sin que tengas que tocar nada (espera si estás escribiendo algo).
 - **Iconos propios:** toda la app usa iconos de línea, sin emojis.
-- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va. Al tocarla puedes **conversar con ella con IA gratis** (Groq): conoce tus proyectos (avance y lo que falta), materias, tareas, agenda de hoy y mañana, tiempos libres y hábitos. Arriba muestra pistas cortas (tiempo libre, algo sin empezar). Si la IA falla, responde lo que puede sin IA.
+- **La vaquita** te acompaña: te sugiere qué hacer, celebra contigo y cambia de ánimo según cómo te va. Al tocarla puedes **conversar con ella con IA gratis** (Groq): conoce tus proyectos (avance y lo que falta), materias, tareas, agenda de hoy y mañana, tiempos libres y hábitos. Arriba muestra pistas cortas (tiempo libre, algo sin empezar). Si la IA falla, responde lo que puede sin IA (lo que te falta y lo que ya hiciste de un proyecto, qué vence, hábitos, tiempo libre). MuMu elige sola un modelo de Groq que esté disponible.
 - **Abrir la app no recarga MuMu** si ya estaba abierta, y las versiones nuevas se instalan cuando la dejas en segundo plano.
 
 ## Inicio
@@ -66,6 +66,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - Vista de lista agrupada y filtro por área.
 - En cada proyecto: sus tareas, con las **terminadas** abajo en un grupo plegable, y **Enlaces** con nombre (repositorio, página, Drive…) que se agregan, editan y abren con un toque.
 - Los semestres de la U son proyectos unidos a sus materias.
+- Los enlaces de importar funcionan también desde el celular con la app abierta.
 - Se pueden **importar** proyectos, objetivos, tareas, hábitos y cursos con un enlace `…#importar=` o pegando lo que te da otra IA en **Más → Importar con IA**.
 
 ## Hábitos

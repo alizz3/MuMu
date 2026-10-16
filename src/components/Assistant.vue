@@ -63,6 +63,7 @@ function details() { if (shown.value.task) ui.modal = { type: 'task', id: shown.
 
 function say(text, from = 'pet') { msgs.value.push({ from, text }); nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' })) }
 
+const byDone = (a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || ''))
 function summary() {
   const k = dayKey()
   const open = state.tasks.filter(isOpen)
@@ -74,10 +75,11 @@ function summary() {
     proyectos: state.projects.filter((p) => p.status !== 'completado').map((p) => ({
       nombre: p.name, estado: p.status, vence: p.due || undefined, avance: `${projectProgress(p)}%`, descripcion: (p.description || '').slice(0, 160) || undefined,
       pendientes: open.filter((t) => t.projectId === p.id).slice(0, 12).map(t2),
-      hechas: state.tasks.filter((t) => t.projectId === p.id && t.status === 'completada').length,
+      hechas: state.tasks.filter((t) => t.projectId === p.id && t.status === 'completada').sort(byDone).slice(0, 15).map((t) => t.title),
     })),
     proyectosTerminados: state.projects.filter((p) => p.status === 'completado').map((p) => p.name),
-    estudios: state.subjects.filter((s) => !s.archived).map((s) => ({ materia: s.name, institucion: s.institution, pendientes: open.filter((t) => t.subjectId === s.id).slice(0, 8).map(t2) })),
+    estudios: state.subjects.filter((s) => !s.archived).map((s) => ({ materia: s.name, institucion: s.institution, pendientes: open.filter((t) => t.subjectId === s.id).slice(0, 8).map(t2), hechas: state.tasks.filter((t) => t.subjectId === s.id && t.status === 'completada').sort(byDone).slice(0, 6).map((t) => t.title) })),
+    hechasUltimaSemana: state.tasks.filter((t) => t.status === 'completada' && t.completedAt && Date.now() - new Date(t.completedAt).getTime() < 7 * 864e5).sort(byDone).slice(0, 20).map((t) => t.title),
     otrasTareas: open.filter((t) => !t.projectId && !t.subjectId).slice(0, 20).map(t2),
     agendaHoy: itemsOn(k).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
     agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
@@ -89,6 +91,7 @@ function summary() {
   }
 }
 
+let lastProject = null
 // Respuestas sin IA (instantáneas, y de respaldo si la IA falla)
 function localReply(text) {
   const s = text.toLowerCase()
@@ -101,8 +104,14 @@ function localReply(text) {
   if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); return b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.' }
   if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); return p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!' }
   if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); return d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.' }
-  const pr = state.projects.find((p) => s.includes(String(p.name).toLowerCase()))
-  if (pr) { const ts = state.tasks.filter((t) => t.projectId === pr.id && isOpen(t)); return `${pr.name} va en ${projectProgress(pr)}%. ${ts.length ? `Te falta:\n${ts.slice(0, 8).map((t) => `• ${t.title}${t.due ? ` — ${relDay(t.due)}` : ''}`).join('\n')}` : 'No tiene tareas pendientes.'}` }
+  const pr = state.projects.find((p) => s.includes(String(p.name).toLowerCase())) || lastProject
+  if (pr && /\b(hice|hechas?|termin|complet|llevo)/.test(s)) {
+    lastProject = pr
+    const d = state.tasks.filter((t) => t.projectId === pr.id && t.status === 'completada').sort(byDone)
+    return d.length ? `De ${pr.name} ya hiciste ${d.length}:\n${d.slice(0, 10).map((t) => `• ${t.title}`).join('\n')}${d.length > 10 ? `\n…y ${d.length - 10} más` : ''}` : `En ${pr.name} todavía no has terminado tareas.`
+  }
+  if (pr && state.projects.some((p) => s.includes(String(p.name).toLowerCase()))) {
+    lastProject = pr; const ts = state.tasks.filter((t) => t.projectId === pr.id && isOpen(t)); return `${pr.name} va en ${projectProgress(pr)}%. ${ts.length ? `Te falta:\n${ts.slice(0, 8).map((t) => `• ${t.title}${t.due ? ` — ${relDay(t.due)}` : ''}`).join('\n')}` : 'No tiene tareas pendientes.'}` }
   if (/qu[eé] hago|ahora|recomi/.test(s)) return shown.value.reason
   return null
 }

@@ -90,15 +90,18 @@ const online = ref(navigator.onLine)
 window.addEventListener('offline', () => { online.value = false })
 window.addEventListener('online', () => { online.value = true; toast('Volvió el internet: subiendo lo que hiciste') })
 // …/proyectos#importar=<datos>: espera a que carguen tus datos y pregunta antes de agregar el proyecto
-const pendingImport = (location.hash.match(/^#importar=([\w-]+)/) || [])[1]
-if (pendingImport) {
+// También llega cuando el celular abre el enlace en la app ya abierta (launchQueue → hashchange)
+function importFromHash() {
+  const code = (location.hash.match(/^#importar=([\w-]+)/) || [])[1]
+  if (!code) return
   let done = false
-  watch(() => gate.value === 'app' && (ui.synced || !ui.backend || ui.demo), async (ready) => {
+  const stop = watch(() => gate.value === 'app' && (ui.synced || !ui.backend || ui.demo), async (ready) => {
     if (!ready || done) return
     done = true
+    queueMicrotask(() => stop?.())
     history.replaceState(null, '', location.pathname)
     try {
-      const data = JSON.parse(decodeURIComponent(escape(atob(pendingImport.replace(/-/g, '+').replace(/_/g, '/')))))
+      const data = JSON.parse(decodeURIComponent(escape(atob(code.replace(/-/g, '+').replace(/_/g, '/')))))
       const parts = [data.subjects?.length && `${data.subjects.map((x) => `«${x.name}»`).join(', ')}${data.events?.length ? ` con ${data.events.length} sesiones en la agenda` : ''}`, data.project?.name && `el proyecto "${data.project.name}"`, data.habits?.length && `${data.habits.length} hábito${data.habits.length === 1 ? '' : 's'}`, data.tasks?.length && `${data.tasks.length} tarea${data.tasks.length === 1 ? '' : 's'}`].filter(Boolean)
       if (!(await ask(`¿Agregar ${parts.join(', ')}?`))) return
       const p = importProject(data)
@@ -107,6 +110,8 @@ if (pendingImport) {
     } catch (e) { toast('Ese enlace de proyecto no se pudo leer') }
   }, { immediate: true })
 }
+importFromHash()
+window.addEventListener('hashchange', importFromHash)
 // Solo se precarga cuando ya estás dentro (los visitantes de la bienvenida no lo necesitan)
 watch(gate, (g) => { if (g === 'app') prefetch() }, { immediate: true })
 // El acompañante de enfoque vive aquí para seguir aunque cambies de sección

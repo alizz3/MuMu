@@ -11,6 +11,23 @@ Si algo no está en el contexto, dilo con honestidad.
 Trata los principios de libros/podcasts como ideas para experimentar, no verdades absolutas. Nunca des diagnósticos médicos ni psicológicos; si notas malestar fuerte, sugiere con cariño hablar con alguien de confianza o un profesional.
 No inventes datos que no estén en el contexto.`
 
+// Groq retira modelos cada tanto: se pregunta cuáles hay para esta clave y se usa el mejor disponible
+let goodModel = null, cache = { at: 0, list: [] }
+const PREFER = [/gpt-oss-120b/, /llama-4-maverick/, /llama-3\.3-70b/, /kimi-k2/, /qwen3?-32b/, /llama-4-scout/, /gpt-oss-20b/, /llama-3\.1-8b/]
+async function groqModels(key) {
+  const out = [process.env.GROQ_MODEL, goodModel].filter(Boolean)
+  if (Date.now() - cache.at > 6 * 3600e3 || !cache.list.length) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${key}` } })
+      const j = await r.json()
+      const ids = (j.data || []).filter((m) => m.active !== false).map((m) => m.id).filter((id) => !/whisper|guard|tts|playai|orpheus|compound|distil|prompt/i.test(id))
+      const rank = (id) => { const i = PREFER.findIndex((re) => re.test(id)); return i < 0 ? 99 : i }
+      cache = { at: Date.now(), list: ids.sort((a, b) => rank(a) - rank(b)) }
+    } catch { /* si falla, se intenta con lo conocido */ }
+  }
+  return [...new Set([...out, ...cache.list.slice(0, 3), 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'])].slice(0, 4)
+}
+
 export default handler(async (req, res) => {
   await requireUser(req)
   const b = body(req)
@@ -20,22 +37,24 @@ export default handler(async (req, res) => {
   const user = `CONTEXTO:\n${context}\n\nMENSAJE:\n${message}`
   // 1) Groq: gratis y rápido (modelos abiertos, API compatible con OpenAI)
   if (process.env.GROQ_API_KEY) {
-    const models = [...new Set([process.env.GROQ_MODEL, 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].filter(Boolean))]
-    let why = ''
-    for (const model of models) {
+    const key = process.env.GROQ_API_KEY.trim()
+    let why = []
+    for (const model of await groqModels(key)) {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY.trim()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, max_tokens: 600, temperature: 0.4, messages: [{ role: 'system', content: SYSTEM }, ...history, { role: 'user', content: user }] }),
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: 700, temperature: 0.4, messages: [{ role: 'system', content: SYSTEM }, ...history, { role: 'user', content: user }] }),
       }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: e.message } }) }))
       const j = await r.json().catch(() => ({}))
-      if (r.ok) return res.json({ reply: (j.choices?.[0]?.message?.content || '').trim() })
-      const msg = String(j.error?.message || '').slice(0, 160)
+      if (r.ok) { goodModel = model; return res.json({ reply: (j.choices?.[0]?.message?.content || '').trim() }) }
+      const msg = String(j.error?.message || '').slice(0, 140)
       console.error('groq', model, r.status, msg)
       if (r.status === 401) throw new HttpError(502, 'La clave de Groq no es válida: revisa GROQ_API_KEY en Vercel y vuelve a desplegar')
-      why = r.status === 429 ? 'límite gratis de Groq, intenta en un ratico' : `Groq ${r.status}${msg ? `: ${msg}` : ''}`
+      if (r.status === 429) throw new HttpError(429, 'Límite gratis de Groq por ahora, intenta en un ratico')
+      if (goodModel === model) goodModel = null
+      why.push(`${model}: ${r.status}`)
     }
-    throw new HttpError(502, why || 'La IA no respondió')
+    throw new HttpError(502, `Groq no respondió (${why.join(', ') || 'sin modelos disponibles'})`)
   }
   // 2) Claude, si algún día se configura
   if (!process.env.ANTHROPIC_API_KEY) throw new HttpError(503, 'El asistente con IA no está configurado (falta GROQ_API_KEY en Vercel)')
