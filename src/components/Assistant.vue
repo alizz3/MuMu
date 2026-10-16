@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { projectProgress } from '../store/actions'
-import { localAnswer, habitMarkIntent } from '../engine/answers'
+import { localAnswer, habitMarkIntent, shownTask } from '../engine/answers'
 import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
@@ -94,7 +94,7 @@ function summary(text) {
       return `${s.name}: ${pend.length ? (big ? pend : pend.slice(0, 3)).map(line).join(' | ') : 'al día'}${asksDone && big ? ` · hechas: ${state.tasks.filter((t) => t.subjectId === s.id && t.status === 'completada').map((t) => t.title).join(', ')}` : ''}`
     }),
     otrasTareas: open.filter((t) => !t.projectId && !t.subjectId).slice(0, 10).map(line),
-    detalle: named.length ? named.map((t) => ({ titulo: t.title, estado: t.status, hechaEl: t.completedAt || undefined, vence: t.due || undefined, notas: String(t.notes || '').slice(0, 600) || '(sin descripción)', subtareas: (t.subtasks || []).map((x) => `${x.done ? '[x]' : '[ ]'} ${x.title || x.text || x}`).slice(0, 12), enlaces: (t.links || []).map((l) => l.name || l.url).slice(0, 5), url: t.url || undefined })) : undefined,
+    detalle: named.length ? named.map((t) => ({ titulo: t.title, estado: t.status, hechaEl: t.completedAt || undefined, vence: t.due || undefined, notas: String(t.notes || '').slice(0, 600) || '(sin descripción)', subtareas: (t.subtasks || []).map((x) => `${x.done ? '[x]' : '[ ]'} ${x.title || x.text || x}`).slice(0, 12), enlaces: (t.links || []).map((l) => l.name || l.url).slice(0, 5) })) : undefined,
     agendaHoy: itemsOn(k).map((e) => `${e.start || ''} ${e.title}`),
     agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''} ${e.title}`),
     libresHoy: freeBlocks(k, currentContext().m).map((b) => b.label),
@@ -105,7 +105,7 @@ function summary(text) {
 // Formato de las respuestas: **negrita**, listas con - o •, sin dejar pasar HTML
 const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 function md(text) {
-  const inline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*(\S.*?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/~~(.+?)~~/g, '<s>$1</s>')
+  const inline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*(\S.*?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/~~(.+?)~~/g, '<s>$1</s>').replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>`)
   let html = '', list = false
   for (const raw of String(text || '').split('\n')) {
     const l = raw.trim()
@@ -142,7 +142,22 @@ async function send() {
     return
   }
   const quick = localReply(text)
-  if (quick) { say(quick); return }
+  if (quick) {
+    const t = shownTask()
+    if (!t) { say(quick); return }
+    const url = t.url || t.links?.[0]?.url
+    const openTask = () => { ui.assistantOpen = false; ui.modal = { type: 'task', id: t.id } }
+    const openLink = () => window.open(url, '_blank', 'noopener')
+    if (/\b(abre|abrir|ábre|ábrela|ábrelo|abrela|abrelo)\b.*\b(enlace|link|classroom|aula|drive)\b/i.test(text) && url) { openLink(); say(`Abrí el enlace de **${t.title}**.`); return }
+    msgs.value.push({ from: 'pet', text: quick, actions: [
+      { label: 'Abrir tarea', primary: true, keep: true, run: openTask },
+      ...(url ? [{ label: 'Abrir enlace', keep: true, run: openLink }] : []),
+      ...(isOpen(t) ? [{ label: '5 min', keep: true, run: () => { A.startFocus({ taskId: t.id, minutes: 5, mode: 'empezar' }); ui.assistantOpen = false; A.go('enfoque') } }] : []),
+    ] })
+    nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' }))
+    if (/\b(abre|abrir|ábrela|ábrelo|abrela|abrelo)\b/i.test(text)) setTimeout(openTask, 500)
+    return
+  }
   if (!canUseBackend()) { say( 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
   busy.value = true
   try { const r = await askAssistant(text, summary(text), msgs.value.slice(-5, -1).map((m) => ({ ...m, text: String(m.text).slice(0, 600) }))); say(r.reply || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
@@ -189,7 +204,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
 
       <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:38dvh;overflow-y:auto">
         <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight msg" :class="{ pink: mm.from === 'me' }"><template v-if="mm.from === 'me'">{{ mm.text }}</template><div v-else class="md" v-html="md(mm.text)"></div>
-          <div v-if="mm.actions" class="row" style="gap:6px;margin-top:8px"><button v-for="a in mm.actions" :key="a.label" class="btn sm" :class="a.primary ? 'primary' : 'ghost'" @click="mm.actions = null; a.run()">{{ a.label }}</button></div></div>
+          <div v-if="mm.actions" class="row" style="gap:6px;margin-top:8px"><button v-for="a in mm.actions" :key="a.label" class="btn sm" :class="a.primary ? 'primary' : 'ghost'" @click="if (!a.keep) mm.actions = null; a.run()">{{ a.label }}</button></div></div>
         <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
       <form class="row" style="margin-top:10px" @submit.prevent="send">
@@ -206,6 +221,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
 .md :deep(ul) { margin: 2px 0 6px; padding-left: 18px; }
 .md :deep(li) { margin: 2px 0; }
 .md :deep(li::marker) { color: var(--pink-700); }
+.md :deep(a) { color: var(--pink-700); font-weight: 600; text-decoration: underline; }
 .md :deep(code) { font-size: 12px; background: var(--line); padding: 0 4px; border-radius: 4px; }
 .msg .md { white-space: normal; }
 .hints { margin-top: 10px; padding: 6px 12px; display: flex; flex-direction: column; }

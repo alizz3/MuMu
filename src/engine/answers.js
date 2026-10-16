@@ -23,23 +23,49 @@ function findIn(text, arr, names) {
   for (const x of arr) for (const n of names(x)) { const k = nrm(n); if (k.length >= 3 && new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(s) && k.length > len) { best = x; len = k.length } }
   return best
 }
-function findTask(text) {
+const STOP = new Set(['tarea', 'tareas', 'muestrame', 'mostrar', 'abrir', 'abre', 'abrela', 'abrelo', 'puedes', 'para', 'manana', 'semana', 'quiero', 'tengo', 'esta', 'este', 'cuentame', 'descripcion', 'detalle', 'enlace'])
+function findTask(text, pool = state.tasks) {
   const s = nrm(text)
-  const exact = findIn(text, state.tasks, (t) => [t.title].filter((x) => String(x).length >= 4))
+  const exact = findIn(text, pool, (t) => [t.title].filter((x) => String(x).length >= 4))
   if (exact) return exact
-  const ws = new Set(words(s))
+  const ws = new Set(words(s).filter((w) => !STOP.has(w)))
   let best = null, score = 0
-  for (const t of state.tasks) {
+  for (const t of pool) {
     const tw = words(t.title); if (!tw.length) continue
-    const hit = tw.filter((w) => ws.has(w)).length / tw.length
-    if (hit > score && hit >= 0.6) { best = t; score = hit }
+    const hits = tw.filter((w) => ws.has(w)).length
+    const sc = hits / tw.length + hits * 0.01
+    if (sc > score && (sc >= 0.6 || (pool !== state.tasks && hits))) { best = t; score = sc }
   }
   return best
 }
+// La tarea de la que se habla: por título, o dentro de la materia/proyecto nombrado (y su fecha)
+function pickTask(text, s, { project, subject, scope }) {
+  let t = findTask(text)
+  if (t) return t
+  if (!(project || subject) || !/\btarea\b/.test(s)) return null
+  let pool = state.tasks.filter((x) => isOpen(x) && (project ? x.projectId === project.id : x.subjectId === subject.id))
+  if (scope === 'hoy') pool = pool.filter((x) => x.due === dayKey())
+  if (scope === 'manana') pool = pool.filter((x) => x.due === addDays(1))
+  return findTask(text, pool) || (pool.length === 1 ? pool[0] : null)
+}
+let shown = null // tarea mostrada en la última respuesta (para los botones Abrir / Enlace)
+export const shownTask = () => shown
+export function taskDetail(t) {
+  memo.task = t; shown = t
+  const sub = (t.subtasks || []).map((x) => `- ${x.done ? '~~' : ''}${x.title}${x.done ? '~~ (hecha)' : ''}`)
+  const links = (t.links || []).map((l) => `- ${l.name || 'Enlace'}`)
+  return [`**${t.title}**${placeOf(t) ? ` · ${placeOf(t)}` : ''}`,
+    `${done(t) ? `Hecha${t.completedAt ? ` el ${t.completedAt}` : ''}` : `Pendiente${when(t)}`}${t.estimate ? ` · ${fmtDur(t.estimate)}` : ''}${t.priority ? ` · prioridad ${t.priority}` : ''}${t.group ? ' · en grupo (CIPA)' : ''}`,
+    t.notes ? `\n${t.notes.slice(0, 700)}` : '\nNo tiene descripción.',
+    sub.length ? `\n**Subtareas**\n${sub.join('\n')}` : '',
+    links.length ? `\n**Recursos**\n${links.join('\n')}` : ''].filter(Boolean).join('\n')
+}
+
 const placeOf = (t) => state.projects.find((p) => p.id === t.projectId)?.name || state.subjects.find((x) => x.id === t.subjectId)?.name
 
 export function localAnswer(text) {
   const s = nrm(text)
+  shown = null
   // Preguntas abiertas → IA
   if (/\b(como|por ?que|ayudame a|ideas?|consejo|explica|escribe|redacta|resume|planea|organiza|sugiere|deberia|vale la pena|opinas)\b/.test(s) && !/que (tareas|tengo|hago)|como (me )?(fue|va|ha ido|estuvo|voy|llevo)/.test(s)) return null
 
@@ -52,19 +78,11 @@ export function localAnswer(text) {
   if (project) { memo.project = project; memo.subject = null }
   if (subject) { memo.subject = subject; memo.project = null }
 
-  // Descripción / detalle de una tarea
-  if (/descripcion|notas?\b|de que (se )?trata|detalle|subtareas?|enlaces?|link|cuentame (mas )?de|que dice/.test(s)) {
-    const t = findTask(text) || memo.task
-    if (t) {
-      memo.task = t
-      const sub = (t.subtasks || []).map((x) => `- ${x.done ? '~~' : ''}${x.title}${x.done ? '~~ (hecha)' : ''}`)
-      const links = [...(t.url ? [t.url] : []), ...(t.links || []).map((l) => `${l.name ? l.name + ': ' : ''}${l.url}`)]
-      return [`**${t.title}**${placeOf(t) ? ` · ${placeOf(t)}` : ''}`,
-        `${done(t) ? `Hecha${t.completedAt ? ` el ${t.completedAt}` : ''}` : `Pendiente${when(t)}`}${t.estimate ? ` · ${fmtDur(t.estimate)}` : ''}${t.priority ? ` · prioridad ${t.priority}` : ''}`,
-        t.notes ? `\n${t.notes.slice(0, 700)}` : '\nNo tiene descripción. Puedes agregarla tocando la tarea.',
-        sub.length ? `\n**Subtareas**\n${sub.join('\n')}` : '',
-        links.length ? `\n**Enlaces**\n${links.map((l) => `- ${l}`).join('\n')}` : ''].filter(Boolean).join('\n')
-    }
+  // Una tarea: mostrarla, abrirla, su descripción
+  const wantsTask = /descripcion|notas?\b|de que (se )?trata|detalle|subtareas?|enlaces?|link|cuentame (mas )?de|que dice|\b(abre|abrir|abrela|abrelo|muestrame|mostrar|ensename|ver)\b/.test(s)
+  if (wantsTask || /\bla tarea\b/.test(s)) {
+    const t = pickTask(text, s, { project, subject, scope }) || (wantsTask && /\b(abre|abrir|abrela|abrelo|esa|eso|enlace|link|descripcion|notas?)\b/.test(s) ? memo.task : null)
+    if (t) return taskDetail(t)
   }
 
   // Cómo te fue con un hábito (esta semana o el mes)
