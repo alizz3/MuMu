@@ -57,7 +57,7 @@ export function nextSessionOf(subjectId, now = ui.now) {
 function decorate(e, k) {
   const meta = state.eventMeta?.[e.id] || {}
   const subj = e.subjectId ? state.subjects.find((x) => x.id === e.subjectId) : (meta.subjectId === '' ? null : (meta.subjectId && state.subjects.find((x) => x.id === meta.subjectId)) || (e.type !== 'recordatorio' && /UT|universidad/i.test(`${e.calendarName || ''} ${e.account || ''}`) ? subjectForTitle(e.title) : null))
-  const session = meta.session || (subj ? sessionForTitle(e.title) : null)
+  const session = meta.session || e.session || (subj ? sessionForTitle(e.title) : null)
   return { ...e, origTitle: e.title, title: meta.name || e.title, subjectId: subj?.id || e.subjectId || null, session, color: e.color || subj?.color, kind: 'event', mark: state.eventMarks?.[`${e.id}|${k}`] || null }
 }
 export function itemsOn(k) {

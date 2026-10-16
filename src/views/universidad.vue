@@ -34,6 +34,8 @@ const subjects = computed(() => state.subjects.filter((s) => inst.value === 'tod
 const uniTasks = computed(() => state.tasks.filter((t) => isOpen(t) && (t.category === 'universidad' || t.subjectId) && (inst.value === 'todas' || instOk(t.subjectId))).sort((a, b) => ((a.due || 'z') > (b.due || 'z') ? 1 : -1)))
 const aula = computed(() => [...state.aula].sort((a, b) => (a.firstSeen < b.firstSeen ? 1 : -1)))
 const subjOf = (id) => state.subjects.find((s) => s.id === id)
+// Nueva sesión de la materia (ej. una clase virtual de hoy), con la materia ya elegida
+const addSession = (sid) => { ui.modal = { type: 'session', prefill: { subjectId: sid, date: dayKey(), mode: 'Virtual' } }; state.settings.sesOpen = { ...(state.settings.sesOpen || {}), [sid]: true } }
 const TABS = [['cursos', 'Materias', 'cap'], ['tareas', 'Tareas', 'check'], ['online', 'Cursos online', 'book'], ['profes', 'Profes', 'users'], ['aula', 'Tu Aula · Classroom', 'globe']]
 const INSTS = computed(() => [['todas', 'Todo'], ['UT', 'U. Tolima'], ['SENA', 'SENA'], ['Classroom', 'Classroom'], ['Otra', 'Otros']].filter(([v]) => v === 'todas' || v === 'UT' || state.subjects.some((x) => x.institution === v)))
 // Tareas de la U agrupadas por materia, plegables como en Tareas
@@ -115,16 +117,19 @@ const selS = computed(() => subjects.value.find((s) => s.id === sel.value))
             <i v-if="nextSessionOf(selS.id).live" class="dot"></i><b>{{ nextSessionOf(selS.id).session || nextSessionOf(selS.id).title }}</b>
             · {{ nextSessionOf(selS.id).live ? 'ahora' : relDay(nextSessionOf(selS.id).date) }} · {{ fmt12s(nextSessionOf(selS.id).start) }}–{{ fmt12s(nextSessionOf(selS.id).end) }}</button>
           <template v-else><span v-for="(h, i) in selS.schedule" :key="i" class="badge">{{ WEEKDAYS[h.weekday] }} {{ fmt12s(h.start) }}–{{ fmt12s(h.end) }}</span></template>
+          <a v-if="nextSessionOf(selS.id)?.url && nextSessionOf(selS.id).date === dayKey()" class="badge ses-pill" style="text-decoration:none" :href="nextSessionOf(selS.id).url" target="_blank" rel="noopener"><Icon name="video" :size="13" />Entrar a la clase</a>
+          <button class="badge ses-pill" aria-label="Agregar sesión" @click="addSession(selS.id)"><Icon name="plus" :size="13" />Sesión</button>
         </div>
         <p v-if="selS.notes" class="small" style="margin-top:8px;white-space:pre-line">{{ selS.notes }}</p>
       </div>
       <div v-if="subjectFolder(subjOf(selS.id))" class="card"><DriveBrowser :root="subjectFolder(subjOf(selS.id))" :height="420" title="Drive de la materia" icon="folder" /></div>
-      <GroupCard v-if="sessionsOf(selS.id).length" title="Sesiones" :sub="`${sessionsOf(selS.id).filter((e) => e.date >= dayKey()).length} por venir · de tu Google Calendar`" icon="calendar" :color="selS.color" :count="sessionsOf(selS.id).length" :open="!!state.settings.sesOpen?.[selS.id]" @toggle="state.settings.sesOpen = { ...(state.settings.sesOpen || {}), [selS.id]: !state.settings.sesOpen?.[selS.id] }">
+      <GroupCard title="Sesiones" :sub="sessionsOf(selS.id).length ? `${sessionsOf(selS.id).filter((e) => e.date >= dayKey()).length} por venir · de Google Calendar y MuMu` : 'Agrega aquí tus clases, presenciales o virtuales'" icon="calendar" :color="selS.color" :count="sessionsOf(selS.id).length || null" :open="!!state.settings.sesOpen?.[selS.id]" @toggle="state.settings.sesOpen = { ...(state.settings.sesOpen || {}), [selS.id]: !state.settings.sesOpen?.[selS.id] }">
         <div v-for="e in sessionsOf(selS.id)" :key="e.id" class="row small ses" :class="{ past: e.date < dayKey() }" @click="ui.modal = { type: 'eventView', ev: e, date: e.date }">
           <span class="grow"><b>{{ e.session || e.title }}</b><span class="tiny muted"> · {{ relDay(e.date) }} · {{ fmt12s(e.start) }}</span></span>
           <Icon name="chev" :size="14" class="muted" />
         </div>
-        <p class="tiny muted" style="margin:6px 0 0">Toca una para ponerle la sesión o cambiarle el nombre en MuMu.</p>
+        <button class="btn sm lav" style="margin-top:8px" @click="addSession(selS.id)"><Icon name="plus" :size="14" />Agregar sesión</button>
+        <p v-if="sessionsOf(selS.id).length" class="tiny muted" style="margin:6px 0 0">Toca una para ver el enlace, ponerle la sesión o cambiarle el nombre.</p>
       </GroupCard>
       <GroupCard title="Enlaces de la materia" icon="link" color="#BFD7F0" :count="(subjOf(selS.id)?.links || []).length || null" :open="!!state.settings.linksOpen?.[selS.id]" @toggle="state.settings.linksOpen = { ...(state.settings.linksOpen || {}), [selS.id]: !state.settings.linksOpen?.[selS.id] }"><Links :target="subjOf(selS.id)" title="" icon="" /></GroupCard>
       <div v-if="selS.nota" class="card soft stack" style="gap:4px">

@@ -64,6 +64,16 @@ const SCHEMAS = {
     { k: 'type', l: 'Tipo', t: 'select', o: ['evento', 'clase', 'estudio', 'trabajo', 'familia', 'vida', 'descanso', 'rutina'] },
     { k: 'recurring', l: 'Repetir los días', t: 'weekdays' },
   ] }),
+  // Sesión de una materia hecha en MuMu (ej. clase virtual de hoy): queda amarrada a la materia
+  session: () => ({ title: 'Sesión de clase', coll: 'events', fields: [
+    { k: 'subjectId', l: 'Materia', t: 'select', o: opts(state.subjects), req: true },
+    { k: 'session', l: 'Sesión', t: 'select', o: ['Clase', ...SESSIONS] },
+    { k: 'mode', l: 'Modalidad', t: 'select', o: ['Virtual', 'Presencial'] },
+    { k: 'date', l: 'Fecha', t: 'date', req: true },
+    { k: 'start', l: 'Inicio', t: 'time', req: true }, { k: 'end', l: 'Fin', t: 'time', req: true },
+    { k: 'url', l: 'Enlace de la clase (Meet, Zoom, Teams…)', t: 'url' },
+    { k: 'notes', l: 'Notas (temas, qué llevar…)', t: 'textarea' },
+  ] }),
   reminder: () => ({ title: 'Recordatorio', coll: 'events', fields: [
     { k: 'title', l: '¿Qué hay que recordar? (ej. Quiz en la primera clase)', t: 'text', req: true },
     { k: 'date', l: 'Fecha', t: 'date', req: true }, { k: 'start', l: 'Hora (opcional)', t: 'time' },
@@ -175,6 +185,14 @@ function save() {
     data[f.k] = v
   })
   if (bad) return toast(`Revisa el enlace: ${bad}`)
+  if (m.value.type === 'session') {
+    if (hm(data.end) <= hm(data.start)) return toast('La hora de fin debe ser después del inicio')
+    const sj = state.subjects.find((x) => x.id === data.subjectId)
+    if (data.session === 'Clase') data.session = null
+    data.type = 'clase'
+    data.title = `${sj?.short || sj?.name || 'Clase'} · ${data.session || 'Clase'}${data.mode === 'Virtual' ? ' (virtual)' : ''}`
+    data.location = data.mode === 'Virtual' ? 'Virtual' : null
+  }
   if ('lista' in data) { if (!m.value.id) state.settings.lastLista = data.lista || ''; applyLista(data, data.lista); delete data.lista }
   // Momento con rango de horas: los minutos salen solos (si pasó la medianoche, también)
   if (sc.coll === 'life' && data.start && data.end) { let m = hm(data.end) - hm(data.start); if (m <= 0) m += 1440; data.minutes = m }
@@ -226,6 +244,8 @@ const ev = computed(() => (m.value?.type === 'eventView' ? m.value.ev : null))
 const evKey = computed(() => (ev.value ? `${ev.value.id}|${m.value.date}` : ''))
 const evMark = computed(() => (evKey.value ? state.eventMarks?.[evKey.value] || null : null))
 const evDate = computed(() => { if (!m.value?.date) return ''; const d = parseDay(m.value.date); return `${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}` })
+// Sesión creada en MuMu desde la materia (no viene de Google Calendar)
+const isOwnSession = (e) => !!e && !e.readonly && e.source === 'manual' && e.type === 'clase' && !!e.subjectId
 const MARKS = [['yo', 'Voy yo', 'user'], ['otro', 'Va alguien más', 'users'], ['recordatorio', 'Solo recordatorio', 'pin'], ['hecho', 'Ya pasó', 'check']]
 const who = ref('')
 watch(evKey, () => { who.value = evMark.value?.who || '' }, { immediate: true })
@@ -405,7 +425,7 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
       <!-- Detalle de evento: info, quién va, editar o eliminar -->
       <template v-else-if="m.type === 'eventView' && ev">
         <div class="row between">
-          <span class="badge" :class="{ pink: ev.kind === 'event' }">{{ ev.type === 'recordatorio' ? 'Recordatorio' : ev.kind === 'class' ? 'Clase' : ev.readonly ? (ev.calendarName || 'Google Calendar') : 'Evento' }}</span>
+          <span class="badge" :class="{ pink: ev.kind === 'event' }">{{ ev.type === 'recordatorio' ? 'Recordatorio' : ev.kind === 'class' || isOwnSession(ev) ? 'Clase' : ev.readonly ? (ev.calendarName || 'Google Calendar') : 'Evento' }}</span>
           <button class="iconbtn" aria-label="Cerrar" @click="close"><Icon name="x" :size="18" /></button>
         </div>
         <h2 style="margin:8px 0 4px;overflow-wrap:anywhere">{{ ev.title }}</h2>
@@ -418,7 +438,7 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
         </div>
         <p v-if="ev.description || ev.notes" class="small" style="margin-top:8px;white-space:pre-line;overflow-wrap:anywhere">{{ ev.description || ev.notes }}</p>
         <!-- Evento de la U: materia, sesión y el nombre que quieres ver en MuMu (no cambia tu Google Calendar) -->
-        <div v-if="ev.kind === 'event' && ev.type !== 'recordatorio' && (ev.subjectId || /UT|universidad/i.test(`${ev.calendarName || ''} ${ev.account || ''}`))" class="card tight soft stack" style="gap:8px;margin-top:12px">
+        <div v-if="ev.kind === 'event' && ev.type !== 'recordatorio' && !isOwnSession(ev) && (ev.subjectId || /UT|universidad/i.test(`${ev.calendarName || ''} ${ev.account || ''}`))" class="card tight soft stack" style="gap:8px;margin-top:12px">
           <div class="small b wi"><Icon name="cap" :size="14" />En MuMu</div>
           <label class="row small" style="gap:8px"><span style="width:62px">Materia</span>
             <select class="input grow" :value="ev.subjectId || ''" @change="setMeta({ subjectId: $event.target.value })" aria-label="Materia del evento">
@@ -444,8 +464,8 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
           <p class="tiny muted" style="margin-top:6px">Si va alguien más o es solo un recordatorio, no te quita tiempo libre.</p>
         </template>
         <div class="row wrap" style="gap:8px;margin-top:14px">
-          <a v-if="ev.url" class="btn sm lav" :href="ev.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ ev.readonly ? 'Editar en Google Calendar' : 'Abrir' }}</a>
-          <button v-if="ev.kind === 'event' && !ev.readonly && ev.type !== 'recordatorio'" class="btn sm ghost" @click="ui.modal = { type: 'event', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
+          <a v-if="ev.url" class="btn sm" :class="isOwnSession(ev) ? 'primary' : 'lav'" :href="ev.url" target="_blank" rel="noopener"><Icon :name="isOwnSession(ev) ? 'video' : 'link'" :size="14" />{{ ev.readonly ? 'Editar en Google Calendar' : isOwnSession(ev) ? 'Entrar a la clase' : 'Abrir' }}</a>
+          <button v-if="ev.kind === 'event' && !ev.readonly && ev.type !== 'recordatorio'" class="btn sm ghost" @click="ui.modal = { type: isOwnSession(ev) ? 'session' : 'event', id: ev.id }"><Icon name="edit" :size="14" />Editar</button>
           <button v-if="ev.kind === 'event' && !ev.readonly && ev.type !== 'recordatorio'" class="btn sm ghost" @click="delEvent"><Icon name="trash" :size="14" />Eliminar</button>
           <button v-if="ev.kind === 'class'" class="btn sm ghost" @click="close(); A.go('universidad')">Ver materia</button>
           <button v-if="ev.type !== 'recordatorio' && (ev.kind === 'class' || ev.subjectId || /^UT\b/i.test(ev.calendarName || '') || /tutor/i.test(ev.title || ''))" class="btn sm ghost" @click="ui.modal = { type: 'reminder', prefill: { date: m.date, start: ev.start, subjectId: ev.subjectId || subjectFromTitle(ev.title), study: true } }"><Icon name="bell" :size="14" />Recordatorio</button>
