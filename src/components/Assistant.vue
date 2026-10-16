@@ -3,6 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { projectProgress } from '../store/actions'
+import { localAnswer } from '../engine/answers'
 import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
@@ -104,7 +105,7 @@ function summary(text) {
 // Formato de las respuestas: **negrita**, listas con - o •, sin dejar pasar HTML
 const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 function md(text) {
-  const inline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*(\S.*?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>')
+  const inline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*(\S.*?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/~~(.+?)~~/g, '<s>$1</s>')
   let html = '', list = false
   for (const raw of String(text || '').split('\n')) {
     const l = raw.trim()
@@ -118,29 +119,11 @@ function md(text) {
   return html + (list ? '</ul>' : '')
 }
 
-let lastProject = null
-// Respuestas sin IA (instantáneas, y de respaldo si la IA falla)
+// Primero sin IA (tus datos, al instante); la IA solo para lo abierto
 function localReply(text) {
-  const s = text.toLowerCase()
-  const mm = s.match(/(\d+)\s*(min|minutos|h|hora)/)
-  if (mm) {
-    const mins = Number(mm[1]) * (mm[2].startsWith('h') ? 60 : 1)
-    const t = rankedTasks().map((r) => r.t).find((x) => (x.estimate - (x.spent || 0)) <= mins + 10) || rankedTasks()[0]?.t
-    return t ? `Con ${fmtDur(mins)} te recomiendo "${t.title}"${t.due ? ` (vence ${relDay(t.due)})` : ''}. ¿Empezamos?` : 'Con ese tiempo puedes descansar o leer algo de Mi cerebro.'
-  }
-  if (/libre|disponible|hueco/.test(s)) { const b = freeBlocks(dayKey(), currentContext().m); return b.length ? `Tienes libre: ${b.map((x) => x.label).join(', ')}.` : 'Hoy ya no te quedan bloques libres. Descansar también cuenta.' }
-  if (/h[aá]bito/.test(s)) { const p = state.habits.filter((h) => !state.habitLogs[h.id]?.[dayKey()]?.done); return p.length ? `Te faltan: ${p.map((h) => h.name).join(', ')}. Con uno chiquito ya cuenta.` : '¡Todos tus hábitos de hoy están listos!' }
-  if (/vence|entrega|pendiente/.test(s)) { const d = state.tasks.filter((t) => isOpen(t) && daysUntil(t.due) <= 3).sort((a, b) => (a.due > b.due ? 1 : -1)); return d.length ? d.map((t) => `• ${t.title} — ${relDay(t.due)}`).join('\n') : 'Nada vence en los próximos 3 días.' }
-  const pr = state.projects.find((p) => s.includes(String(p.name).toLowerCase())) || lastProject
-  if (pr && /\b(hice|hechas?|termin|complet|llevo)/.test(s)) {
-    lastProject = pr
-    const d = state.tasks.filter((t) => t.projectId === pr.id && t.status === 'completada').sort(byDone)
-    return d.length ? `De ${pr.name} ya hiciste ${d.length}:\n${d.slice(0, 10).map((t) => `• ${t.title}`).join('\n')}${d.length > 10 ? `\n…y ${d.length - 10} más` : ''}` : `En ${pr.name} todavía no has terminado tareas.`
-  }
-  if (pr && state.projects.some((p) => s.includes(String(p.name).toLowerCase()))) {
-    lastProject = pr; const ts = state.tasks.filter((t) => t.projectId === pr.id && isOpen(t)); return `${pr.name} va en ${projectProgress(pr)}%. ${ts.length ? `Te falta:\n${ts.slice(0, 8).map((t) => `• ${t.title}${t.due ? ` — ${relDay(t.due)}` : ''}`).join('\n')}` : 'No tiene tareas pendientes.'}` }
-  if (/qu[eé] hago|ahora|recomi/.test(s)) return shown.value.reason
-  return null
+  const r = localAnswer(text)
+  if (r) return r
+  return /qu[eé] (hago|hacer)|ahora qu[eé]|recomi/i.test(text) ? `${shown.value.title ? `**${shown.value.title}**\n` : ''}${shown.value.reason}` : null
 }
 
 async function send() {
@@ -148,10 +131,12 @@ async function send() {
   input.value = ''
   say(text, 'me')
   if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
-  if (!canUseBackend()) { say(localReply(text) || 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
+  const quick = localReply(text)
+  if (quick) { say(quick); return }
+  if (!canUseBackend()) { say( 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
   busy.value = true
-  try { const r = await askAssistant(text, summary(text), msgs.value.slice(-5, -1).map((m) => ({ ...m, text: String(m.text).slice(0, 600) }))); say(r.reply || localReply(text) || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
-  catch (e) { const l = localReply(text); say(l ? `${l}\n\n(Sin IA por ahora: ${e.message})` : `No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) }
+  try { const r = await askAssistant(text, summary(text), msgs.value.slice(-5, -1).map((m) => ({ ...m, text: String(m.text).slice(0, 600) }))); say(r.reply || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
+  catch (e) { say(`No pude pensar con la IA ahora (${e.message}). Mientras, puedo responderte sin IA: tus tareas, lo que vence, tu agenda, un proyecto o materia, lo que ya hiciste o la descripción de una tarea.`) }
   finally { busy.value = false }
 }
 
@@ -197,7 +182,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
         <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
       <form class="row" style="margin-top:10px" @submit.prevent="send">
-        <input class="input" v-model="input" placeholder="Pregúntame: ¿qué hago ahora? / tengo 30 min…" aria-label="Mensaje al asistente" />
+        <input class="input" v-model="input" placeholder="¿Qué tengo hoy? · proyecto MuMu · tengo 30 min…" aria-label="Mensaje al asistente" />
         <button class="btn primary" type="submit" aria-label="Enviar"><Icon name="rocket" :size="16" /></button>
       </form>
     </div>
