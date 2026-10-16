@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { projectProgress } from '../store/actions'
-import { localAnswer } from '../engine/answers'
+import { localAnswer, habitMarkIntent } from '../engine/answers'
 import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
@@ -131,6 +131,16 @@ async function send() {
   input.value = ''
   say(text, 'me')
   if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
+  const mark = habitMarkIntent(text)
+  if (mark) {
+    if (!mark.habit || !mark.days.length) { say(mark.text); return }
+    msgs.value.push({ from: 'pet', text: mark.text, actions: [
+      { label: 'Sí, marcar', primary: true, run: () => { mark.days.forEach((k) => { if (!state.habitLogs[mark.habit.id]?.[k]?.done) A.toggleHabit(mark.habit.id, k, 'Marcado desde la vaquita') }); say(`Listo, marqué ${mark.days.length} día${mark.days.length === 1 ? '' : 's'}.\n\n${localAnswer(`como me fue con ${mark.habit.name} esta semana`) || ''}`) } },
+      { label: 'No', run: () => say('Ok, no cambié nada.') },
+    ] })
+    nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' }))
+    return
+  }
   const quick = localReply(text)
   if (quick) { say(quick); return }
   if (!canUseBackend()) { say( 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
@@ -178,7 +188,8 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
       </div>
 
       <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:38dvh;overflow-y:auto">
-        <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight msg" :class="{ pink: mm.from === 'me' }"><template v-if="mm.from === 'me'">{{ mm.text }}</template><div v-else class="md" v-html="md(mm.text)"></div></div>
+        <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight msg" :class="{ pink: mm.from === 'me' }"><template v-if="mm.from === 'me'">{{ mm.text }}</template><div v-else class="md" v-html="md(mm.text)"></div>
+          <div v-if="mm.actions" class="row" style="gap:6px;margin-top:8px"><button v-for="a in mm.actions" :key="a.label" class="btn sm" :class="a.primary ? 'primary' : 'ghost'" @click="mm.actions = null; a.run()">{{ a.label }}</button></div></div>
         <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
       <form class="row" style="margin-top:10px" @submit.prevent="send">

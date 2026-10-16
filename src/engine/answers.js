@@ -8,7 +8,7 @@ import { dayKey, relDay, daysUntil, fmtDur } from './time'
 
 const nrm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const words = (s) => nrm(s).split(/[^a-z0-9ñ]+/).filter((w) => w.length > 3)
-const memo = { project: null, subject: null, task: null }
+const memo = { project: null, subject: null, task: null, habit: null }
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return dayKey(d) }
 const when = (t) => (t.due ? ` — ${relDay(t.due)}${t.dueTime ? ` ${t.dueTime}` : ''}` : '')
 const item = (t) => `- ${t.priority === 'alta' ? `**${t.title}**` : t.title}${when(t)}`
@@ -139,12 +139,15 @@ export function localAnswer(text) {
 }
 
 const GENERIC = new Set(['tiempo', 'habito', 'bloque', 'antes', 'mantener', 'minutos', 'hacer', 'diario', 'diaria', 'casa'])
+const SYN = [[/\b(lei|leyendo|lectura)\b/, /leer|lectura/], [/\b(ore|rece|oracion|devocional|biblia)\b/, /dios|orar|oracion/], [/\b(entrene|ejercite|gym|rutina de ejercicio)\b/, /ejercicio|entren/], [/\b(dormi|me acoste)\b/, /dormir/], [/\b(desperte|me levante|madrugue)\b/, /despertar|levantar/], [/\b(estudie)\b/, /estudio/], [/\b(arregle|ordene|tendi)\b/, /cuarto|ordenar|arreglad/]]
 function findHabitByWords(s) {
+  for (const [q, h] of SYN) if (q.test(s)) { const x = state.habits.find((y) => h.test(nrm(y.name))); if (x) return x }
   const ws = new Set(words(s))
   return state.habits.find((h) => words(h.name).some((w) => !GENERIC.has(w) && ws.has(w))) || null
 }
 const DIAS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 function habitReport(h, n) {
+  memo.habit = h
   const isGod = /dios/i.test(h.name)
   const did = (key) => !!state.habitLogs[h.id]?.[key]?.done || (isGod && (() => { const e = state.god?.entries?.[key]; return !!(e && (e.talked || e.prayers?.morning || e.prayers?.night)) })())
   const days = Array.from({ length: n }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (n - 1 - i)); return { key: dayKey(d), wd: d.getDay() } })
@@ -158,4 +161,35 @@ function habitReport(h, n) {
   return `**${h.name}** ${n === 7 ? 'esta semana' : `en los últimos ${n} días`}: **${count} de ${n} días** (${pct}%).${strip}\n${streak ? `Racha actual: ${streak} día${streak === 1 ? '' : 's'}. ` : ''}${note}${godExtra}`
 }
 
-export function resetAnswerMemo() { memo.project = memo.subject = memo.task = null }
+export function resetAnswerMemo() { memo.project = memo.subject = memo.task = memo.habit = null }
+
+// "Olvidé decirte que el lunes y el martes sí hice ejercicio" / "cumplí toda la semana" → días a marcar
+const WD = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6 }
+const back = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d }
+const lastWd = (wd) => { const t = new Date().getDay(); return (t - wd + 7) % 7 } // cuántos días atrás fue ese día (0 = hoy)
+export function habitMarkIntent(text) {
+  const s = nrm(text)
+  if (/\?|^\s*(que|cuales?|cuantos?|cuantas?|como)\b/.test(s)) return null
+  if (!/\b(hice|tuve|cumpli|lei|ore|fui)\b|olvide (marcar|decirte|registrar|ponerl)|\bmarca(r|lo|la|me|los)?\b|ponle check|pon(lo|la|los) (como )?(hech|check)|registra|cumpli|lo hice|la hice/.test(s)) return null
+  if (/no (lo |la )?(hice|cumpli|tuve)/.test(s)) return null
+  const habit = findIn(text, state.habits, (h) => [h.name]) || findHabitByWords(s) || memo.habit
+  const ago = new Set()
+  if (/toda la semana|todos los dias|semana completa|toda esta semana/.test(s)) for (let i = 0; i < 7; i++) ago.add(i)
+  const lastN = s.match(/ultimos (\d{1,2}) dias/); if (lastN) for (let i = 0; i < Math.min(31, +lastN[1]); i++) ago.add(i)
+  if (/\bhoy\b/.test(s)) ago.add(0)
+  if (/\bayer\b/.test(s) && !/antes de ayer/.test(s)) ago.add(1)
+  if (/antier|anteayer|antes de ayer/.test(s)) ago.add(2)
+  const range = s.match(/del? (domingo|lunes|martes|miercoles|jueves|viernes|sabado) (?:al|hasta(?: el)?) (domingo|lunes|martes|miercoles|jueves|viernes|sabado|hoy)/)
+  if (range) { const a = lastWd(WD[range[1]]), b = range[2] === 'hoy' ? 0 : lastWd(WD[range[2]]); for (let i = Math.min(a, b); i <= Math.max(a, b); i++) ago.add(i) }
+  else for (const [n, wd] of Object.entries(WD)) if (new RegExp(`\\b${n}\\b`).test(s)) ago.add(lastWd(wd))
+  const nums = s.match(/\b(?:el|los|dia|dias)\s+((?:\d{1,2}(?:\s*(?:,|y)\s*)?)+)/)
+  if (nums) for (const n of nums[1].match(/\d{1,2}/g)) { const d = +n; for (let i = 0; i < 31; i++) if (back(i).getDate() === d) { ago.add(i); break } }
+  if (!ago.size) return null
+  const days = [...ago].sort((a, b) => b - a).map((i) => dayKey(back(i)))
+  if (!habit) return { habit: null, days, text: '¿De cuál hábito? Dime su nombre y lo marco.' }
+  memo.habit = habit
+  const todo = days.filter((k) => !state.habitLogs[habit.id]?.[k]?.done)
+  const fmt = (k) => { const d = new Date(`${k}T12:00`); return `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}` }
+  if (!todo.length) return { habit, days: [], text: `**${habit.name}** ya estaba marcado esos días (${days.map(fmt).join(', ')}).` }
+  return { habit, days: todo, text: `¿Marco **${habit.name}** como hecho ${todo.length === 1 ? 'el' : 'estos días:'} ${todo.map(fmt).join(', ')}?` }
+}
