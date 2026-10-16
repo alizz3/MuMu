@@ -20,10 +20,10 @@ async function loadBackups() { try { backups.value = (await API.listBackups()).b
 const fmtB = (b) => { const [d, f] = b.id.split('_'); return `${d} · ${({ manana: 'mañana', mediodia: 'mediodía', tarde: 'tarde' })[f] || f}` }
 async function doRestore(data, label) {
   const n = { proyectos: (data.projects || []).length, materias: (data.subjects || []).length, tareas: (data.tasks || []).length, habitos: (data.habits || []).length }
-  if (!(await ask(`¿Restaurar ${label}? Trae ${n.proyectos} proyectos, ${n.materias} materias, ${n.tareas} tareas y ${n.habitos} hábitos. Lo nuevo que tengas ahora se conserva.`))) return
-  const r = restoreBackup(data)
-  const plus = Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`).join(', ')
-  toast(`Listo, restaurado${plus ? `: +${plus}` : ''}`)
+  if (!(await ask(`¿Dejar MuMu exactamente como en ${label}? Tiene ${n.proyectos} proyectos, ${n.materias} materias, ${n.tareas} tareas y ${n.habitos} hábitos. Lo que cambió después de esa copia se descarta.`))) return
+  restoreBackup(data)
+  toast('Listo: MuMu quedó como en esa copia')
+  setTimeout(() => location.reload(), 2500)
 }
 async function fromServer(b) { try { const r = await API.getBackup(b.id); await doRestore(r.data, `la copia del ${fmtB(b)}`) } catch (e) { toast(e.message) } }
 async function fromFile(ev) {
@@ -254,7 +254,7 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <button class="btn lav" @click="download">Descargar respaldo (JSON)</button>
         <label class="btn ghost" style="cursor:pointer">Restaurar desde un archivo<input type="file" accept="application/json,.json" style="display:none" @change="fromFile" /></label>
         <h3 style="margin-top:8px">Copias automáticas</h3>
-        <p class="tiny muted">MuMu guarda una copia en el servidor 3 veces al día (14 días). Restaurar junta la copia con lo que tienes: no borra lo nuevo.</p>
+        <p class="tiny muted">MuMu guarda una copia en el servidor 3 veces al día (14 días). Restaurar deja MuMu exactamente como estaba en esa copia.</p>
         <button v-if="backups === null" class="btn sm ghost" @click="loadBackups">Ver copias</button>
         <p v-else-if="!backups.length" class="tiny muted">Todavía no hay copias (la primera se hace en el próximo turno automático).</p>
         <div v-for="b in backups || []" :key="b.id" class="row small" style="gap:8px"><span class="grow">{{ fmtB(b) }} <span class="muted">· {{ b.resumen?.proyectos }} proyectos, {{ b.resumen?.tareas }} tareas</span></span><button class="btn sm lav" @click="fromServer(b)">Restaurar</button></div>

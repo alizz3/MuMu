@@ -415,31 +415,17 @@ import { ROOMS } from '../engine/rooms'
 // Solo se quitan copias "vacías" (sin subtareas, notas propias, tiempo ni bloques); si la copia estaba
 // enlazada a Google Tasks, también se borra allá. Pasó el 16 oct con una sesión equivocada en el celular.
 // Proyectos que se perdieron pero cuyas tareas siguen: se rehacen con el nombre de su lista de Google Tasks
-// Restaurar una copia (archivo de respaldo o copia automática del servidor) SIN perder lo nuevo:
-// en listas con id se juntan las dos (gana la copia, salvo en tareas, donde gana lo de ahora);
-// lo demás se completa con la copia.
-const KEEP_NOW = new Set(['device', 'presence', 'usoCelular', 'inbox', 'pendingSync', 'notifications'])
+// Restaurar una copia (archivo de respaldo o copia automática del servidor): MuMu queda EXACTAMENTE
+// como estaba en esa copia (lo de después se descarta). Solo se conservan cosas del equipo (celular enlazado, ubicación).
+const KEEP_NOW = new Set(['device', 'presence', 'usoCelular', 'inbox', 'pendingSync'])
 export function restoreBackup(data) {
-  if (!data || typeof data !== 'object') throw new Error('Respaldo inválido')
-  const out = {}
+  if (!data || typeof data !== 'object' || !Array.isArray(data.tasks)) throw new Error('Respaldo inválido')
+  let n = 0
   for (const [k, v] of Object.entries(data)) {
     if (!(k in state) || KEEP_NOW.has(k) || v == null) continue
-    const cur = state[k]
-    if (Array.isArray(v) && Array.isArray(cur) && v.every((x) => x && typeof x === 'object' && 'id' in x)) {
-      const nowWins = k === 'tasks' || k === 'events'
-      const map = new Map()
-      for (const x of nowWins ? v : cur) map.set(x.id, x)
-      for (const x of nowWins ? cur : v) map.set(x.id, x)
-      // los de ejemplo (demo) que no están en la copia se van
-      const merged = [...map.values()].filter((x) => !x.demo || v.some((y) => y.id === x.id))
-      out[k] = merged.length - cur.length
-      state[k] = merged
-    } else if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) {
-      state[k] = { ...cur, ...v }
-    } else state[k] = v
+    state[k] = JSON.parse(JSON.stringify(v)); n++
   }
-  dedupeTasks()
-  return out
+  return n
 }
 export function rebuildOrphanProjects() {
   const have = new Set(state.projects.map((p) => p.id))
