@@ -211,3 +211,24 @@ export function habitMarkIntent(text) {
   if (!todo.length) return { habit, days: [], text: `**${habit.name}** ya estaba marcado esos días (${days.map(fmt).join(', ')}).` }
   return { habit, days: todo, text: `¿Marco **${habit.name}** como hecho ${todo.length === 1 ? 'el' : 'estos días:'} ${todo.map(fmt).join(', ')}?` }
 }
+
+// "Agrega subtareas a T5 Trabajo en CIPAS: ya arranqué, mirar diseño y contenido"
+export function subtaskIntent(text) {
+  const s = nrm(text)
+  if (!/\b(agrega|agregale|agregar|anade|anadele|pon|ponle|crea|creale|mete|metele)\b.*\bsub ?tareas?\b|\bsub ?tareas?\b.*\b(agrega|anade|pon|crea)/.test(s)) return null
+  const cut = text.search(/:|\bcomo\b|\bque son\b|\bque\b(?=.*,)/i)
+  const head = cut > 0 ? text.slice(0, cut) : text
+  const tail = cut > 0 ? text.slice(cut).replace(/^(?:(?::|como|que son|que|por ejemplo)\s*)+/i, '') : ''
+  const t = findTask(head) || pickTask(head, nrm(head), { project: findIn(head, state.projects, (p) => [p.name]), subject: findIn(head, state.subjects, (x) => [x.name, x.short].filter(Boolean)), scope: null }) || memo.task
+  if (!t) return { task: null, items: [], text: '¿A cuál tarea? Dime su nombre y las subtareas después de dos puntos.' }
+  memo.task = t
+  const items = tail.split(/\s*(?:,|;|\n|\by\b|\be\b)\s*/i).map((x) => x.trim().replace(/[.]+$/, '')).filter((x) => x.length > 1).slice(0, 15).map((x) => {
+    const doneIt = /^ya\b|\b(ya lo hice|listo|hecho)$/i.test(x)
+    let title = x.replace(/^ya\s+/i, '').replace(/\s*\((hecha|hecho|listo)\)$/i, '')
+    if (/^arranqu[eé]$/i.test(title)) title = 'Arrancar'
+    if (/^(dise[nñ]o|contenido)$/i.test(title)) title = `Mirar ${title.toLowerCase()}`
+    return { title: title.charAt(0).toUpperCase() + title.slice(1), done: doneIt }
+  })
+  if (!items.length) return { task: t, items: [], text: `¿Qué subtareas le pongo a **${t.title}**? Escríbelas después de dos puntos, separadas por comas.` }
+  return { task: t, items, text: `¿Agrego a **${t.title}**?\n${items.map((x) => `- ${x.title}${x.done ? ' (hecha)' : ''}`).join('\n')}` }
+}

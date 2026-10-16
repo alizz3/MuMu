@@ -410,6 +410,20 @@ import { ROOMS } from '../engine/rooms'
 // Cuartos de la casita: cada uno tiene sus cosas puestas; el dormitorio usa state.game.placed
 // Enlace para importar un proyecto con sus tareas (…/proyectos#importar=<base64>). Los datos viajan en el enlace,
 // no en el código; se valida todo antes de guardarlo.
+// Agrega subtareas a una tarea sin repetir las que ya tiene ("texto" o { title, done })
+export function mergeSubtasks(t, list) {
+  if (!t || !Array.isArray(list)) return 0
+  t.subtasks ||= []
+  let n = 0
+  for (const x of list.slice(0, 20)) {
+    const title = String(typeof x === 'string' ? x : x?.title || '').trim().slice(0, 120)
+    if (!title) continue
+    const ya = t.subtasks.find((o) => o.title.trim().toLowerCase() === title.toLowerCase())
+    if (ya) { if (x?.done) ya.done = true; continue }
+    t.subtasks.push({ id: uid('st'), title, done: !!x?.done }); n++
+  }
+  return n
+}
 export function importProject(data) {
   const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
   const p = data?.project
@@ -440,7 +454,7 @@ export function importProject(data) {
   ;(Array.isArray(data?.subjectTasks) ? data.subjectTasks : []).slice(0, 40).forEach((t) => {
     const sj = Number.isInteger(t.subject) ? newSubjects[t.subject] : null
     const ya = s(t?.title) && state.tasks.find((o) => o.title === s(t.title, 200) && o.status !== 'cancelada')
-    if (ya) { if (sj) { ya.subjectId = sj.id; ya.projectId = null } return }
+    if (ya) { if (sj) { ya.subjectId = sj.id; ya.projectId = null } mergeSubtasks(ya, t.subtasks); return }
     if (s(t?.title)) addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), subjectId: sj?.id || null, category: 'aprendizaje', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, dueTime: /^\d{2}:\d{2}$/.test(t.dueTime || '') ? t.dueTime : null, estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)) }, { quiet: true })
   })
   if ((newSubjects.some(Boolean) || newGoals.some(Boolean)) && !p && !data?.habits?.length && !data?.tasks?.length) return null
@@ -453,7 +467,7 @@ export function importProject(data) {
   if (!p || !s(p.name)) {
     const hab = state.habits.find((x) => x.name === s(data?.habits?.[0]?.name, 80))
     ;(Array.isArray(data?.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => { if (s(t?.title)) addTask({ habitId: hab?.id || null, title: s(t.title, 200), notes: s(t.notes, 1500), category: ['personal', 'vida', 'trabajo', 'universidad', 'aprendizaje'].includes(t.category) ? t.category : 'personal', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 30)), subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true }) })
-    if (data?.habits?.length || data?.tasks?.length) return null
+    if (data?.habits?.length || data?.tasks?.length || data?.subjectTasks?.length) return null
     throw new Error('Enlace inválido')
   }
   const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']

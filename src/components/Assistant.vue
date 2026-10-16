@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { projectProgress } from '../store/actions'
-import { localAnswer, habitMarkIntent, shownTask } from '../engine/answers'
+import { localAnswer, habitMarkIntent, shownTask, subtaskIntent } from '../engine/answers'
 import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
@@ -131,6 +131,17 @@ async function send() {
   input.value = ''
   say(text, 'me')
   if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
+  const sub = subtaskIntent(text)
+  if (sub) {
+    if (!sub.items.length) { say(sub.text); return }
+    msgs.value.push({ from: 'pet', text: sub.text, actions: [
+      { label: 'Sí, agregar', primary: true, run: () => { const n = A.mergeSubtasks(sub.task, sub.items); say(`Listo, ${n ? `agregué ${n} subtarea${n === 1 ? '' : 's'}` : 'ya las tenía'} en **${sub.task.title}**.`) } },
+      { label: 'Abrir tarea', keep: true, run: () => { ui.assistantOpen = false; ui.modal = { type: 'task', id: sub.task.id } } },
+      { label: 'No', run: () => say('Ok, no cambié nada.') },
+    ] })
+    nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' }))
+    return
+  }
   const mark = habitMarkIntent(text)
   if (mark) {
     if (!mark.habit || !mark.days.length) { say(mark.text); return }
