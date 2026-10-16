@@ -64,31 +64,58 @@ function details() { if (shown.value.task) ui.modal = { type: 'task', id: shown.
 function say(text, from = 'pet') { msgs.value.push({ from, text }); nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' })) }
 
 const byDone = (a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || ''))
-function summary() {
+// Contexto compacto (cada palabra gasta del límite gratis de Groq): títulos cortos en texto plano,
+// y el detalle (notas, subtareas, enlaces) solo de las tareas que se nombran en la conversación.
+function summary(text) {
   const k = dayKey()
   const open = state.tasks.filter(isOpen)
-  const subj = (id) => state.subjects.find((x) => x.id === id)
-  const t2 = (t) => ({ titulo: t.title, vence: t.due || undefined, hora: t.dueTime || undefined, prioridad: t.priority, estado: t.status, min: t.estimate || undefined })
+  const recent = [text, ...msgs.value.slice(-5).map((m) => m.text)].join(' ').toLowerCase()
+  const asksDone = /\b(hice|hech[ao]s?|termin|complet|logr|avanc)/.test(recent)
+  const line = (t) => [t.title, t.due && `vence ${t.due}${t.dueTime ? ' ' + t.dueTime : ''}`, t.priority === 'alta' && 'alta'].filter(Boolean).join(' · ')
   const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return dayKey(d) }
+  const named = state.tasks.filter((t) => String(t.title || '').length >= 4 && recent.includes(String(t.title).toLowerCase())).slice(0, 4)
+  const projects = state.projects.filter((p) => p.status !== 'completado')
+  const focus = projects.filter((p) => recent.includes(String(p.name).toLowerCase()))
   return {
     hoy: k, hora: toHM(new Date().getHours() * 60 + new Date().getMinutes()), enCasa: state.presence?.home,
-    proyectos: state.projects.filter((p) => p.status !== 'completado').map((p) => ({
-      nombre: p.name, estado: p.status, vence: p.due || undefined, avance: `${projectProgress(p)}%`, descripcion: (p.description || '').slice(0, 160) || undefined,
-      pendientes: open.filter((t) => t.projectId === p.id).slice(0, 12).map(t2),
-      hechas: state.tasks.filter((t) => t.projectId === p.id && t.status === 'completada').sort(byDone).slice(0, 15).map((t) => t.title),
-    })),
-    proyectosTerminados: state.projects.filter((p) => p.status === 'completado').map((p) => p.name),
-    estudios: state.subjects.filter((s) => !s.archived).map((s) => ({ materia: s.name, institucion: s.institution, pendientes: open.filter((t) => t.subjectId === s.id).slice(0, 8).map(t2), hechas: state.tasks.filter((t) => t.subjectId === s.id && t.status === 'completada').sort(byDone).slice(0, 6).map((t) => t.title) })),
-    hechasUltimaSemana: state.tasks.filter((t) => t.status === 'completada' && t.completedAt && Date.now() - new Date(t.completedAt).getTime() < 7 * 864e5).sort(byDone).slice(0, 20).map((t) => t.title),
-    otrasTareas: open.filter((t) => !t.projectId && !t.subjectId).slice(0, 20).map(t2),
-    agendaHoy: itemsOn(k).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
-    agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''}-${e.end || ''} ${e.title}`),
+    proyectos: projects.map((p) => {
+      const big = focus.includes(p) || focus.length === 0 && projects.length <= 3
+      const pend = open.filter((t) => t.projectId === p.id)
+      const done = state.tasks.filter((t) => t.projectId === p.id && t.status === 'completada').sort(byDone)
+      return { nombre: p.name, estado: p.status, avance: `${projectProgress(p)}%`, vence: p.due || undefined,
+        descripcion: big ? (p.description || '').slice(0, 200) || undefined : undefined,
+        pendientes: big ? pend.slice(0, 15).map(line) : `${pend.length} (${pend.slice(0, 3).map((t) => t.title).join(', ')}${pend.length > 3 ? '…' : ''})`,
+        hechas: asksDone && big ? done.slice(0, 15).map((t) => t.title) : done.length }
+    }),
+    estudios: state.subjects.filter((s) => !s.archived).map((s) => {
+      const big = recent.includes(String(s.name).toLowerCase()) || recent.includes(String(s.short || '~~').toLowerCase())
+      const pend = open.filter((t) => t.subjectId === s.id)
+      return `${s.name}: ${pend.length ? (big ? pend : pend.slice(0, 3)).map(line).join(' | ') : 'al día'}${asksDone && big ? ` · hechas: ${state.tasks.filter((t) => t.subjectId === s.id && t.status === 'completada').map((t) => t.title).join(', ')}` : ''}`
+    }),
+    otrasTareas: open.filter((t) => !t.projectId && !t.subjectId).slice(0, 10).map(line),
+    detalle: named.length ? named.map((t) => ({ titulo: t.title, estado: t.status, hechaEl: t.completedAt || undefined, vence: t.due || undefined, notas: String(t.notes || '').slice(0, 600) || '(sin descripción)', subtareas: (t.subtasks || []).map((x) => `${x.done ? '[x]' : '[ ]'} ${x.title || x.text || x}`).slice(0, 12), enlaces: (t.links || []).map((l) => l.name || l.url).slice(0, 5), url: t.url || undefined })) : undefined,
+    agendaHoy: itemsOn(k).map((e) => `${e.start || ''} ${e.title}`),
+    agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''} ${e.title}`),
     libresHoy: freeBlocks(k, currentContext().m).map((b) => b.label),
-    habitos: state.habits.map((h) => ({ nombre: h.name, hechoHoy: !!state.habitLogs[h.id]?.[k]?.done })),
-    objetivos: state.goals.map((g) => g.name),
-    principios: state.principles.filter((p) => p.status !== 'descartado').slice(0, 8).map((p) => `${p.text} (${p.author})`),
-    sueñoAnoche: state.sleep.find((s) => s.date === k)?.minutes,
+    habitosPendientesHoy: state.habits.filter((h) => !state.habitLogs[h.id]?.[k]?.done).map((h) => h.name),
   }
+}
+
+// Formato de las respuestas: **negrita**, listas con - o •, sin dejar pasar HTML
+const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+function md(text) {
+  const inline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*(\S.*?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>')
+  let html = '', list = false
+  for (const raw of String(text || '').split('\n')) {
+    const l = raw.trim()
+    const m = l.match(/^(?:[-•*]|\d+[.)])\s+(.*)/)
+    if (m) { if (!list) { html += '<ul>'; list = true } html += `<li>${inline(m[1])}</li>`; continue }
+    if (list) { html += '</ul>'; list = false }
+    if (!l) continue
+    const h = l.match(/^#{1,4}\s+(.*)/)
+    html += h ? `<p><b>${inline(h[1])}</b></p>` : `<p>${inline(l)}</p>`
+  }
+  return html + (list ? '</ul>' : '')
 }
 
 let lastProject = null
@@ -123,7 +150,7 @@ async function send() {
   if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
   if (!canUseBackend()) { say(localReply(text) || 'Puedo ayudarte con: "¿qué hago ahora?", "tengo 30 min", "no quiero hacer esto", "qué vence", "hábitos", "tiempo libre" o el nombre de un proyecto.'); return }
   busy.value = true
-  try { const r = await askAssistant(text, summary(), msgs.value.slice(-7, -1)); say(r.reply || localReply(text) || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
+  try { const r = await askAssistant(text, summary(text), msgs.value.slice(-5, -1).map((m) => ({ ...m, text: String(m.text).slice(0, 600) }))); say(r.reply || localReply(text) || 'Mmm, no supe qué decir. ¿Me lo preguntas de otra forma?') }
   catch (e) { const l = localReply(text); say(l ? `${l}\n\n(Sin IA por ahora: ${e.message})` : `No pude pensar con la IA ahora (${e.message}). Igual aquí estoy.`) }
   finally { busy.value = false }
 }
@@ -166,7 +193,7 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
       </div>
 
       <div ref="box" class="stack" style="gap:8px;margin-top:14px;max-height:38dvh;overflow-y:auto">
-        <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight" :class="{ pink: mm.from === 'me' }">{{ mm.text }}</div>
+        <div v-for="(mm, i) in msgs" :key="i" :style="{ alignSelf: mm.from === 'me' ? 'flex-end' : 'flex-start', maxWidth: '85%', whiteSpace: 'pre-line' }" class="small card tight msg" :class="{ pink: mm.from === 'me' }"><template v-if="mm.from === 'me'">{{ mm.text }}</template><div v-else class="md" v-html="md(mm.text)"></div></div>
         <div v-if="busy" class="small muted">La vaquita está pensando…</div>
       </div>
       <form class="row" style="margin-top:10px" @submit.prevent="send">
@@ -178,6 +205,13 @@ watch(() => ui.assistantOpen, (o) => { if (o) { altIdx.value = 0; if (!msgs.valu
 </template>
 
 <style scoped>
+.md :deep(p) { margin: 0 0 6px; }
+.md :deep(p:last-child), .md :deep(ul:last-child) { margin-bottom: 0; }
+.md :deep(ul) { margin: 2px 0 6px; padding-left: 18px; }
+.md :deep(li) { margin: 2px 0; }
+.md :deep(li::marker) { color: var(--pink-700); }
+.md :deep(code) { font-size: 12px; background: var(--line); padding: 0 4px; border-radius: 4px; }
+.msg .md { white-space: normal; }
 .hints { margin-top: 10px; padding: 6px 12px; display: flex; flex-direction: column; }
 .hint { display: flex; align-items: center; gap: 8px; font-size: 12.5px; line-height: 1.3; padding: 6px 0; color: var(--ink-2, inherit); }
 .hint + .hint { border-top: 1px solid var(--line); }
