@@ -4,11 +4,14 @@ import { handler, HttpError } from '../../_lib/http.js'
 import { initDb, pushInbox } from '../../_lib/firebase.js'
 import { runAulaSync } from '../../_lib/aula.js'
 import { fetchClassroom } from '../../_lib/classroom.js'
+import { backupAll } from '../backup.js'
 
 export default handler(async (req, res) => {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) throw new HttpError(401, 'No autorizado')
   const db = await initDb()
   const out = { aula: 0, classroom: 0, errores: 0 }
+  // Primero la copia de seguridad (antes de tocar nada)
+  try { out.copias = await backupAll(db, String(req.query?.franja || 'x').replace(/\W/g, '')) } catch (e) { out.errores++; console.error(`[cron backup] ${e.message}`) }
 
   for (const d of (await db.collectionGroup('aula').get()).docs) {
     const uid = d.ref.parent.parent.id

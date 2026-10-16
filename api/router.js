@@ -18,9 +18,10 @@ import gtasksSync from './_routes/gtasks/sync.js'
 import driveList from './_routes/drive/list.js'
 import financeSummary from './_routes/finance/summary.js'
 import * as device from './_routes/device.js'
+import backup from './_routes/backup.js'
 
 const ROUTES = {
-  health, me, assistant,
+  health, me, assistant, backup,
   'google/start': googleStart, 'google/callback': googleCallback, 'google/accounts': googleAccounts,
   'gmail/inbox': gmailInbox, 'gmail/action': gmailAction, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
   'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/sync': cronSync, 'cron/aula': cronSync, 'finance/summary': financeSummary, 'gtasks/sync': gtasksSync, 'drive/list': driveList,

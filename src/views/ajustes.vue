@@ -11,8 +11,26 @@ import { BRAND } from '../config/brand'
 import { toast, ask } from '../engine/game'
 import { Icon, Pet, Chip } from '../components/ui'
 import Seg from '../components/Seg.vue'
+import { restoreBackup } from '../store/actions'
 
-const tab = ref('cuentas')
+const tab = ref(location.hash === '#respaldo' ? 'privacidad' : 'cuentas')
+// ---------- Copias de seguridad ----------
+const backups = ref(null)
+async function loadBackups() { try { backups.value = (await API.listBackups()).backups } catch (e) { backups.value = []; toast(e.message) } }
+const fmtB = (b) => { const [d, f] = b.id.split('_'); return `${d} · ${({ manana: 'mañana', mediodia: 'mediodía', tarde: 'tarde' })[f] || f}` }
+async function doRestore(data, label) {
+  const n = { proyectos: (data.projects || []).length, materias: (data.subjects || []).length, tareas: (data.tasks || []).length, habitos: (data.habits || []).length }
+  if (!(await ask(`¿Restaurar ${label}? Trae ${n.proyectos} proyectos, ${n.materias} materias, ${n.tareas} tareas y ${n.habitos} hábitos. Lo nuevo que tengas ahora se conserva.`))) return
+  const r = restoreBackup(data)
+  const plus = Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`).join(', ')
+  toast(`Listo, restaurado${plus ? `: +${plus}` : ''}`)
+}
+async function fromServer(b) { try { const r = await API.getBackup(b.id); await doRestore(r.data, `la copia del ${fmtB(b)}`) } catch (e) { toast(e.message) } }
+async function fromFile(ev) {
+  const f = ev.target.files?.[0]; ev.target.value = ''
+  if (!f) return
+  try { await doRestore(JSON.parse(await f.text()), `el archivo "${f.name}"`) } catch { toast('Ese archivo no es un respaldo de MuMu') }
+}
 const backendOk = computed(() => API.canUseBackend())
 const FB_ERR = {
   'auth/unauthorized-domain': 'Este dominio no está autorizado en Firebase. Agrégalo en Authentication → Settings → Dominios autorizados.',
@@ -234,6 +252,12 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <h3>Dónde viven tus datos</h3>
         <p>• <b>Modo local:</b> en este navegador.<br />• <b>Con sesión:</b> en tu Firebase (solo tú puedes leerlos, por las reglas de seguridad).<br />• <b>Tokens de Google y de Tu Aula:</b> cifrados en el servidor, nunca en el navegador.<br />• <b>Contraseñas:</b> no se guardan en ningún lado.</p>
         <button class="btn lav" @click="download">Descargar respaldo (JSON)</button>
+        <label class="btn ghost" style="cursor:pointer">Restaurar desde un archivo<input type="file" accept="application/json,.json" style="display:none" @change="fromFile" /></label>
+        <h3 style="margin-top:8px">Copias automáticas</h3>
+        <p class="tiny muted">MuMu guarda una copia en el servidor 3 veces al día (14 días). Restaurar junta la copia con lo que tienes: no borra lo nuevo.</p>
+        <button v-if="backups === null" class="btn sm ghost" @click="loadBackups">Ver copias</button>
+        <p v-else-if="!backups.length" class="tiny muted">Todavía no hay copias (la primera se hace en el próximo turno automático).</p>
+        <div v-for="b in backups || []" :key="b.id" class="row small" style="gap:8px"><span class="grow">{{ fmtB(b) }} <span class="muted">· {{ b.resumen?.proyectos }} proyectos, {{ b.resumen?.tareas }} tareas</span></span><button class="btn sm lav" @click="fromServer(b)">Restaurar</button></div>
         <button class="btn ghost" @click="clean">Empezar en limpio (quitar ejemplos)</button>
         <button class="btn ghost" @click="reset">Restaurar datos de ejemplo</button>
       </div>

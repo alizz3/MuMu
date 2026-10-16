@@ -3,13 +3,15 @@
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { UNI_STEPS } from './device'
-import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks, dedupeTasks } from '../store/actions'
+import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks, dedupeTasks, rebuildOrphanProjects } from '../store/actions'
 import { syncGmail, syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
 import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
 
-const last = {}
+// known: colecciones de las que ya tenemos el valor real (del servidor, o guardado en el equipo).
+// NUNCA se sube una colección que no esté aquí: así una copia vacía o de ejemplo jamás pisa tus datos.
+const last = {}, known = new Set()
 let uid = null, ready = false, holdWrites = false
 let unsubs = []
 
@@ -33,7 +35,7 @@ export async function initSync() {
     ui.user = user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null
     try { if (ui.user) localStorage.setItem('mumu:lastUser', JSON.stringify(ui.user)); else localStorage.removeItem('mumu:lastUser') } catch {}
     // Al cerrar sesión se borra la copia local para que nadie más vea tus datos en este equipo
-    if (!user && uid) { ready = false; unsubs.forEach((u) => u()); unsubs = []; resetToSeed() }
+    if (!user && uid) { ready = false; known.clear(); unsubs.forEach((u) => u()); unsubs = []; resetToSeed() }
     uid = user?.uid || null
     ready = false
     ui.synced = false
@@ -43,7 +45,7 @@ export async function initSync() {
     // Si no responde, se reintenta; si no hay forma de saberlo, NO se abre una MuMu vacía (pasó el 16 oct:
     // entraste con la de la U, el servidor tardó y se cargaron datos de ejemplo en otro espacio).
     const dkey = `mumu:dataUid:${user.uid}`, ekey = `mumu:dataUidEmail:${String(user.email).toLowerCase()}`
-    const known = () => { try { return localStorage.getItem(dkey) || localStorage.getItem(ekey) } catch { return null } }
+    const knownUid = () => { try { return localStorage.getItem(dkey) || localStorage.getItem(ekey) } catch { return null } }
     ui.authError = null
     if (location.protocol.startsWith('http')) {
       let resolved = null
@@ -58,7 +60,7 @@ export async function initSync() {
         if (!resolved && !navigator.onLine) break
         if (!resolved && i < 3) await new Promise((ok) => setTimeout(ok, 1500 * (i + 1)))
       }
-      resolved ||= known()
+      resolved ||= knownUid()
       if (!resolved) {
         uid = null; ui.authReady = true
         ui.authError = navigator.onLine ? 'No pude confirmar tu cuenta con el servidor. Para no mostrarte una MuMu vacía, espero a que respondas "Reintentar".' : 'Sin internet no puedo confirmar tu cuenta todavía. Conéctate y toca "Reintentar".'
@@ -88,9 +90,11 @@ export async function initSync() {
       ui.authError = 'No encontré tus datos en este momento. No toqué nada: toca "Reintentar" en un ratico.'
       return
     }
-    if (anyRemote) {
-      snaps.forEach((s, i) => { if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items) } })
-    }
+    known.clear()
+    snaps.forEach((s, i) => {
+      if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items); known.add(keys[i]) }
+      else if (!s.metadata?.fromCache) known.add(keys[i]) // el servidor confirmó que no existe: es nueva
+    })
     // Si lo que se leyó es la copia guardada en el equipo (no la del servidor) y sí hay internet,
     // NO se sube nada ni se corren arreglos/sincronizaciones hasta que llegue lo del servidor:
     // así un celular con datos viejos no pisa lo que hiciste en otro lado (pasó con el curso del SENA).
@@ -109,6 +113,7 @@ export async function initSync() {
       fixUniRoutine(UNI_STEPS)
       linkHabitTasks()
       processInbox()
+      { const r = rebuildOrphanProjects(); if (r) toast(`Recuperé ${r} proyecto${r === 1 ? '' : 's'} desde sus tareas`) }
       { const n = dedupeTasks(); if (n) toast(`Quité ${n} tarea${n === 1 ? '' : 's'} repetida${n === 1 ? '' : 's'}`) }
       ensureAulaTasks()
       autoSync()
@@ -116,7 +121,7 @@ export async function initSync() {
     }
     listen(fb, uid, stale ? start : null)
     if (!stale) start()
-    else setTimeout(() => { if (!started) start() }, navigator.onLine ? 45000 : 1000)
+    else setTimeout(() => { if (!started && !navigator.onLine) start() }, 1500) // sin internet: se trabaja con lo guardado (y solo se sube lo conocido)
   })
   onPersist(() => { if (ready && uid) push(fb, doc, setDoc) })
 }
@@ -129,13 +134,14 @@ function listen(fb, id, onFresh = null) {
   const keys = Object.keys(state), fresh = new Set()
   for (const k of keys) {
     unsubs.push(onSnapshot(doc(fb.db, 'users', id, 'data', k), (s) => {
-      // Cuando ya llegó lo del servidor para todas las colecciones, se sigue normal
-      if (onFresh && !s.metadata.fromCache) { fresh.add(k); if (fresh.size === keys.length) { onFresh(); onFresh = null } }
-      if (!s.exists() || s.metadata.hasPendingWrites) return
-      const json = JSON.stringify(s.data().items)
-      if (json === last[k]) return
-      last[k] = json
-      state[k] = JSON.parse(json)
+      if (!s.metadata.fromCache) known.add(k)
+      if (s.exists() && !s.metadata.hasPendingWrites) {
+        known.add(k)
+        const json = JSON.stringify(s.data().items)
+        if (json !== last[k]) { last[k] = json; state[k] = JSON.parse(json) }
+      }
+      // Cuando ya llegó lo del servidor para todas las colecciones (y se aplicó), se sigue normal
+      if (onFresh && !s.metadata.fromCache) { fresh.add(k); if (fresh.size === keys.length) { const f = onFresh; onFresh = null; f() } }
     }, () => { /* sin conexión: se reintenta solo */ }))
   }
 }
@@ -144,6 +150,7 @@ async function push(fb, doc, setDoc) {
   if (holdWrites) return // esperando lo del servidor
   // Sin await: sin internet la escritura queda guardada en el equipo y Firebase la sube sola al volver
   for (const k of Object.keys(state)) {
+    if (!known.has(k)) continue // aún no sabemos qué hay en la nube: no se toca
     const json = JSON.stringify(state[k])
     if (last[k] === json) continue
     last[k] = json

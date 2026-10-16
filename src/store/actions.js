@@ -414,6 +414,52 @@ import { ROOMS } from '../engine/rooms'
 // Tareas repetidas (mismo título, misma materia/proyecto y misma fecha): se queda la más completa.
 // Solo se quitan copias "vacías" (sin subtareas, notas propias, tiempo ni bloques); si la copia estaba
 // enlazada a Google Tasks, también se borra allá. Pasó el 16 oct con una sesión equivocada en el celular.
+// Proyectos que se perdieron pero cuyas tareas siguen: se rehacen con el nombre de su lista de Google Tasks
+// Restaurar una copia (archivo de respaldo o copia automática del servidor) SIN perder lo nuevo:
+// en listas con id se juntan las dos (gana la copia, salvo en tareas, donde gana lo de ahora);
+// lo demás se completa con la copia.
+const KEEP_NOW = new Set(['device', 'presence', 'usoCelular', 'inbox', 'pendingSync', 'notifications'])
+export function restoreBackup(data) {
+  if (!data || typeof data !== 'object') throw new Error('Respaldo inválido')
+  const out = {}
+  for (const [k, v] of Object.entries(data)) {
+    if (!(k in state) || KEEP_NOW.has(k) || v == null) continue
+    const cur = state[k]
+    if (Array.isArray(v) && Array.isArray(cur) && v.every((x) => x && typeof x === 'object' && 'id' in x)) {
+      const nowWins = k === 'tasks' || k === 'events'
+      const map = new Map()
+      for (const x of nowWins ? v : cur) map.set(x.id, x)
+      for (const x of nowWins ? cur : v) map.set(x.id, x)
+      // los de ejemplo (demo) que no están en la copia se van
+      const merged = [...map.values()].filter((x) => !x.demo || v.some((y) => y.id === x.id))
+      out[k] = merged.length - cur.length
+      state[k] = merged
+    } else if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) {
+      state[k] = { ...cur, ...v }
+    } else state[k] = v
+  }
+  dedupeTasks()
+  return out
+}
+export function rebuildOrphanProjects() {
+  const have = new Set(state.projects.map((p) => p.id))
+  const orphan = new Map()
+  for (const t of state.tasks) if (t.projectId && !have.has(t.projectId)) (orphan.get(t.projectId) || orphan.set(t.projectId, []).get(t.projectId)).push(t)
+  if (!orphan.size) return 0
+  const lists = Object.values(state.integrations?.gtasks || {}).flatMap((c) => c.lists || [])
+  const COLORS = ['#C3B3D4', '#F7B6C2', '#B9DCCB', '#BFD7F0', '#F6DC8B', '#FAECCD']
+  let i = 0
+  for (const [id, ts] of orphan) {
+    const listId = ts.find((t) => t.gtask?.list)?.gtask.list
+    const title = lists.find((l) => l.id === listId)?.title
+    const name = title && !/^(mis tareas|my tasks|tareas)$/i.test(title) ? title : `Proyecto recuperado ${++i}`
+    const same = state.projects.find((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase())
+    if (same) { ts.forEach((t) => (t.projectId = same.id)); continue }
+    const done = ts.every((t) => t.status === 'completada')
+    state.projects.push({ id, name, description: 'Recuperado desde sus tareas: revisa el nombre y los detalles.', status: done ? 'completado' : 'progreso', area: ts.some((t) => t.category === 'trabajo') ? 'trabajo' : 'personal', due: null, skills: [], resources: [], links: [], color: COLORS[state.projects.length % COLORS.length], goalId: null, recovered: true })
+  }
+  return orphan.size
+}
 export function dedupeTasks() {
   const nt = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
   const groups = new Map()
@@ -502,15 +548,25 @@ export function importProject(data) {
   }
   const AREAS = ['carrera', 'freelance', 'personal', 'aprendizaje', 'universidad', 'trabajo'], ST = ['idea', 'plan', 'progreso', 'pausado', 'completado']
   const proj = { id: uid('p'), goalId: state.goals.some((g) => g.id === p.goalId) ? p.goalId : null, name: s(p.name, 80), description: s(p.description, 1500), status: ST.includes(p.status) ? p.status : 'plan', area: AREAS.includes(p.area) ? p.area : 'personal', due: /^\d{4}-\d{2}-\d{2}$/.test(p.due || '') ? p.due : null, skills: (Array.isArray(p.skills) ? p.skills : []).map((x) => s(x, 40)).filter(Boolean).slice(0, 12), resources: [], links: [...(Array.isArray(p.links) ? p.links : []).filter((l) => /^https?:\/\//.test(l?.url || '')).map((l) => ({ id: uid('l'), name: s(l.name, 80) || s(l.url, 80), url: s(l.url, 500) })), ...(Array.isArray(p.resources) ? p.resources : []).map((x) => s(x, 300)).filter((x) => /^https?:\/\//.test(x)).map((u) => ({ id: uid('l'), name: u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''), url: u }))].slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#C3B3D4' }
-  state.projects.unshift(proj)
+  // Si ya existe un proyecto con ese nombre (o uno recuperado), se completa en vez de duplicarlo
+  const same = state.projects.find((x) => x.name.trim().toLowerCase() === proj.name.toLowerCase())
+  const target = same || proj
+  if (same) {
+    ;['description', 'due', 'goalId'].forEach((k) => { if (!same[k] && proj[k]) same[k] = proj[k] })
+    if (same.recovered) { Object.assign(same, { status: proj.status, area: proj.area, color: proj.color }); delete same.recovered; if (/^Recuperado desde/.test(same.description || '')) same.description = proj.description }
+    same.skills = [...new Set([...(same.skills || []), ...proj.skills])]
+    same.links = [...(same.links || []), ...proj.links.filter((l) => !(same.links || []).some((o) => o.url === l.url))]
+  } else state.projects.unshift(proj)
   // Semestre: une las materias que pidas (o todas las de la U) a este proyecto
-  if (data.linkSubjects === 'all') state.subjects.forEach((x) => { if (!x.projectId) x.projectId = proj.id })
+  if (data.linkSubjects === 'all') state.subjects.forEach((x) => { if (!x.projectId) x.projectId = target.id })
   const CATS = ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas']
   ;(Array.isArray(data.tasks) ? data.tasks : []).slice(0, 40).forEach((t) => {
     if (!s(t?.title)) return
-    addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), projectId: proj.id, category: CATS.includes(t.category) ? t.category : 'trabajo', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true })
+    const ya = state.tasks.find((o) => o.title.trim().toLowerCase() === s(t.title, 200).toLowerCase() && o.status !== 'cancelada' && (o.projectId === target.id || !o.projectId || !state.projects.some((x) => x.id === o.projectId)))
+    if (ya) { ya.projectId = target.id; mergeSubtasks(ya, t.subtasks); return }
+    addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), projectId: target.id, category: CATS.includes(t.category) ? t.category : 'trabajo', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true })
   })
-  return proj
+  return target
 }
 export function roomOf(roomId) {
   const g = state.game

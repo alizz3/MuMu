@@ -134,6 +134,9 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 
 - Ninguna contraseña ni credencial está en el código ni en el navegador; los tokens de Google y Tu Aula viven cifrados en el servidor.
 - Solo tus dos cuentas (la personal y la de la U) entran a tus datos, y las dos ven los mismos. Si al entrar MuMu no puede confirmar de quién son los datos (internet lento), espera y te muestra **Reintentar** en vez de abrir una MuMu vacía.
+- **Copias de seguridad automáticas** en el servidor 3 veces al día (se guardan 14 días). En **Ajustes → Privacidad** puedes ver las copias, restaurar una o restaurar desde un archivo de respaldo; restaurar junta la copia con lo que tienes, sin borrar lo nuevo.
+- MuMu nunca sube una sección de tus datos que todavía no haya leído de la nube, así una copia vacía o de ejemplo no puede pisar lo tuyo.
+- Si un proyecto se pierde pero sus tareas siguen, MuMu lo rehace con el nombre de su lista de Google Tasks.
 - Si aparecen tareas repetidas (mismo nombre, materia y fecha), MuMu deja una sola y borra la copia también en Google Tasks.
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
