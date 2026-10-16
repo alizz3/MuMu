@@ -11,7 +11,12 @@ import { toast } from '../engine/game'
 
 // known: colecciones de las que ya tenemos el valor real (del servidor, o guardado en el equipo).
 // NUNCA se sube una colección que no esté aquí: así una copia vacía o de ejemplo jamás pisa tus datos.
-const last = {}, known = new Set()
+const last = {}, known = new Set(), warned = new Set()
+// Listas que sí pueden encogerse mucho de forma normal
+const allowShrink = new Set(['inbox', 'notifications', 'pendingSync', 'emails', 'daily', 'intentions'])
+const NAMES = { projects: 'proyectos', tasks: 'tareas', subjects: 'materias', habits: 'hábitos', goals: 'objetivos', events: 'eventos', aula: 'Tu Aula', routines: 'rutinas' }
+// Para restaurar una copia o borrar mucho a propósito
+export function allowBigChange(keys = []) { keys.forEach((k) => allowShrink.add(k)); setTimeout(() => keys.forEach((k) => allowShrink.delete(k)), 15000) }
 let uid = null, ready = false, holdWrites = false
 let unsubs = []
 
@@ -153,6 +158,15 @@ async function push(fb, doc, setDoc) {
     if (!known.has(k)) continue // aún no sabemos qué hay en la nube: no se toca
     const json = JSON.stringify(state[k])
     if (last[k] === json) continue
+    // Freno de mano: si una lista grande (proyectos, tareas, materias…) se encoge de golpe, no se sube
+    if (!allowShrink.has(k) && Array.isArray(state[k]) && last[k]) {
+      let before = 0; try { before = JSON.parse(last[k])?.length || 0 } catch {}
+      const now = state[k].length
+      if (before >= 8 && now < before * 0.5 && before - now >= 6) {
+        if (!warned.has(k)) { warned.add(k); toast(`MuMu frenó un cambio raro en ${NAMES[k] || k} (de ${before} a ${now}). No subí nada; si fuiste tú, recarga y vuelve a hacerlo.`) }
+        continue
+      }
+    }
     last[k] = json
     setDoc(doc(fb.db, 'users', uid, 'data', k), { items: JSON.parse(json), updatedAt: Date.now() }).catch((e) => console.warn('sync', k, e.message))
   }

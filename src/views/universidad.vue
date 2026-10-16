@@ -83,7 +83,7 @@ const hint = (id) => state.aula.filter((a) => a.courseId === id).slice(0, 2).map
 const into = ref({})
 function merge(s) { const t = into.value[s.id]; if (!t) return; const name = subjOf(t)?.name; A.mergeSubject(s.id, t); toast(`Unida con ${name}. Lo que llegue de ese curso irá allí`) }
 const ignoredNames = computed(() => [...new Set((state.integrations.ignoredCourses || []).map((c) => c.name))])
-async function ignore(s) { if (await ask(`¿Ignorar "${s.name}"? Se borran sus tareas de MuMu y no vuelven a llegar. En Tu Aula sigue todo igual.`)) { A.ignoreCourse(s.id); toast('Listo, ese curso ya no te manda tareas') } }
+async function ignore(s) { if (await ask(`¿Ignorar "${s.name}"? Se borran sus tareas de MuMu y no vuelven a llegar. En Tu Aula sigue todo igual.`)) { (await import('../services/sync')).allowBigChange(['tasks', 'aula', 'subjects']); A.ignoreCourse(s.id); toast('Listo, ese curso ya no te manda tareas') } }
 const showSem = ref(false)
 // Une sola cada materia con su carpeta dentro de la del semestre (una vez por visita)
 let linkedOnce = false

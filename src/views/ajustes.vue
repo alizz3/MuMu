@@ -21,6 +21,8 @@ const fmtB = (b) => { const [d, f] = b.id.split('_'); return `${d} · ${({ manan
 async function doRestore(data, label) {
   const n = { proyectos: (data.projects || []).length, materias: (data.subjects || []).length, tareas: (data.tasks || []).length, habitos: (data.habits || []).length }
   if (!(await ask(`¿Dejar MuMu exactamente como en ${label}? Tiene ${n.proyectos} proyectos, ${n.materias} materias, ${n.tareas} tareas y ${n.habitos} hábitos. Lo que cambió después de esa copia se descarta.`))) return
+  const { allowBigChange } = await import('../services/sync')
+  allowBigChange(Object.keys(data))
   restoreBackup(data)
   toast('Listo: MuMu quedó como en esa copia')
   setTimeout(() => location.reload(), 2500)
@@ -89,8 +91,8 @@ async function connectAula() {
     await API.syncAula()
   } catch (e) { err(e) } finally { aula.password = ''; connecting.value = false }
 }
-const clean = async () => (await ask('Se borran los datos de ejemplo (tareas, correos, registros) y quedan tus hábitos, objetivos, rutinas y principios. ¿Continuar?')) && startClean()
-const reset = async () => (await ask('¿Volver a cargar los datos de ejemplo? Se reemplaza todo.')) && resetToSeed()
+const clean = async () => (await ask('Se borran los datos de ejemplo (tareas, correos, registros) y quedan tus hábitos, objetivos, rutinas y principios. ¿Continuar?')) && ((await import('../services/sync')).allowBigChange(Object.keys(state)), startClean())
+const reset = async () => (await ask('¿Volver a cargar los datos de ejemplo? Se reemplaza TODO lo tuyo.')) && (await ask('¿Segura? Descarga antes un respaldo si quieres conservar algo.')) && ((await import('../services/sync')).allowBigChange(Object.keys(state)), resetToSeed())
 const download = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([exportJSON()], { type: 'application/json' })); a.download = `${state.settings.appName.replace(/\s+/g, '-').toLowerCase()}-respaldo.json`; a.click() }
 </script>
 
