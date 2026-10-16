@@ -38,6 +38,7 @@ export const ui = reactive({
   focusMsg: '', // mensajito del acompañante de enfoque
   modoU: false, // filtro universitario
   dataUid: null, // de quién son los datos (la cuenta dueña)
+  authError: null, // no se pudo confirmar de quién son los datos: se espera en vez de abrir una MuMu vacía
   aulaStatus: null, // { online, ms, checkedAt } de Tu Aula // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
 })
 

@@ -3,7 +3,7 @@
 import { state, ui, onPersist, resetToSeed } from '../store'
 import { getFirebase, idToken } from './firebase'
 import { UNI_STEPS } from './device'
-import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks } from '../store/actions'
+import { markVisit, applyAcademicChanges, dropSena, cleanTitles, linkHabitTasks, fixSubjects, fixUniRoutine, ensureAulaTasks, dedupeTasks } from '../store/actions'
 import { syncGmail, syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccounts } from './api'
 import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
@@ -39,18 +39,33 @@ export async function initSync() {
     ui.synced = false
     if (!uid) { ui.authReady = true; return }
     // Solo la dueña: si el servidor dice que esta cuenta no tiene acceso, se muestra la pantalla de "casita de Alizz"
-    const dkey = `mumu:dataUid:${user.uid}`
+    // ¿De quién son los datos? La cuenta de la U usa los de tu Gmail: eso lo confirma el servidor.
+    // Si no responde, se reintenta; si no hay forma de saberlo, NO se abre una MuMu vacía (pasó el 16 oct:
+    // entraste con la de la U, el servidor tardó y se cargaron datos de ejemplo en otro espacio).
+    const dkey = `mumu:dataUid:${user.uid}`, ekey = `mumu:dataUidEmail:${String(user.email).toLowerCase()}`
+    const known = () => { try { return localStorage.getItem(dkey) || localStorage.getItem(ekey) } catch { return null } }
+    ui.authError = null
     if (location.protocol.startsWith('http')) {
-      try {
-        const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 6000)
-        const r = await fetch('/api/me', { signal: ctrl.signal, headers: { Authorization: `Bearer ${await withTimeout(idToken(), 5000)}` } }).finally(() => clearTimeout(t))
-        if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
-        const j = await r.json().catch(() => ({}))
-        if (j.dataUid) { uid = j.dataUid; try { localStorage.setItem(dkey, uid) } catch {} } // la cuenta de la U usa los mismos datos que tu Gmail
-      } catch {
-        // Sin internet: se usa la última cuenta de datos conocida
-        try { uid = localStorage.getItem(dkey) || uid } catch {}
+      let resolved = null
+      for (let i = 0; i < 4 && !resolved; i++) {
+        try {
+          const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 10000)
+          const r = await fetch('/api/me', { signal: ctrl.signal, headers: { Authorization: `Bearer ${await withTimeout(idToken(), 8000)}` } }).finally(() => clearTimeout(t))
+          if (r.status === 403) { ui.blocked = true; ui.authReady = true; uid = null; return }
+          const j = await r.json().catch(() => ({}))
+          if (r.ok && j.dataUid) resolved = j.dataUid
+        } catch { /* se reintenta */ }
+        if (!resolved && !navigator.onLine) break
+        if (!resolved && i < 3) await new Promise((ok) => setTimeout(ok, 1500 * (i + 1)))
       }
+      resolved ||= known()
+      if (!resolved) {
+        uid = null; ui.authReady = true
+        ui.authError = navigator.onLine ? 'No pude confirmar tu cuenta con el servidor. Para no mostrarte una MuMu vacía, espero a que respondas "Reintentar".' : 'Sin internet no puedo confirmar tu cuenta todavía. Conéctate y toca "Reintentar".'
+        return
+      }
+      uid = resolved
+      try { localStorage.setItem(dkey, uid); localStorage.setItem(ekey, uid) } catch {}
     }
     ui.blocked = false
     ui.demo = false
@@ -64,6 +79,15 @@ export async function initSync() {
       console.warn('sync', e.message); ui.synced = true; return
     }
     const anyRemote = snaps.some((s) => s.exists())
+    const hkey = `mumu:hadData:${uid}`
+    let hadData = false; try { hadData = localStorage.getItem(hkey) === '1' } catch {}
+    if (anyRemote) { try { localStorage.setItem(hkey, '1') } catch {} }
+    else if (hadData) {
+      // Antes había datos y ahora llegan vacíos: algo raro (caché, cuenta equivocada). No se sube nada.
+      holdWrites = true; ready = true; ui.synced = true
+      ui.authError = 'No encontré tus datos en este momento. No toqué nada: toca "Reintentar" en un ratico.'
+      return
+    }
     if (anyRemote) {
       snaps.forEach((s, i) => { if (s.exists()) { state[keys[i]] = s.data().items; last[keys[i]] = JSON.stringify(s.data().items) } })
     }
@@ -85,6 +109,7 @@ export async function initSync() {
       fixUniRoutine(UNI_STEPS)
       linkHabitTasks()
       processInbox()
+      { const n = dedupeTasks(); if (n) toast(`Quité ${n} tarea${n === 1 ? '' : 's'} repetida${n === 1 ? '' : 's'}`) }
       ensureAulaTasks()
       autoSync()
       push(fb, doc, setDoc)

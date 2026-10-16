@@ -83,7 +83,8 @@ const toggleTheme = () => { state.settings.theme = isDark.value ? 'light' : 'dar
 const slow = ref(false)
 setTimeout(() => { slow.value = true }, 5000)
 const reload = () => location.reload()
-const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
+async function logoutRetry() { const m = await import('./services/firebase'); await m.signOut(); location.reload() }
+const gate = computed(() => (!hasFirebase() ? 'app' : !ui.authReady ? 'splash' : ui.authError ? 'autherr' : ui.blocked ? 'welcome' : ui.user || ui.demo ? 'app' : 'welcome'))
 watch(() => ui.route, (r) => trackView(r))
 // Aviso de "sin internet" (la app sigue funcionando con lo guardado en el equipo)
 const online = ref(navigator.onLine)
@@ -125,7 +126,14 @@ const fmtLeft = computed(() => {
 </script>
 
 <template>
-  <div v-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true">
+  <div v-if="gate === 'autherr'" style="min-height:100dvh;display:grid;place-items:center;padding:24px" role="alert">
+    <div class="card stack" style="max-width:380px;align-items:center;text-align:center;gap:10px"><Pet pose="think" :size="110" />
+      <b>Un momentico</b><p class="small muted">{{ ui.authError }}</p>
+      <p class="tiny muted">Entraste como {{ ui.user?.email }}. Tus datos están a salvo.</p>
+      <div class="row" style="gap:8px"><button class="btn primary" @click="reload">Reintentar</button><button class="btn ghost" @click="logoutRetry">Entrar con otra cuenta</button></div>
+    </div>
+  </div>
+  <div v-else-if="gate === 'splash'" style="min-height:100dvh;display:grid;place-items:center" aria-busy="true">
     <div class="stack" style="align-items:center;gap:10px"><Pet pose="happy" :size="120" />
       <template v-if="slow"><span class="small muted">Está tardando un poquito…</span><button class="btn sm ghost" @click="reload">Reintentar</button></template>
     </div>

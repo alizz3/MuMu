@@ -411,6 +411,36 @@ import { ROOMS } from '../engine/rooms'
 // Enlace para importar un proyecto con sus tareas (…/proyectos#importar=<base64>). Los datos viajan en el enlace,
 // no en el código; se valida todo antes de guardarlo.
 // Agrega subtareas a una tarea sin repetir las que ya tiene ("texto" o { title, done })
+// Tareas repetidas (mismo título, misma materia/proyecto y misma fecha): se queda la más completa.
+// Solo se quitan copias "vacías" (sin subtareas, notas propias, tiempo ni bloques); si la copia estaba
+// enlazada a Google Tasks, también se borra allá. Pasó el 16 oct con una sesión equivocada en el celular.
+export function dedupeTasks() {
+  const nt = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const groups = new Map()
+  for (const t of state.tasks) {
+    if (t.status === 'cancelada' || !nt(t.title)) continue
+    const k = `${nt(t.title)}|${t.subjectId || t.projectId || t.habitId || ''}|${t.due || ''}`
+    ;(groups.get(k) || groups.set(k, []).get(k)).push(t)
+  }
+  const score = (t) => (t.status === 'completada' ? 8 : 0) + ((t.subtasks || []).length ? 4 : 0) + (t.spent ? 4 : 0) + ((t.blocks || []).length ? 2 : 0) + (['aula', 'classroom'].includes(t.source) ? 2 : 0) + (t.notes && !/^Materia: /.test(t.notes) ? 1 : 0)
+  const empty = (t) => !(t.subtasks || []).length && !t.spent && !(t.blocks || []).length && t.status !== 'completada'
+  const drop = new Set(), into = new Map()
+  for (const g of groups.values()) {
+    if (g.length < 2) continue
+    const keep = [...g].sort((a, b) => score(b) - score(a) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))[0]
+    for (const t of g) {
+      if (t === keep || !empty(t)) continue
+      if (t.gtask && !keep.gtask) keep.gtask = t.gtask
+      else if (t.gtask) state.integrations.gtDeleted = [...(state.integrations.gtDeleted || []), { acc: t.gtask.acc, list: t.gtask.list, id: t.gtask.id }]
+      if (t.url && !keep.url) keep.url = t.url
+      drop.add(t.id); into.set(t.id, keep.id)
+    }
+  }
+  if (!drop.size) return 0
+  state.tasks = state.tasks.filter((t) => !drop.has(t.id))
+  ;(state.aula || []).forEach((a) => { if (drop.has(a.taskId)) a.taskId = into.get(a.taskId) })
+  return drop.size
+}
 export function mergeSubtasks(t, list) {
   if (!t || !Array.isArray(list)) return 0
   t.subtasks ||= []

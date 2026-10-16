@@ -269,6 +269,7 @@ export async function syncGTasks({ quiet = false } = {}) {
       const goneIds = new Set(state.tasks.filter((x) => x.gtask?.acc === a.id && x.status !== 'completada' && !seen.has(x.gtask.id)).map((x) => x.id))
       if (goneIds.size) { state.tasks = state.tasks.filter((x) => !goneIds.has(x.id)); borradas += goneIds.size }
     }
+    { const { dedupeTasks } = await import('../store/actions'); dedupeTasks() }
     await pushNewGTasks(true)
     if (!quiet || nuevas || hechas || borradas) toast(`Google Tasks: ${nuevas} nuevas${unidas ? `, ${unidas} unidas sin duplicar` : ''}${hechas ? `, ${hechas} hechas` : ''}${borradas ? `, ${borradas} borradas` : ''}`)
     state.integrations.gtasksLast = new Date().toISOString()

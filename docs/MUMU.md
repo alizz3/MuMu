@@ -133,7 +133,8 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 ## Privacidad y seguridad
 
 - Ninguna contraseña ni credencial está en el código ni en el navegador; los tokens de Google y Tu Aula viven cifrados en el servidor.
-- Solo tus dos cuentas (la personal y la de la U) entran a tus datos.
+- Solo tus dos cuentas (la personal y la de la U) entran a tus datos, y las dos ven los mismos. Si al entrar MuMu no puede confirmar de quién son los datos (internet lento), espera y te muestra **Reintentar** en vez de abrir una MuMu vacía.
+- Si aparecen tareas repetidas (mismo nombre, materia y fecha), MuMu deja una sola y borra la copia también en Google Tasks.
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
