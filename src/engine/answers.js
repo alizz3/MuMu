@@ -41,7 +41,7 @@ const placeOf = (t) => state.projects.find((p) => p.id === t.projectId)?.name ||
 export function localAnswer(text) {
   const s = nrm(text)
   // Preguntas abiertas → IA
-  if (/\b(como|por ?que|ayudame a|ideas?|consejo|explica|escribe|redacta|resume|planea|organiza|sugiere|deberia|vale la pena|opinas)\b/.test(s) && !/que (tareas|tengo|hago)/.test(s)) return null
+  if (/\b(como|por ?que|ayudame a|ideas?|consejo|explica|escribe|redacta|resume|planea|organiza|sugiere|deberia|vale la pena|opinas)\b/.test(s) && !/que (tareas|tengo|hago)|como (me )?(fue|va|ha ido|estuvo|voy|llevo)/.test(s)) return null
 
   const k = dayKey()
   const open = state.tasks.filter(isOpen)
@@ -65,6 +65,12 @@ export function localAnswer(text) {
         sub.length ? `\n**Subtareas**\n${sub.join('\n')}` : '',
         links.length ? `\n**Enlaces**\n${links.map((l) => `- ${l}`).join('\n')}` : ''].filter(Boolean).join('\n')
     }
+  }
+
+  // Cómo te fue con un hábito (esta semana o el mes)
+  if (!/tareas?|pendientes?|vence|entrega/.test(s) && !project && !subject) {
+    const habit = findIn(text, state.habits, (h) => [h.name]) || findHabitByWords(s)
+    if (habit && (/semana|\bmes\b|como (me )?(fue|va|ha ido|estuvo|voy)|racha|cuantos dias|habito|\bhice\b|he hecho/.test(s) || !scope)) return habitReport(habit, /\bmes\b/.test(s) ? 30 : 7)
   }
 
   // Lo que ya hiciste
@@ -130,6 +136,26 @@ export function localAnswer(text) {
 
   if (/que hago|que hacer|ahora que|recomiend/.test(s)) return null // lo resuelve la tarjeta de arriba (shown)
   return null
+}
+
+const GENERIC = new Set(['tiempo', 'habito', 'bloque', 'antes', 'mantener', 'minutos', 'hacer', 'diario', 'diaria', 'casa'])
+function findHabitByWords(s) {
+  const ws = new Set(words(s))
+  return state.habits.find((h) => words(h.name).some((w) => !GENERIC.has(w) && ws.has(w))) || null
+}
+const DIAS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+function habitReport(h, n) {
+  const isGod = /dios/i.test(h.name)
+  const did = (key) => !!state.habitLogs[h.id]?.[key]?.done || (isGod && (() => { const e = state.god?.entries?.[key]; return !!(e && (e.talked || e.prayers?.morning || e.prayers?.night)) })())
+  const days = Array.from({ length: n }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (n - 1 - i)); return { key: dayKey(d), wd: d.getDay() } })
+  const count = days.filter((d) => did(d.key)).length
+  let streak = 0
+  for (let i = 0; ; i++) { const d = new Date(); d.setDate(d.getDate() - i); const key = dayKey(d); if (did(key)) streak++; else if (i > 0 || streak) break; if (i > 400) break }
+  const strip = n <= 7 ? `\n${days.map((d) => `${DIAS[d.wd]} ${did(d.key) ? '✓' : '·'}`).join('  ')}` : ''
+  const pct = Math.round((count / n) * 100)
+  const note = pct >= 80 ? '¡Muy constante!' : pct >= 50 ? 'Vas bien, sin presión.' : count ? 'Cada día que vuelves cuenta.' : 'Hoy es buen día para retomarlo, sin culpa.'
+  const godExtra = isGod ? (() => { const es = days.map((d) => state.god?.entries?.[d.key]).filter(Boolean); const g = es.filter((e) => e.grateful).length; return g ? `\nEscribiste en tu Espacio con Dios ${es.length} día${es.length === 1 ? '' : 's'} (${g} con gratitud).` : '' })() : ''
+  return `**${h.name}** ${n === 7 ? 'esta semana' : `en los últimos ${n} días`}: **${count} de ${n} días** (${pct}%).${strip}\n${streak ? `Racha actual: ${streak} día${streak === 1 ? '' : 's'}. ` : ''}${note}${godExtra}`
 }
 
 export function resetAnswerMemo() { memo.project = memo.subject = memo.task = null }
