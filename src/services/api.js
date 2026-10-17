@@ -379,6 +379,11 @@ export async function syncClickUp({ quiet = false } = {}) {
       if (c.parent) continue
       seen.add(c.id)
       let t = state.tasks.find((x) => x.clickup?.id === c.id)
+      // Si ya estaba (ej. vino de un enlace de importar), se une en vez de duplicarla
+      if (!t) {
+        t = state.tasks.find((x) => !x.clickup && x.projectId === p.id && x.status !== 'cancelada' && normT(x.title) === normT(c.title))
+        if (t) { t.clickup = { id: c.id, list: l.id, done: t.status === 'completada', updated: null }; if (c.url && !t.url) t.url = c.url }
+      }
       if (!t) {
         if (c.done) continue
         t = addTask({ title: c.title, notes: cuNotes(c), due: c.due, url: c.url, source: 'clickup', category: 'trabajo', projectId: p.id, priority: CU_PRIO[c.priority] || 'media', estimate: 30, clickup: { id: c.id, list: l.id, done: false, updated: c.updated } }, { quiet: true })

@@ -65,6 +65,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - Las columnas ocupan la pantalla hasta el menú y cada una se desplaza sola. El tablero se desliza de lado con el dedo, arrastrando el fondo con el mouse o con la rueda, sin barra fea abajo. Las tarjetas se **ordenan** arrastrándolas (mantener presionado en el celular) o por nombre, fecha de creación, fecha límite o progreso.
 - Vista de lista agrupada y filtro por área.
 - En cada proyecto: sus tareas, con las **terminadas** abajo en un grupo plegable, y **Enlaces** con nombre (repositorio, página, Drive…) que se agregan, editan y abren con un toque.
+- **ClickUp:** un espacio de ClickUp (ej. Acriz) se une con el proyecto del mismo nombre: sus tareas llegan con su responsable, lo que marques hecho aquí se cierra allá y al revés (cada 20 minutos o con **Sincronizar**). Necesita el token de ClickUp en Vercel.
 - Los semestres de la U son proyectos unidos a sus materias.
 - Los enlaces de importar funcionan también desde el celular con la app abierta.
 - Se pueden **importar** proyectos, objetivos, tareas, hábitos y cursos con un enlace `…#importar=` o pegando lo que te da otra IA en **Más → Importar con IA**.
