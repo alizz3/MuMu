@@ -12,6 +12,7 @@ import Seg from '../components/Seg.vue'
 import ListBar from '../components/ListBar.vue'
 import GroupCard from '../components/GroupCard.vue'
 import ProjectLinks from '../components/ProjectLinks.vue'
+import { syncClickUp } from '../services/api'
 
 const FLOW = [['idea', 'Idea'], ['plan', 'Plan'], ['progreso', 'En progreso'], ['pausado', 'Pausado'], ['completado', 'Completado']]
 // Vista y área se recuerdan, como en Tareas
@@ -19,6 +20,10 @@ const pref = (k, d) => computed({ get: () => state.settings[k] || d, set: (v) =>
 const view = pref('projView', 'tablero')
 const area = pref('projArea', 'todas')
 const sel = computed(() => state.projects.find((p) => p.id === ui.params.id))
+// ClickUp: el proyecto unido a un espacio (ej. Acriz) se puede sincronizar a mano
+const cuBusy = ref(false)
+async function cuSync() { cuBusy.value = true; try { await syncClickUp() } catch (e) { toast(e.message) } finally { cuBusy.value = false } }
+const cuWho = (t) => (String(t.notes || '').match(/^Responsable: (.+)$/m) || [])[1] || null
 const projects = computed(() => state.projects.filter((p) => area.value === 'todas' || p.area === area.value))
 const tasksOf = (p) => state.tasks.filter((t) => t.projectId === p.id)
 const goalOf = (p) => state.goals.find((g) => g.id === p.goalId)
@@ -283,9 +288,10 @@ onBeforeUnmount(() => {
       <div class="card">
         <div class="row between"><h3>Tareas</h3><div class="row" style="gap:14px"><button v-if="tasksOf(sel).length" class="link" @click="picking = !picking; picked = []">{{ picking ? 'Listo' : 'Seleccionar' }}</button><button class="link" @click="ui.modal = { type: 'task', prefill: { projectId: sel.id, goalId: sel.goalId, category: 'trabajo' } }">+ Tarea</button></div></div>
         <p v-if="gtList(sel)" class="tiny muted" style="margin-top:4px"><Icon name="check" :size="13" class="inl" /> Unido con tu lista "{{ gtList(sel) }}" de Google Tasks</p>
+        <p v-if="sel.clickupSpace" class="row tiny muted" style="margin-top:4px;gap:8px"><span class="grow"><Icon name="check" :size="13" class="inl" /> Unido con el espacio "{{ state.integrations.clickup?.space?.name || sel.name }}" de ClickUp</span><button class="link" :disabled="cuBusy" @click="cuSync">{{ cuBusy ? 'Sincronizando…' : 'Sincronizar' }}</button></p>
         <template v-if="picking">
           <label class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.length === tasksOf(sel).length" @change="picked = picked.length === tasksOf(sel).length ? [] : tasksOf(sel).map((t) => t.id)" /> <b>Todas</b></label>
-          <label v-for="t in tasksOf(sel)" :key="t.id" class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.includes(t.id)" @change="picked = picked.includes(t.id) ? picked.filter((x) => x !== t.id) : [...picked, t.id]" /> <span class="grow" :class="{ 'done-txt': t.status === 'completada' }">{{ t.title }}</span><span v-if="t.gtask" class="tiny muted">Google</span></label>
+          <label v-for="t in tasksOf(sel)" :key="t.id" class="row small" style="gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" :checked="picked.includes(t.id)" @change="picked = picked.includes(t.id) ? picked.filter((x) => x !== t.id) : [...picked, t.id]" /> <span class="grow" :class="{ 'done-txt': t.status === 'completada' }">{{ t.title }}</span><span v-if="t.gtask" class="tiny muted">Google</span><span v-if="t.clickup" class="tiny muted">ClickUp{{ cuWho(t) ? ' · ' + cuWho(t) : '' }}</span></label>
           <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm ghost" :disabled="!picked.length" @click="doneMany">Marcar hechas</button><button class="btn sm primary" :disabled="!picked.length" @click="delMany"><Icon name="trash" :size="14" />Borrar {{ picked.length || '' }}</button></div>
         </template>
         <template v-else>

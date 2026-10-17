@@ -344,6 +344,78 @@ async function doPush() {
   }
 }
 
+// ---------- ClickUp (ej. Acriz con Cristóbal) ----------
+// Las tareas del espacio de ClickUp se vuelven tareas de MuMu dentro del proyecto con el mismo nombre
+// (se crea solo la primera vez). Si marcas una como hecha aquí, se cierra en ClickUp, y al revés.
+const CU_PRIO = { urgent: 'alta', high: 'alta', normal: 'media', low: 'baja' }
+const cuNotes = (c) => [`Lista: ${c.listName}`, c.assignees.length ? `Responsable: ${c.assignees.map((a) => a.name).join(', ')}` : 'Sin responsable', c.notes].filter(Boolean).join('\n')
+function cuProject(space) {
+  let p = state.projects.find((x) => x.clickupSpace === space.id) || state.projects.find((x) => normT(x.name) === normT(space.name))
+  if (!p) {
+    p = { id: `p_cu_${space.id}`, name: space.name, description: 'Proyecto conectado con ClickUp.', status: 'progreso', area: 'trabajo', due: null, skills: [], resources: [], links: [], color: '#C3B3D4', goalId: null }
+    state.projects.unshift(p)
+  }
+  p.clickupSpace = space.id
+  p.links ||= []
+  // Acriz: también el repo y el sitio (una sola vez; si los borras no vuelven)
+  if (normT(space.name) === 'acriz' && !p.acrizLinks) { p.acrizLinks = true; p.links.push({ id: 'l_acriz_repo', name: 'Repositorio (GitHub)', url: 'https://github.com/acriz-app/acriz' }, { id: 'l_acriz_web', name: 'Sitio de Acriz', url: 'https://acriz.classify.in.net' }) }
+  if (!p.links.some((l) => /clickup\.com/.test(l.url))) p.links.push({ id: `l_cu_${space.id}`, name: 'ClickUp', url: space.url || 'https://app.clickup.com' })
+  return p
+}
+let cuBusy = false
+export async function syncClickUp({ quiet = false } = {}) {
+  if (cuBusy) return
+  cuBusy = true
+  let nuevas = 0, hechas = 0, borradas = 0
+  try {
+    let r
+    try { r = await call('clickup/sync') } catch (e) {
+      if (/no está conectado/.test(e.message)) { state.integrations.clickup = { status: 'no-conectado' }; if (!quiet) toast('ClickUp aún no está conectado: falta el token en Vercel'); return }
+      throw e
+    }
+    const p = cuProject(r.space)
+    const seen = new Set()
+    for (const l of r.lists) for (const c of l.tasks) {
+      if (c.parent) continue
+      seen.add(c.id)
+      let t = state.tasks.find((x) => x.clickup?.id === c.id)
+      if (!t) {
+        if (c.done) continue
+        t = addTask({ title: c.title, notes: cuNotes(c), due: c.due, url: c.url, source: 'clickup', category: 'trabajo', projectId: p.id, priority: CU_PRIO[c.priority] || 'media', estimate: 30, clickup: { id: c.id, list: l.id, done: false, updated: c.updated } }, { quiet: true })
+        nuevas++
+      }
+      t.clickup.list = l.id
+      const mumuDone = t.status === 'completada'
+      if (c.done !== t.clickup.done) {
+        // Cambió en ClickUp: manda ClickUp
+        if (c.done && !mumuDone) { t.status = 'completada'; t.completedAt = dayKey(); hechas++ }
+        if (!c.done && mumuDone) { t.status = 'pendiente'; t.completedAt = null }
+        t.clickup.done = c.done
+      } else if (mumuDone !== c.done) {
+        // Cambió en MuMu: se lleva a ClickUp
+        await call('clickup/sync', { method: 'PATCH', body: { id: c.id, done: mumuDone } }).then(() => { t.clickup.done = mumuDone }).catch(() => {})
+      }
+      if (c.updated && c.updated !== t.clickup.updated) {
+        // Editada en ClickUp: título, fecha, responsable y descripción se actualizan aquí
+        t.title = c.title; t.due = c.due; t.notes = cuNotes(c); t.priority = CU_PRIO[c.priority] || t.priority
+        t.clickup.updated = c.updated
+      }
+    }
+    // Pendientes que se borraron en ClickUp: también se van de MuMu
+    const gone = new Set(state.tasks.filter((x) => x.clickup && x.status !== 'completada' && !seen.has(x.clickup.id)).map((x) => x.id))
+    if (gone.size) { state.tasks = state.tasks.filter((x) => !gone.has(x.id)); borradas = gone.size }
+    state.integrations.clickup = { status: 'conectado', space: r.space, lists: r.lists.map((x) => ({ id: x.id, name: x.name })), last: new Date().toISOString() }
+    if (!quiet || nuevas || hechas || borradas) toast(`ClickUp: ${nuevas} nuevas${hechas ? `, ${hechas} hechas` : ''}${borradas ? `, ${borradas} borradas` : ''}`)
+  } finally { cuBusy = false }
+}
+// Lo que marques en MuMu se manda a ClickUp a los pocos segundos
+export async function pushClickUp() {
+  if (cuBusy) return
+  for (const t of state.tasks.filter((x) => x.clickup && (x.status === 'completada') !== x.clickup.done)) {
+    try { await call('clickup/sync', { method: 'PATCH', body: { id: t.clickup.id, done: t.status === 'completada' } }); t.clickup.done = t.status === 'completada' } catch { /* luego */ }
+  }
+}
+
 // ---------- Google Drive (solo lectura) ----------
 export const folderIdFrom = (s) => (String(s || '').match(/folders\/([\w-]{10,100})/) || String(s || '').match(/[?&]id=([\w-]{10,100})/) || [])[1] || (/^[\w-]{20,100}$/.test(String(s || '').trim()) ? String(s).trim() : null)
 export function driveAccount() {

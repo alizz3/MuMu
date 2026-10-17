@@ -15,6 +15,7 @@ import aulaSync from './_routes/aula/sync.js'
 import aulaStatus from './_routes/aula/status.js'
 import cronSync from './_routes/cron/sync.js'
 import gtasksSync from './_routes/gtasks/sync.js'
+import clickupSync from './_routes/clickup/sync.js'
 import driveList from './_routes/drive/list.js'
 import financeSummary from './_routes/finance/summary.js'
 import * as device from './_routes/device.js'
@@ -24,7 +25,7 @@ const ROUTES = {
   health, me, assistant, backup,
   'google/start': googleStart, 'google/callback': googleCallback, 'google/accounts': googleAccounts,
   'gmail/inbox': gmailInbox, 'gmail/action': gmailAction, 'calendar/events': calendarEvents, 'classroom/coursework': classroomCoursework,
-  'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/sync': cronSync, 'cron/aula': cronSync, 'finance/summary': financeSummary, 'gtasks/sync': gtasksSync, 'drive/list': driveList,
+  'aula/connect': aulaConnect, 'aula/sync': aulaSync, 'aula/status': aulaStatus, 'cron/sync': cronSync, 'cron/aula': cronSync, 'finance/summary': financeSummary, 'gtasks/sync': gtasksSync, 'clickup/sync': clickupSync, 'drive/list': driveList,
   'device/link': device.link, 'device/plan': device.plan, 'device/uso': device.uso, 'device/casa': device.casa,
 }
 
