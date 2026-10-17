@@ -8,6 +8,7 @@ import { toast } from '../engine/game'
 import prompt from '../../docs/PROMPT-IMPORTAR.md?raw'
 
 const txt = ref('')
+async function fromFile(ev) { const f = ev.target.files?.[0]; ev.target.value = ''; if (f) txt.value = await f.text() }
 function parse(t) {
   t = t.trim()
   const link = t.match(/#importar=([\w-]+)/)
@@ -57,6 +58,7 @@ async function pegar() { try { txt.value = await navigator.clipboard.readText() 
     </div>
     <div class="card stack" style="gap:8px">
       <div class="row between"><b class="small">Pega aquí lo que te dio la IA</b><button class="link tiny" @click="pegar">Pegar</button></div>
+      <label class="btn sm ghost" style="align-self:flex-start;cursor:pointer"><Icon name="folder" :size="14" />Cargar un archivo (.json)<input type="file" accept="application/json,.json,.txt" style="display:none" @change="fromFile" /></label>
       <textarea class="input" v-model="txt" rows="8" placeholder='{ "project": { "name": "…" }, "tasks": [ … ] }' aria-label="JSON para importar" spellcheck="false" style="font-family:ui-monospace,monospace;font-size:12.5px"></textarea>
       <p v-if="data === false" class="tiny" style="color:var(--danger);margin:0">Eso no se ve completo. Copia todo el bloque que te dio la IA.</p>
       <div v-if="resumen.length" class="stack" style="gap:4px">
