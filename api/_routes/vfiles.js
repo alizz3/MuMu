@@ -60,7 +60,15 @@ export default handler(async (req, res) => {
     let u
     try { u = new URL(str(b.url, 'enlace', { max: 500 })) } catch { throw new HttpError(400, 'Enlace inválido') }
     if (u.protocol !== 'https:' || !MANUAL_HOSTS.includes(u.hostname)) throw new HttpError(400, 'Solo se descargan manuales de los sitios oficiales de Honda')
-    const r = await fetch(u, { redirect: 'follow' }).catch(() => null)
+    // Redirecciones a mano: cada salto debe seguir en un dominio oficial de Honda (evita que un redirect lleve el servidor a otro sitio)
+    let r = null
+    for (let hop = 0; hop < 4; hop++) {
+      r = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(20_000) }).catch(() => null)
+      if (!r || r.status < 300 || r.status >= 400) break
+      try { u = new URL(r.headers.get('location') || '', u) } catch { r = null; break }
+      if (u.protocol !== 'https:' || !MANUAL_HOSTS.includes(u.hostname)) throw new HttpError(400, 'El enlace redirige fuera de los sitios oficiales de Honda')
+      if (hop === 3) r = null
+    }
     if (!r || !r.ok) throw new HttpError(502, `No pude descargar el manual (${r ? r.status : 'sin respuesta'}). Puedes subirlo tú desde tu celular o computador.`)
     const type = (r.headers.get('content-type') || '').split(';')[0]
     const buf = Buffer.from(await r.arrayBuffer())

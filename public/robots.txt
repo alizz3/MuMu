@@ -2,6 +2,11 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /agenda
+Disallow: /alarmas
+Disallow: /garaje
+Disallow: /guia
+Disallow: /habito
+Disallow: /importar
 Disallow: /ajustes
 Disallow: /analitica
 Disallow: /aprendizaje

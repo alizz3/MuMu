@@ -1,7 +1,7 @@
 <script setup>
 // Garaje: hoja de vida de cada vehículo (km, mantenimientos, plan, documentos, gastos, archivos).
 // La lógica vive en src/modules/vehicles (separada de la interfaz para poder llevarla a otra app).
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { toast, ask } from '../engine/game'
@@ -94,6 +94,11 @@ function wantTask(x) { G.wantTask(x.p.id, true); toast(x.nextDate || x.nextKm !=
 async function delVehicleFile(fm) { return delFile(fm) }
 // Documentos que están en tu Drive: se ven aquí mismo
 const drivePv = ref(null)
+const pvClose = ref(null)
+const onKey = (e) => { if (e.key === 'Escape' && drivePv.value) drivePv.value = null }
+watch(drivePv, (v) => { if (v) nextTick(() => pvClose.value?.focus()) })
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 const au = () => { const a = driveAccounts('personal')[0]; return a?.email ? `?authuser=${encodeURIComponent(a.email)}` : '' }
 const drivePreviewUrl = (id) => `https://drive.google.com/file/d/${id}/preview${au()}`
 const driveOpenUrl = (id) => `https://drive.google.com/file/d/${id}/view${au()}`
@@ -347,7 +352,7 @@ const driveOpenUrl = (id) => `https://drive.google.com/file/d/${id}/view${au()}`
     </template>
     <div v-if="drivePv" class="pv" role="dialog" aria-modal="true" :aria-label="drivePv.name" @click.self="drivePv = null">
       <div class="pv-box">
-        <div class="pv-top"><b class="pv-name">{{ drivePv.name }}</b><a class="btn sm lav" :href="driveOpenUrl(drivePv.id)" target="_blank" rel="noopener">Abrir en Drive ↗</a><button class="iconbtn" aria-label="Cerrar" @click="drivePv = null"><Icon name="x" :size="18" /></button></div>
+        <div class="pv-top"><b class="pv-name">{{ drivePv.name }}</b><a class="btn sm lav" :href="driveOpenUrl(drivePv.id)" target="_blank" rel="noopener">Abrir en Drive ↗</a><button ref="pvClose" class="iconbtn" aria-label="Cerrar" @click="drivePv = null"><Icon name="x" :size="18" /></button></div>
         <iframe class="pv-frame" :src="drivePreviewUrl(drivePv.id)" :title="drivePv.name" allow="fullscreen" allowfullscreen></iframe>
       </div>
     </div>

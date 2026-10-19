@@ -18,7 +18,7 @@
 <body>
 <main>
   <h1>Política de privacidad de MuMu 🐮</h1>
-  <small>Última actualización: 7 de octubre de 2026</small>
+  <small>Última actualización: 19 de octubre de 2026</small>
 
   <p>MuMu es una aplicación de organización personal creada y usada por Aliz Mejía. No es un servicio público: solo las cuentas autorizadas por su dueña pueden usar el servidor.</p>
 
@@ -29,14 +29,18 @@
     <li><b>Google Calendar (opcional):</b> tus eventos, para calcular tiempo libre. Solo se crean eventos si das ese permiso aparte.</li>
     <li><b>Google Classroom (solo lectura, opcional):</b> cursos y tareas asignadas.</li>
     <li><b>Tu Aula / Moodle (opcional):</b> actividades, fechas y avisos de tus cursos. La contraseña no se guarda; solo un token cifrado.</li>
+    <li><b>Google Drive (solo lectura, opcional):</b> la lista de archivos de las carpetas que eliges, para verlos dentro de MuMu. Los archivos se abren con el visor de Google y no se copian ni se hacen públicos.</li>
+    <li><b>ClickUp (opcional):</b> tareas de los espacios conectados, para sincronizarlas en ambos sentidos.</li>
+    <li><b>Garaje:</b> datos de tus vehículos (placa, kilometraje, mantenimientos, gastos, fechas de SOAT y tecnomecánica) y los archivos que subas (fotos, facturas, manuales). Los archivos se guardan en una zona privada que solo el servidor puede leer con tu sesión, sin enlaces públicos.</li>
     <li><b>Datos que escribes:</b> tareas, hábitos, notas, registros de sueño y demás contenido de la app.</li>
   </ul>
 
   <h2>Dónde se guardan</h2>
   <p>En una base de datos privada de Firebase (Google Cloud) a la que solo accede tu cuenta. Los tokens de Google y de Tu Aula se guardan cifrados (AES-256) en una zona que el navegador no puede leer.</p>
+  <p>Cada día se hace una copia de respaldo automática de tus datos en esa misma zona privada; se guardan las de los últimos 14 días para poder restaurarlas desde Ajustes, y las más viejas se borran solas.</p>
 
   <h2>Con quién se comparten</h2>
-  <p>Con nadie. Los datos no se venden ni se usan para publicidad. Si activas el asistente con IA, el resumen de tu día se envía a la API de Anthropic solo para generar la respuesta.</p>
+  <p>Con nadie. Los datos no se venden ni se usan para publicidad. Si usas el asistente con IA (la vaquita), el mensaje y un resumen de los datos necesarios para responder se envían a la API de Groq (o de Anthropic, si está configurada) solo para generar la respuesta. Muchas preguntas se responden sin IA, dentro de MuMu. Las claves de estos servicios están solo en el servidor.</p>
 
   <h2>Uso de datos de Google</h2>
   <p>El uso de la información recibida de las APIs de Google se ajusta a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Política de Datos de Usuario de los Servicios de API de Google</a>, incluidos los requisitos de Uso Limitado.</p>
