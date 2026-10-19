@@ -12,7 +12,7 @@ import ListBar from '../components/ListBar.vue'
 import GarageSheet from '../modules/vehicles/GarageSheet.vue'
 import * as G from '../modules/vehicles/actions'
 import * as L from '../modules/vehicles/logic'
-import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS } from '../modules/vehicles/model'
+import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS } from '../modules/vehicles/model'
 import { openFile, deleteFile, saveManualCopy } from '../modules/vehicles/files'
 import { canUseBackend } from '../services/api'
 
@@ -43,6 +43,7 @@ const lastSvc = computed(() => (v.value ? L.lastService(g.value, v.value.id) : n
 const pls = computed(() => (v.value ? L.plans(g.value, v.value.id) : []))
 const activePlans = computed(() => pls.value.filter((x) => x.p.active))
 const suggested = computed(() => pls.value.filter((x) => !x.p.active))
+const waiting = computed(() => activePlans.value.filter((x) => x.status === 'pendiente'))
 const docs = computed(() => (v.value ? L.documents(g.value, v.value.id) : []))
 const oldDocs = computed(() => (v.value ? L.documents(g.value, v.value.id, { all: true }).filter((d) => d.status === 'reemplazado') : []))
 const soat = computed(() => docs.value.find((d) => d.kind === 'soat'))
@@ -218,15 +219,21 @@ async function delVehicleFile(fm) { return delFile(fm) }
       <!-- Plan -->
       <template v-else-if="tab === 'plan'">
         <div class="row between"><p class="tiny muted grow">Cada plan avisa por km, por tiempo o por ambos. Sin el km de un trabajo, no se calcula el siguiente por distancia.</p><button class="btn sm primary" @click="open('plan')"><Icon name="plus" :size="14" />Plan</button></div>
-        <section v-for="x in activePlans" :key="x.p.id" class="card">
+        <section v-for="x in activePlans.filter((y) => y.status !== 'pendiente')" :key="x.p.id" class="card">
           <div class="row between" style="gap:8px;align-items:flex-start"><div style="min-width:0"><b class="small">{{ L.catName(g, x.p.component) }} · {{ L.actionLabel(x.p.action).toLowerCase() }}</b><div class="tiny muted">{{ every(x.p) || 'Sin intervalo' }}</div></div><span class="badge" :class="PLAN_STATUS[x.status].badge">{{ PLAN_STATUS[x.status].label }}</span></div>
           <p class="tiny" style="margin-top:6px">Próxima: {{ planLine(x) }}</p>
           <p class="tiny muted">Último: {{ x.last ? `${L.fmtDate(x.last.date)}${x.last.km != null ? ` · ${L.fmtKm(x.last.km)}` : ' · sin km'}` : 'sin registro' }}</p>
-          <div class="row wrap" style="gap:6px;margin-top:8px"><span class="badge" :class="VERIFICATION[x.p.verification]?.badge">{{ VERIFICATION[x.p.verification]?.label }}</span><span v-if="state.tasks.some((t) => t.vref?.key === `plan:${x.p.id}` && t.status !== 'completada')" class="badge"><Icon name="check" :size="11" />Tarea creada</span></div>
+          <div class="row wrap" style="gap:6px;margin-top:8px"><span class="badge" :class="VERIFICATION[x.p.verification]?.badge">{{ VERIFICATION[x.p.verification]?.label }}{{ x.p.page ? ` · ${x.p.page}` : '' }}</span><span v-if="state.tasks.some((t) => t.vref?.key === `plan:${x.p.id}` && t.status !== 'completada')" class="badge"><Icon name="check" :size="11" />Tarea creada</span></div>
           <div class="row wrap" style="gap:6px;margin-top:8px"><button class="btn sm ghost" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Registrar hecho</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)"><Icon name="edit" :size="13" />Editar</button></div>
         </section>
         <p v-if="!activePlans.length" class="small muted">No hay planes activos todavía.</p>
-        <GroupCard v-if="suggested.length" title="Sugerencias por confirmar" icon="info" color="#F6DC8B" :count="suggested.length" sub="No vienen del manual de Honda Colombia: revísalas antes de activarlas" :open="isOpen('sug')" @toggle="toggle('sug')">
+        <GroupCard v-if="waiting.length" title="Esperan una referencia" icon="info" color="#F6DC8B" :count="waiting.length" sub="Registra el km actual y cuándo se hizo cada cosa por última vez para empezar a contar" :open="isOpen('wait')" @toggle="toggle('wait')">
+          <div v-for="x in waiting" :key="x.p.id" class="item" style="align-items:flex-start">
+            <div class="grow small" style="min-width:0">{{ L.catName(g, x.p.component) }} · {{ L.actionLabel(x.p.action).toLowerCase() }} <span class="muted">· {{ every(x.p) }}</span><div class="tiny muted">{{ x.p.notes }}</div><span class="badge" :class="VERIFICATION[x.p.verification]?.badge" style="margin-top:4px">{{ VERIFICATION[x.p.verification]?.label }}{{ x.p.page ? ` · ${x.p.page}` : '' }}</span></div>
+            <div class="stack" style="gap:4px;flex:none"><button class="btn sm lav" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
+          </div>
+        </GroupCard>
+        <GroupCard v-if="suggested.length" title="Sugerencias por confirmar" icon="info" color="#F6DC8B" :count="suggested.length" sub="Revísalas antes de activarlas" :open="isOpen('sug')" @toggle="toggle('sug')">
           <div v-for="x in suggested" :key="x.p.id" class="item" style="align-items:flex-start">
             <div class="grow small">{{ L.catName(g, x.p.component) }} · {{ L.actionLabel(x.p.action).toLowerCase() }} <span class="muted">· {{ every(x.p) }}</span><div class="tiny muted">{{ x.p.notes }}</div><a v-if="x.p.sourceRef" class="tiny" :href="x.p.sourceRef" target="_blank" rel="noopener">Ver fuente</a></div>
             <div class="stack" style="gap:4px"><button class="btn sm lav" @click="G.setPlanActive(x.p.id, true, 'usuario'); toast('Activado')">Activar</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
@@ -312,8 +319,13 @@ async function delVehicleFile(fm) { return delFile(fm) }
       <template v-else-if="tab === 'ajustes'">
         <section class="card stack small" style="gap:6px">
           <div class="row between"><h3>Ficha</h3><button class="link" @click="open('vehicle', v)">Editar</button></div>
-          <div v-for="r in [['Tipo', typeOf(v.type).label], ['Marca', v.make], ['Modelo', v.model], ['Año', v.year], ['Placa', v.plate], ['Matrícula', v.registeredAt && L.fmtDate(v.registeredAt)], ['Color', v.color], ['Combustible', v.fuelType], ...(v.type === 'moto' ? [['Transmisión', v.specs?.transmision]] : [])]" :key="r[0]" class="row between"><span class="muted">{{ r[0] }}</span><span>{{ r[1] || 'Pendiente' }}</span></div>
+          <div v-for="r in [['Tipo', typeOf(v.type).label], ['Marca', v.make], ['Modelo', v.model], ['Año', v.year], ['Placa', v.plate], ['Matrícula', v.registeredAt && L.fmtDate(v.registeredAt)], ['Color', v.color], ['Combustible', v.fuelType]]" :key="r[0]" class="row between"><span class="muted">{{ r[0] }}</span><span>{{ r[1] || 'Pendiente' }}</span></div>
           <p v-if="v.notes" class="tiny muted">{{ v.notes }}</p>
+        </section>
+        <section v-if="Object.keys(v.specs || {}).length" class="card stack small" style="gap:6px">
+          <h3>Datos técnicos</h3>
+          <div v-for="(val, k) in v.specs" :key="k" class="spec"><span class="muted">{{ SPEC_LABELS[k] || k }}</span><span>{{ val }}</span></div>
+          <p class="tiny muted">Del manual del propietario Honda NAVI (pág. 94), salvo lo que tú cambies.</p>
         </section>
         <section class="card stack" style="gap:8px">
           <button class="btn ghost" @click="exportJson"><Icon name="download" :size="15" />Exportar hoja de vida (JSON)</button>
@@ -328,6 +340,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
 </template>
 
 <style scoped>
+.spec { display: grid; grid-template-columns: 38% 1fr; gap: 8px; }
 .veh .badge { white-space: normal; text-align: left; line-height: 1.3; }
 .veh { text-align: left; cursor: pointer; width: 100%; gap: 12px; align-items: flex-start; }
 .gico.big { width: 52px; height: 52px; border-radius: 16px; }

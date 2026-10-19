@@ -2,7 +2,7 @@
 // Es la única puerta de escritura del módulo: la interfaz y la vaquita usan estas funciones.
 import { state } from '../../store'
 import { addTask, removeTasks } from '../../store/actions'
-import { emptyGarage, minaviSeed, MINAVI_ID, NAVI_SUGGESTED_PLANS, HONDA_NAVI_MANUAL, DOC_KINDS, SCHEMA } from './model'
+import { emptyGarage, minaviSeed, MINAVI_ID, NAVI_MANUAL_PLANS, NAVI_SPECS, HONDA_NAVI_MANUAL, DOC_KINDS, SCHEMA } from './model'
 import * as L from './logic'
 
 const rid = (p) => `${p}_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`
@@ -209,11 +209,21 @@ export function ensureVehiclesSeed() {
     if (!g.services.some((x) => x.id === sv.id)) { const { key, ...rest } = sv; g.services.push({ ...rest, vehicleId: MINAVI_ID, km: null, shopId: null, parts: '', costParts: null, costLabor: null, costTotal: null, currency: 'COP', fileIds: [], items: rest.items.map((i, n) => ({ ...i, id: `${sv.id}_i${n}` })), seedKey: k, createdAt: now(), updatedAt: now() }) }
     mark(k)
   }
-  for (const p of NAVI_SUGGESTED_PLANS) {
-    const k = `minavi-plan-${p.key}`
+  // Plan del manual oficial de Honda (verificado). Reemplaza las sugerencias externas que no tocaste.
+  if (!done.has('minavi-manual-plan-v1')) {
+    g.plans = g.plans.filter((p) => !(p.vehicleId === MINAVI_ID && p.source === 'externa' && p.verification === 'externa' && !p.active))
+    mark('minavi-manual-plan-v1')
+  }
+  for (const p of NAVI_MANUAL_PLANS) {
+    const k = `minavi-mplan-${p.key}`
     if (done.has(k)) continue
-    if (!g.plans.some((x) => x.key === p.key && x.vehicleId === MINAVI_ID)) g.plans.push({ ...p, id: `plan_minavi_${p.key}`, vehicleId: MINAVI_ID, active: false, autoTask: true, leadKm: 300, leadDays: 15, nextKm: null, nextDate: null, createdAt: now(), updatedAt: now() })
+    if (!g.plans.some((x) => x.vehicleId === MINAVI_ID && x.key === p.key && x.source === 'manual')) g.plans.push({ ...p, id: `plan_minavi_m_${p.key}`, vehicleId: MINAVI_ID, active: true, autoTask: true, leadKm: 300, leadDays: 15, nextKm: null, nextDate: null, createdAt: now(), updatedAt: now() })
     mark(k)
+  }
+  if (!done.has('minavi-specs-v1')) {
+    const v = g.vehicles.find((x) => x.id === MINAVI_ID)
+    if (v) { v.specs = { ...NAVI_SPECS, ...(v.specs || {}) }; if (!v.fuelType || v.fuelType === 'Gasolina corriente') v.fuelType = 'Gasolina corriente (RON 91 o más)'; touch(v) }
+    mark('minavi-specs-v1')
   }
   if (!done.has('minavi-manual')) {
     if (!g.files.some((f) => f.vehicleId === MINAVI_ID && f.kind === 'manual')) g.files.push({ id: 'file_minavi_manual_link', vehicleId: MINAVI_ID, name: 'Manual del propietario Honda Navi (enlace oficial)', mime: 'application/pdf', kind: 'manual', storage: 'link', url: HONDA_NAVI_MANUAL, source: 'Honda Colombia', note: 'Enlace al PDF oficial. Toca "Guardar copia" para tenerlo guardado en privado en MuMu.', createdAt: now(), updatedAt: now() })

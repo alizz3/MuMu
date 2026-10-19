@@ -49,9 +49,11 @@ No hay temporizadores del navegador: el cálculo se repite al abrir MuMu, cuando
 
 ## Fuentes de los intervalos
 
-- **Manual oficial**: https://motos.honda.com.co/manuales/manual-navi.pdf. Se puede guardar una copia, pero sus intervalos todavía no se han extraído ni verificado.
-- **Sugerencias cargadas**: vienen de una fuente externa (maintenanceschedule.com) que dice citar el manual de la Honda Navi, sin indicar mercado ni año. Por eso entran como "por confirmar" y **sin activar**: no generan avisos hasta que las revises.
-- **RTM**: según el ABC de la RUNT (Ley 769 de 2002 y sus modificaciones), la primera revisión de una moto es a los 2 años de la matrícula y después es anual. En el Garaje esto es solo una guía: la fecha que cuenta es la de tu certificado.
+- **Plan de Mi chiquita (verificado)**: viene del manual del propietario oficial de Honda para la NAVI (NVA110/NVA110B, Honda Motor Co., 2023, código 35K74G000), sección "Programa de mantenimiento", págs. 46-47. Cada plan guarda el componente, la acción (inspeccionar, limpiar o reemplazar), el intervalo en km y tiempo, la fuente, la página y una nota. El manual cubre Latinoamérica: Colombia no aparece en su lista de destinos, pero es el mismo modelo.
+- **Datos técnicos** (aceite, bujía, llantas, presión, combustible, ralentí): págs. 93-94 del mismo manual. Se guardan en `vehicles[].specs`.
+- El "primer servicio" (por ejemplo, a los 1.000 km) solo se usa si la moto todavía no llega a ese kilometraje. Si no hay un registro previo con km, el plan queda en "Esperan una referencia" y no se inventa un punto de partida.
+- Las **sugerencias externas** que se habían cargado antes (maintenanceschedule.com) se quitaron automáticamente si no las habías tocado.
+- **RTM**: según el ABC de la RUNT (Ley 769 de 2002 y sus modificaciones), la primera revisión de una moto es a los 2 años de la matrícula y luego es anual. En el Garaje es solo una guía: la fecha real es la de tu certificado.
 
 ## Exportar o migrar
 

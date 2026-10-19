@@ -81,12 +81,15 @@ export function planNext(g, p) {
   const last = lastDone(g, p.vehicleId, p.component, p.action)
   let nextKm = p.nextKm ?? null, nextDate = p.nextDate ?? null, why = []
   if (nextKm == null && p.intervalKm) {
+    const cur = currentKm(g, p.vehicleId)
     if (last?.km != null) nextKm = last.km + Number(p.intervalKm)
-    else if (!last && p.firstKm) { nextKm = Number(p.firstKm); why.push('primer servicio') }
+    // El "primer servicio" (ej. a los 1.000 km) solo aplica si la moto aún no llega a ese km
+    else if (!last && p.firstKm && cur != null && cur < Number(p.firstKm)) nextKm = Number(p.firstKm)
     else if (last) why.push('falta el km del último trabajo')
+    else why.push('falta un primer registro con km')
   }
   if (nextDate == null && p.intervalMonths && last?.date) nextDate = addMonths(last.date, Number(p.intervalMonths))
-  if (!last && !p.nextKm && !p.nextDate && !p.firstKm) why.push('falta un primer registro')
+  if (!last && !p.intervalKm && !p.nextDate) why.push('falta un primer registro')
   return { last, nextKm, nextDate, why }
 }
 export function planStatus(g, p) {
@@ -176,13 +179,15 @@ export function fuelEconomy(g, vid) {
 
 // ---------- Alertas del vehículo (solo las reales; lo que falta va aparte) ----------
 export function alerts(g, vid) {
-  const out = [], missing = []
+  const out = [], missing = [], pend = []
   for (const x of plans(g, vid)) {
     const name = `${catName(g, x.p.component)} · ${actionLabel(x.p.action).toLowerCase()}`
     if (x.status === 'vencido') out.push({ level: 'red', kind: 'plan', id: x.p.id, text: `${name}: vencido${x.kmLeft != null && x.kmLeft <= 0 ? ` hace ${fmtKm(-x.kmLeft)}` : x.dLeft != null && x.dLeft < 0 ? ` desde ${fmtDate(x.nextDate)}` : ''}` })
     else if (x.status === 'proximo') out.push({ level: 'pink', kind: 'plan', id: x.p.id, text: `${name}: ${x.kmLeft != null && x.kmLeft <= Number(x.p.leadKm ?? 300) ? `en ${fmtKm(x.kmLeft)}` : `el ${fmtDate(x.nextDate)}`}` })
-    else if (x.status === 'pendiente') missing.push({ kind: 'plan', id: x.p.id, text: `${name}: ${x.why.join(', ') || 'falta el kilometraje actual'}` })
+    else if (x.status === 'pendiente') pend.push(name)
   }
+  if (pend.length === 1) missing.push({ kind: 'plan', text: `${pend[0]}: falta un registro de referencia` })
+  else if (pend.length) missing.push({ kind: 'plan', text: `${pend.length} mantenimientos del plan esperan una referencia (el km actual y cuándo se hizo por última vez)` })
   for (const s of pendingConfirm(g, vid)) out.push({ level: 'yellow', kind: 'service', id: s.id, text: `Por confirmar: ${s.description || 'trabajo en el taller'}${s.expectedNote ? ` (${s.expectedNote.replace(/^Entrega estimada: /, 'entrega estimada ')})` : ''}` })
   for (const d of documents(g, vid)) { const st = docStatus(d); if (st.status === 'vencido' || st.status === 'proximo') out.push({ level: st.status === 'vencido' ? 'red' : 'pink', kind: 'doc', id: d.id, text: `${d.name || DOC_KINDS.find((k) => k.id === d.kind)?.short || DOC_KINDS.find((k) => k.id === d.kind)?.label}: ${st.label.toLowerCase()}` }) }
   const v = vehicleOf(g, vid)

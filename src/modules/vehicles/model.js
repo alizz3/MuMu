@@ -40,6 +40,16 @@ export const BASE_CATEGORIES = [
   { id: 'filtro_aceite', name: 'Filtro de aceite', types: ['carro', 'camioneta'] },
   { id: 'alineacion', name: 'Alineación y balanceo', types: ['carro', 'camioneta'] },
   { id: 'valvulas', name: 'Holgura de válvulas' },
+  { id: 'filtro_tamiz', name: 'Filtro tamiz del aceite', types: ['moto'] },
+  { id: 'respiradero', name: 'Respiradero del cárter' },
+  { id: 'combustible_sis', name: 'Sistema de combustible (tubería y filtro)' },
+  { id: 'acelerador', name: 'Acelerador y estrangulador' },
+  { id: 'aire_aux', name: 'Sistema auxiliar de aire (AI)', types: ['moto'] },
+  { id: 'embrague', name: 'Zapatas del embrague', types: ['moto'] },
+  { id: 'suspension', name: 'Suspensión' },
+  { id: 'direccion', name: 'Dirección (cojinetes)' },
+  { id: 'tornilleria', name: 'Tuercas, pernos y sujeciones' },
+  { id: 'luces', name: 'Luces, faro y bocina' },
   { id: 'inspeccion', name: 'Inspección general' },
   { id: 'sincronizacion', name: 'Ajustes o sincronización del motor' },
   { id: 'reparacion', name: 'Reparaciones' },
@@ -117,28 +127,52 @@ export function emptyGarage() {
 export const MINAVI_ID = 'veh_minavi'
 export const HONDA_NAVI_MANUAL = 'https://motos.honda.com.co/manuales/manual-navi.pdf'
 
-// Fuente externa: maintenanceschedule.com dice citar el manual del propietario de la Honda Navi
-// (mercado y año no especificados; probablemente EE. UU.). NO es el manual de Honda Colombia,
-// por eso entra como "por confirmar" y SIN activar: no genera alertas hasta que tú lo confirmes.
-const EXT = 'https://maintenanceschedule.com/honda-navi-nva110-maintenance-schedule/'
-const extNote = 'Tomado de una fuente externa que cita el manual de la Honda Navi (mercado no especificado). Compáralo con el manual de Honda Colombia antes de activarlo.'
-export const NAVI_SUGGESTED_PLANS = [
-  { key: 'aceite', component: 'aceite', action: 'reemplazar', intervalKm: 4000, intervalMonths: 12, firstKm: 1000, notes: 'Primer cambio a los 1.000 km; luego cada 4.000 km o una vez al año. La misma fuente menciona que Honda sugiere cambiarlo cada 6 meses.' },
-  { key: 'bujia_insp', component: 'bujia', action: 'inspeccionar', intervalKm: 4000, notes: 'Inspeccionar cada 4.000 km.' },
-  { key: 'bujia', component: 'bujia', action: 'reemplazar', intervalKm: 8000, notes: 'Reemplazar cada 8.000 km.' },
-  { key: 'filtro_aire', component: 'filtro_aire', action: 'reemplazar', intervalKm: 16000, notes: 'Cada 16.000 km; más seguido si andas en zonas con polvo o lluvia.' },
-  { key: 'transmision', component: 'transmision', action: 'reemplazar', intervalMonths: 24, notes: 'Aceite de la transmisión final: cada 2 años.' },
-  { key: 'correa_insp', component: 'correa', action: 'inspeccionar', intervalKm: 8000, notes: 'Revisar estado, tensión y alineación cada 8.000 km.' },
-  { key: 'correa', component: 'correa', action: 'reemplazar', intervalKm: 24000, notes: 'Reemplazar cada 24.000 km.' },
-  { key: 'valvulas', component: 'valvulas', action: 'ajustar', intervalKm: 4000, notes: 'Inspeccionar y ajustar holgura de válvulas cada 4.000 km.' },
-  { key: 'sincronizacion', component: 'sincronizacion', action: 'ajustar', intervalKm: 4000, notes: 'Revisar y ajustar el ralentí cada 4.000 km.' },
-  { key: 'frenos', component: 'frenos', action: 'inspeccionar', intervalKm: 4000, notes: 'Desgaste de bandas y sistema de frenos en cada revisión (cada 4.000 km).' },
-  { key: 'llantas', component: 'llantas', action: 'inspeccionar', intervalKm: 4000, notes: 'Desgaste y estado de llantas en cada revisión (cada 4.000 km). La presión, revísala seguido.' },
-].map((p) => ({ ...p, source: 'externa', sourceRef: EXT, verification: 'externa', notes: `${p.notes} ${extNote}` }))
+// Programa de mantenimiento VERIFICADO en el manual del propietario oficial de Honda para la NAVI
+// (NVA110 / NVA110B, Honda Motor Co., 2023, código 35K74G000), "Programa de mantenimiento", págs. 46-47.
+// Ese manual cubre Latinoamérica (Colombia no aparece en su lista de destinos, pero es el mismo modelo).
+// Leyenda del manual: I = inspeccionar (limpiar, ajustar, lubricar o reemplazar si hace falta), R = reemplazar, C = limpiar.
+// "A lecturas más altas del cuentakilómetros, repita a los intervalos establecidos" (nota *1).
+export const NAVI_MANUAL_REF = 'Manual del propietario Honda NAVI (NVA110), Honda Motor Co., 2023 · Programa de mantenimiento'
+const M = (key, component, action, o, notes, page = 'Págs. 46-47') => ({ key, component, action, ...o, notes, page, source: 'manual', sourceRef: NAVI_MANUAL_REF, verification: 'manual' })
+export const NAVI_MANUAL_PLANS = [
+  M('aceite', 'aceite', 'reemplazar', { firstKm: 1000, intervalKm: 4000, intervalMonths: 12 }, 'Reemplazar a los 1.000 km y luego cada 4.000 km, o cada año (lo que pase primero). Revisar el nivel antes de usarla. Aceite Honda 4T SAE 10W-30, API SJ o superior, JASO MB · 0,70 L al drenar (0,80 L si se limpia el filtro tamiz).'),
+  M('filtro_tamiz', 'filtro_tamiz', 'limpiar', { intervalKm: 12000 }, 'Limpiar el filtro tamiz del aceite a los 12.000 y 24.000 km.'),
+  M('bujia_insp', 'bujia', 'inspeccionar', { firstKm: 4000, intervalKm: 8000 }, 'Inspeccionar a los 4.000, 12.000 y 20.000 km. Bujía NGK MR7C-9N, separación 0,8–0,9 mm.'),
+  M('bujia', 'bujia', 'reemplazar', { intervalKm: 8000 }, 'Reemplazar a los 8.000, 16.000 y 24.000 km.'),
+  M('valvulas', 'valvulas', 'inspeccionar', { firstKm: 1000, intervalKm: 4000 }, 'Holgura de las válvulas: a los 1.000 km y luego cada 4.000 km. Nivel intermedio: mejor en el concesionario.'),
+  M('filtro_aire', 'filtro_aire', 'reemplazar', { intervalKm: 16000 }, 'Reemplazar a los 16.000 km. Más seguido si andas en zonas húmedas o con polvo.'),
+  M('respiradero', 'respiradero', 'limpiar', { intervalKm: 4000, intervalMonths: 12 }, 'Limpiar cada 4.000 km y en la revisión anual. Más seguido con lluvia o a máxima aceleración.'),
+  M('ralenti', 'sincronizacion', 'inspeccionar', { firstKm: 1000, intervalKm: 4000, intervalMonths: 12 }, 'Velocidad de ralentí: a los 1.000 km, luego cada 4.000 km y anual. Valor: 1.700 ± 100 rpm.'),
+  M('correa_insp', 'correa', 'inspeccionar', { intervalKm: 8000 }, 'Correa de transmisión: inspeccionar a los 8.000 y 16.000 km.'),
+  M('correa', 'correa', 'reemplazar', { intervalKm: 24000 }, 'Correa de transmisión: reemplazar a los 24.000 km.'),
+  M('transmision', 'transmision', 'reemplazar', { intervalMonths: 24 }, 'Aceite de transmisión: reemplazar cada 2 años (requiere conocimientos de mecánica). Capacidad: 0,10 L al drenar.'),
+  M('frenos', 'frenos', 'inspeccionar', { firstKm: 1000, intervalKm: 4000, intervalMonths: 12 }, 'Sistema de frenos a los 1.000 km y cada 4.000 km; desgaste de zapatas cada 4.000 km; también anual y antes de usarla.', 'Págs. 46-47 (ver págs. 48 y 70)'),
+  M('llantas', 'llantas', 'inspeccionar', { intervalKm: 4000, intervalMonths: 12 }, 'Ruedas y neumáticos cada 4.000 km y anual (revisarlos antes de usarla). Presión en frío: delantera 150 kPa; trasera 200 kPa solo piloto, 250 kPa con pasajero.', 'Págs. 46-47 (ver pág. 54)'),
+  M('combustible', 'combustible_sis', 'inspeccionar', { intervalKm: 4000, intervalMonths: 12 }, 'Tubería del combustible cada 4.000 km y anual; limpiar la pantalla del filtro tamiz del combustible cada 4.000 km.'),
+  M('acelerador', 'acelerador', 'inspeccionar', { intervalKm: 4000, intervalMonths: 12 }, 'Funcionamiento del acelerador y del estrangulador cada 4.000 km y anual.'),
+  M('suspension', 'suspension', 'inspeccionar', { intervalKm: 4000, intervalMonths: 12 }, 'Suspensión cada 4.000 km y anual.'),
+  M('luces', 'luces', 'inspeccionar', { intervalKm: 4000, intervalMonths: 12 }, 'Reglaje del faro cada 4.000 km y anual; luces y bocina antes de usarla.'),
+  M('tornilleria', 'tornilleria', 'inspeccionar', { firstKm: 1000, intervalKm: 8000, intervalMonths: 12 }, 'Tuercas, pernos y elementos de sujeción a los 1.000 km, luego cada 8.000 km y anual.'),
+  M('direccion', 'direccion', 'inspeccionar', { firstKm: 1000, intervalKm: 12000, intervalMonths: 12 }, 'Cojinetes del cabezal de la dirección a los 1.000 km, luego cada 12.000 km y anual. Nivel técnico: hágalo en el concesionario.'),
+  M('embrague', 'embrague', 'inspeccionar', { intervalKm: 8000 }, 'Desgaste de las zapatas del embrague a los 8.000, 16.000 y 24.000 km. Nivel técnico: en el concesionario.'),
+  M('aire_aux', 'aire_aux', 'inspeccionar', { intervalKm: 16000 }, 'Sistema auxiliar de suministro de aire: inspeccionar a los 16.000 km. Su filtro (AI): limpiar a los 12.000 y 24.000 km.'),
+]
+// Datos de servicio del mismo manual (pág. 94)
+export const NAVI_SPECS = {
+  aceite: 'Honda 4T SAE 10W-30, API SJ o superior, JASO MB · 0,70 L al drenar (0,80 L con filtro tamiz)',
+  bujia: 'NGK MR7C-9N · separación 0,8–0,9 mm',
+  llantas: 'Del. 90/90-12 · Tras. 90/100-10 (sin cámara)',
+  presion: 'Del. 150 kPa · Tras. 200 kPa (250 kPa con pasajero), en frío',
+  combustible: 'Gasolina sin plomo RON 91 o más (hasta 10 % etanol) · tanque 3,5 L',
+  ralenti: '1.700 ± 100 rpm',
+  aceiteTransmision: '0,10 L al drenar (0,12 L tras desmontar)',
+  bateria: 'Exenta de mantenimiento (12 V-3 Ah; la referencia cambia según el país)',
+}
+export const SPEC_LABELS = { transmision: 'Transmisión', aceite: 'Aceite del motor', bujia: 'Bujía', llantas: 'Llantas', presion: 'Presión de llantas', combustible: 'Combustible', ralenti: 'Ralentí', aceiteTransmision: 'Aceite de transmisión', bateria: 'Batería' }
 
 export function minaviSeed() {
   return {
-    vehicle: { id: MINAVI_ID, type: 'moto', name: 'Mi chiquita', make: 'Honda', model: 'Navi 110', year: 2021, plate: '', registeredAt: null, color: '', fuelType: 'Gasolina corriente', distanceUnit: 'km', specs: { transmision: 'Automática (CVT con correa)' }, notes: '', archived: false },
+    vehicle: { id: MINAVI_ID, type: 'moto', name: 'Mi chiquita', make: 'Honda', model: 'Navi 110', year: 2021, plate: '', registeredAt: null, color: '', fuelType: 'Gasolina corriente', distanceUnit: 'km', specs: { transmision: 'Automática V-Matic (CVT con correa)' }, notes: '', archived: false },
     services: [
       { key: 's1', id: 'svc_minavi_1', date: '2026-10-15', status: 'realizado', items: [{ component: 'bateria', action: 'recargar', detail: 'Recarga de batería' }], description: 'Recarga de batería', notes: 'Kilometraje, costo, taller y detalles: pendientes.' },
       { key: 's2', id: 'svc_minavi_2', date: '2026-10-16', status: 'realizado', items: [{ component: 'aceite', action: 'reemplazar', detail: 'Cambio de aceite' }, { component: 'filtro_aire', action: 'reemplazar', detail: 'Cambio del filtro de aire' }], description: 'Cambio de aceite y del filtro de aire', notes: 'Tipo de aceite, repuestos, costo, kilometraje y taller: pendientes.' },
