@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch, nextTick } from 'vue'
 import { state, ui, startClean, resetToSeed, exportJSON } from '../store'
 import { hasFirebase, signIn, signOut } from '../services/firebase'
 import * as API from '../services/api'
@@ -16,6 +16,11 @@ import { restoreBackup } from '../store/actions'
 const tab = ref(location.hash === '#respaldo' ? 'privacidad' : 'cuentas')
 // ---------- Copias de seguridad ----------
 const backups = ref(null)
+// Documentos legales: se leen aquí mismo, sin salir de MuMu
+const legal = ref(null)
+const legalClose = ref(null)
+watch(legal, (v) => { if (v) nextTick(() => legalClose.value?.focus()) })
+const LEGAL = { privacidad: ['Política de privacidad', '/privacidad.html'], terminos: ['Términos de uso', '/terminos.html'] }
 async function loadBackups() { try { backups.value = (await API.listBackups()).backups } catch (e) { backups.value = []; toast(e.message) } }
 const fmtB = (b) => { const [d, f] = b.id.split('_'); return `${d} · ${({ manana: 'mañana', mediodia: 'mediodía', tarde: 'tarde' })[f] || f}` }
 async function doRestore(data, label) {
@@ -252,7 +257,7 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
     <template v-if="tab === 'privacidad'">
       <div class="card stack small">
         <h3>Dónde viven tus datos</h3>
-        <p>• <b>Modo local:</b> en este navegador.<br />• <b>Con sesión:</b> en tu Firebase (solo tú puedes leerlos, por las reglas de seguridad).<br />• <b>Tokens de Google y de Tu Aula:</b> cifrados en el servidor, nunca en el navegador.<br />• <b>Contraseñas:</b> no se guardan en ningún lado.</p>
+        <p>• <b>Modo local:</b> en este navegador.<br />• <b>Con sesión:</b> en tu Firebase (solo tú puedes leerlos, por las reglas de seguridad).<br />• <b>Tokens de Google y de Tu Aula:</b> cifrados en el servidor, nunca en el navegador.<br />• <b>Contraseñas:</b> no se guardan en ningún lado.<br />• <b>Archivos del Garaje:</b> en una zona privada del servidor, sin enlaces públicos. Los de Drive se quedan en tu Drive.</p>
         <button class="btn lav" @click="download">Descargar respaldo (JSON)</button>
         <label class="btn ghost" style="cursor:pointer">Restaurar desde un archivo<input type="file" accept="application/json,.json" style="display:none" @change="fromFile" /></label>
         <h3 style="margin-top:8px">Copias automáticas</h3>
@@ -263,6 +268,25 @@ const download = () => { const a = document.createElement('a'); a.href = URL.cre
         <button class="btn ghost" @click="clean">Empezar en limpio (quitar ejemplos)</button>
         <button class="btn ghost" @click="reset">Restaurar datos de ejemplo</button>
       </div>
+      <div class="card stack small">
+        <h3>Documentos legales</h3>
+        <button v-for="(d, k) in LEGAL" :key="k" class="row legal-row" @click="legal = k"><Icon :name="k === 'privacidad' ? 'shield' : 'book'" :size="16" /><span class="grow">{{ d[0] }}</span><Icon name="chev" :size="14" class="muted" /></button>
+      </div>
+      <div v-if="legal" class="legal-pv" role="dialog" aria-modal="true" :aria-label="LEGAL[legal][0]" @click.self="legal = null" @keydown.esc="legal = null">
+        <div class="legal-box">
+          <div class="legal-top"><b class="grow">{{ LEGAL[legal][0] }}</b><a class="btn sm ghost" :href="LEGAL[legal][1]" target="_blank" rel="noopener">Abrir aparte ↗</a><button ref="legalClose" class="iconbtn" aria-label="Cerrar" @click="legal = null"><Icon name="x" :size="18" /></button></div>
+          <iframe :src="LEGAL[legal][1]" :title="LEGAL[legal][0]"></iframe>
+        </div>
+      </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.legal-row { gap: 10px; width: 100%; padding: 10px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
+.legal-row:hover, .legal-row:focus-visible { background: color-mix(in srgb, #C3B3D4 20%, transparent); }
+.legal-pv { position: fixed; inset: 0; z-index: 80; background: rgba(20, 12, 24, .55); display: grid; place-items: center; padding: 12px; }
+.legal-box { width: min(760px, 100%); height: min(92dvh, 900px); background: var(--surface); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+.legal-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.legal-box iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+</style>
