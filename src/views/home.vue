@@ -203,7 +203,7 @@ const welcome = () => { d.value.welcomed = true }
             <div class="row between small"><span class="b wi"><Icon :name="mi.icon" :size="15" />{{ mi.title }}</span><span class="muted wi" style="gap:3px">{{ mi.progress }}/{{ mi.steps.length }} · <Icon name="coin" :size="13" />{{ mi.reward }}</span></div>
             <div class="bar" style="margin:6px 0"><i :style="{ width: (mi.progress / mi.steps.length * 100) + '%', background: 'var(--lav-500)' }"></i></div>
             <div class="row wrap" style="gap:4px">
-              <button v-for="s in mi.steps" :key="s.t" class="chip" :class="{ on: s.done }" @click="A.go(s.go)"><Icon v-if="s.done" name="check" :size="12" />{{ s.t }}</button>
+              <button v-for="s in mi.steps" :key="s.t" class="chip long" :class="{ on: s.done }" @click="A.go(s.go)"><Icon v-if="s.done" name="check" :size="12" />{{ s.t }}</button>
             </div>
             <button v-if="mi.complete && !mi.claimed" class="btn sm primary" style="margin-top:8px" @click="claimMission(mi)"><Icon name="gift" :size="15" />Reclamar recompensa</button>
           </div>

@@ -140,7 +140,7 @@ const tomorrowTask = computed(() => state.tasks.find((t) => t.id === tomorrow.va
           <p class="tiny muted">Brian Tracy sugiere planear la noche anterior. ¿Cuál será tu prioridad de mañana?</p>
           <p v-if="tomorrowTask" class="small wi" style="margin-top:6px"><Icon name="star" :size="14" />{{ tomorrowTask.title }}</p>
           <div class="stack" style="gap:4px;margin-top:6px">
-            <button v-for="x in rankedTasks().slice(0, 4)" :key="x.t.id" class="chip" :class="{ on: tomorrow.priority === x.t.id }" style="text-align:left" @click="tomorrow.priority = x.t.id">{{ x.t.title }}</button>
+            <button v-for="x in rankedTasks().slice(0, 4)" :key="x.t.id" class="chip long" :class="{ on: tomorrow.priority === x.t.id }" style="text-align:left" @click="tomorrow.priority = x.t.id">{{ x.t.title }}</button>
           </div>
         </div>
       </div>
