@@ -279,3 +279,31 @@ export function syncVehicleTasks() {
 }
 // "Recuérdame…": pide tarea para un plan aunque esté al día (en su próxima fecha)
 export function wantTask(planId, on = true) { const p = garage().plans.find((x) => x.id === planId); if (p) { p.taskWanted = on; p.autoTask = true; touch(p) } }
+
+// ---------- Importar datos del Garaje (archivo privado, no va en el código) ----------
+// { garage: { vehicle: { match: 'id o nombre', ...campos, specs }, documents: [...], readings: [...], shops: [...] } }
+// Idempotente: el vehículo se completa; un documento con el mismo tipo y número (o vencimiento) no se repite.
+export function importGarage(data) {
+  const g = garage(); ensureVehiclesSeed()
+  const d = data?.garage; if (!d) return null
+  const vin = d.vehicle || {}
+  let v = g.vehicles.find((x) => x.id === vin.match || x.name.toLowerCase() === String(vin.match || vin.name || '').toLowerCase())
+  if (!v) v = saveVehicle({ type: vin.type || 'moto', name: vin.name || 'Vehículo', make: vin.make, model: vin.model, year: vin.year })
+  const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes']
+  for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : vin[k]
+  if (vin.specs) v.specs = { ...(v.specs || {}), ...vin.specs }
+  touch(v)
+  let added = 0
+  for (const doc of d.documents || []) {
+    const same = g.documents.find((x) => x.vehicleId === v.id && x.kind === doc.kind && ((doc.number && x.number === doc.number) || (doc.expiresAt && x.expiresAt === doc.expiresAt)))
+    if (same) { Object.assign(same, { ...doc, id: same.id, vehicleId: v.id }); touch(same); continue }
+    const prev = g.documents.find((x) => x.vehicleId === v.id && x.kind === doc.kind && x.status !== 'reemplazado' && doc.kind !== 'otro' && doc.kind !== 'tarjeta')
+    const n = saveDocument({ ...doc, vehicleId: v.id })
+    if (prev && (prev.expiresAt || '') < (n.expiresAt || '')) { prev.status = 'reemplazado'; prev.replacedBy = n.id; n.renewedFrom = prev.id }
+    if (doc.cost && doc.kind !== 'tarjeta' && !g.expenses.some((e) => e.docId === n.id)) upsert('expenses', { vehicleId: v.id, date: doc.issuedAt || L.today(), amount: Number(doc.cost), currency: 'COP', category: 'documentos', description: n.name, docId: n.id, auto: true }, 'exp')
+    added++
+  }
+  for (const r of d.readings || []) if (!g.readings.some((x) => x.vehicleId === v.id && x.date === r.date && x.km === r.km)) { const res = addReading({ ...r, vehicleId: v.id }); if (res.ok) added++ }
+  for (const sh of d.shops || []) if (!g.shops.some((x) => x.name.toLowerCase() === String(sh.name || '').toLowerCase())) { saveShop(sh); added++ }
+  return { vehicle: v, added }
+}

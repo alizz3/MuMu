@@ -1,5 +1,6 @@
 // Todas las acciones que cambian datos pasan por aquí para que los módulos queden conectados:
 // tarea → objetivo → recompensa → vaquita → analítica → experimentos.
+import { importGarage as importGarageHook } from '../modules/vehicles/actions'
 import { state, ui } from './index'
 import { dayKey, uid, keyPlus, daysUntil, nowMin, toHM } from '../engine/time'
 import { award, awardOnce, markRewarded, toast, daily } from '../engine/game'
@@ -487,6 +488,7 @@ export function mergeSubtasks(t, list) {
   return n
 }
 export function importProject(data) {
+  if (data?.garage) { importGarageHook(data); if (!data.project && !data.tasks?.length && !data.habits?.length && !data.subjects?.length && !data.subjectTasks?.length && !data.goals?.length) return null }
   const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
   const p = data?.project
   // Objetivos

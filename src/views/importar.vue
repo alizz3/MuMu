@@ -3,6 +3,7 @@
 import { computed, ref } from 'vue'
 import { ui } from '../store'
 import * as A from '../store/actions'
+import * as G from '../modules/vehicles/actions'
 import { Icon } from '../components/ui'
 import { toast } from '../engine/game'
 import prompt from '../../docs/PROMPT-IMPORTAR.md?raw'
@@ -30,15 +31,18 @@ const resumen = computed(() => {
     n(d.subjects, 'materia o curso', 'materias o cursos') && ['cap', `${d.subjects.map((x) => x.name).join(', ')}`],
     n(d.events, 'sesión', 'sesiones') && ['calendar', `${n(d.events, 'sesión', 'sesiones')} en la agenda`],
     n(d.subjectTasks, 'tarea del curso', 'tareas del curso') && ['check', n(d.subjectTasks, 'tarea del curso', 'tareas del curso')],
+    d.garage && ['moto', `Garaje: ${d.garage.vehicle?.name || d.garage.vehicle?.match || 'vehículo'}${d.garage.documents?.length ? ` con ${d.garage.documents.length} documento${d.garage.documents.length === 1 ? '' : 's'}` : ''}`],
   ].filter(Boolean)
 })
 function agregar() {
   try {
-    const p = A.importProject(data.value)
+    const d = data.value
+    const p = A.importProject(d)
     toast('Listo, agregado')
     txt.value = ''
     if (p) A.go('proyectos', { id: p.id })
-    else A.go(data.value?.subjects?.length ? 'universidad' : data.value?.goals?.length ? 'objetivos' : data.value?.habits?.length ? 'habitos' : 'tareas')
+    else if (d?.garage) A.go('garaje', { id: G.garage().vehicles.find((v) => v.id === d.garage.vehicle?.match || v.name === d.garage.vehicle?.name)?.id })
+    else A.go(d?.subjects?.length ? 'universidad' : d?.goals?.length ? 'objetivos' : d?.habits?.length ? 'habitos' : 'tareas')
   } catch (e) { toast('No pude agregarlo: revisa que el JSON esté completo') }
 }
 async function copiar() { try { await navigator.clipboard.writeText(prompt); toast('Instrucciones copiadas: pégalas en ChatGPT una sola vez') } catch { toast('No pude copiar') } }

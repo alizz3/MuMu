@@ -68,7 +68,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **ClickUp:** un espacio de ClickUp (ej. Acriz) se une con el proyecto del mismo nombre: sus tareas llegan con su responsable, lo que marques hecho aquí se cierra allá y al revés (cada 20 minutos o con **Sincronizar**). Necesita el token de ClickUp en Vercel.
 - Los semestres de la U son proyectos unidos a sus materias.
 - Los enlaces de importar funcionan también desde el celular con la app abierta.
-- Se pueden **importar** proyectos, objetivos, tareas, hábitos y cursos con un enlace `…#importar=` o pegando lo que te da otra IA (o cargando un archivo .json) en **Más → Importar con IA**.
+- Se pueden **importar** proyectos, objetivos, tareas, hábitos, cursos y datos del Garaje (vehículo y documentos) con un enlace `…#importar=` o pegando lo que te da otra IA (o cargando un archivo .json) en **Más → Importar con IA**.
 
 ## Hábitos
 

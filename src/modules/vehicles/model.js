@@ -168,11 +168,11 @@ export const NAVI_SPECS = {
   aceiteTransmision: '0,10 L al drenar (0,12 L tras desmontar)',
   bateria: 'Exenta de mantenimiento (12 V-3 Ah; la referencia cambia según el país)',
 }
-export const SPEC_LABELS = { transmision: 'Transmisión', aceite: 'Aceite del motor', bujia: 'Bujía', llantas: 'Llantas', presion: 'Presión de llantas', combustible: 'Combustible', ralenti: 'Ralentí', aceiteTransmision: 'Aceite de transmisión', bateria: 'Batería' }
+export const SPEC_LABELS = { linea: 'Línea', cilindraje: 'Cilindraje', potencia: 'Potencia', servicio: 'Servicio', motor: 'N.º de motor', vin: 'VIN / chasis', organismo: 'Organismo de tránsito', transmision: 'Transmisión', aceite: 'Aceite del motor', bujia: 'Bujía', llantas: 'Llantas', presion: 'Presión de llantas', combustible: 'Combustible', ralenti: 'Ralentí', aceiteTransmision: 'Aceite de transmisión', bateria: 'Batería' }
 
 export function minaviSeed() {
   return {
-    vehicle: { id: MINAVI_ID, type: 'moto', name: 'Mi chiquita', make: 'Honda', model: 'Navi 110', year: 2021, plate: '', registeredAt: null, color: '', fuelType: 'Gasolina corriente', distanceUnit: 'km', specs: { transmision: 'Automática V-Matic (CVT con correa)' }, notes: '', archived: false },
+    vehicle: { id: MINAVI_ID, type: 'moto', name: 'Mi chiquita', make: 'Honda', model: 'Navi 110', year: 2022, plate: '', registeredAt: null, color: '', fuelType: 'Gasolina corriente', distanceUnit: 'km', specs: { transmision: 'Automática V-Matic (CVT con correa)' }, notes: '', archived: false },
     services: [
       { key: 's1', id: 'svc_minavi_1', date: '2026-10-15', status: 'realizado', items: [{ component: 'bateria', action: 'recargar', detail: 'Recarga de batería' }], description: 'Recarga de batería', notes: 'Kilometraje, costo, taller y detalles: pendientes.' },
       { key: 's2', id: 'svc_minavi_2', date: '2026-10-16', status: 'realizado', items: [{ component: 'aceite', action: 'reemplazar', detail: 'Cambio de aceite' }, { component: 'filtro_aire', action: 'reemplazar', detail: 'Cambio del filtro de aire' }], description: 'Cambio de aceite y del filtro de aire', notes: 'Tipo de aceite, repuestos, costo, kilometraje y taller: pendientes.' },

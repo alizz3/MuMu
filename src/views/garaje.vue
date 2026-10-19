@@ -256,7 +256,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
           <p class="tiny muted" style="margin-top:4px">{{ [d.issuedAt && `Expedido ${L.fmtDate(d.issuedAt)}`, d.expiresAt && `Vence ${L.fmtDate(d.expiresAt)}`, d.number && `N.º ${d.number}`, d.issuer].filter(Boolean).join(' · ') }}</p>
           <p v-if="d.notes" class="tiny muted">{{ d.notes }}</p>
           <div class="row wrap" style="gap:6px;margin-top:8px"><button v-for="id in d.fileIds || []" :key="id" class="chip" @click="fileOf(id) && view(fileOf(id))"><Icon name="clip" :size="12" />{{ fileOf(id)?.name || 'Archivo' }}</button>
-            <button class="btn sm lav" @click="open('renew', { oldId: d.id })"><Icon name="refresh" :size="13" />Renovar</button><button class="btn sm ghost" @click="open('doc', d)"><Icon name="edit" :size="13" />Editar</button></div>
+            <button v-if="d.kind !== 'tarjeta'" class="btn sm lav" @click="open('renew', { oldId: d.id })"><Icon name="refresh" :size="13" />Renovar</button><button class="btn sm ghost" @click="open('doc', d)"><Icon name="edit" :size="13" />Editar</button></div>
         </section>
         <GroupCard v-if="oldDocs.length" title="Historial de renovaciones" icon="clock" :count="oldDocs.length" :open="isOpen('olddocs')" @toggle="toggle('olddocs')">
           <div v-for="d in oldDocs" :key="d.id" class="item"><span class="grow small">{{ d.name }} <span class="muted tiny">· {{ L.fmtDate(d.issuedAt) }} – {{ L.fmtDate(d.expiresAt) }}{{ d.number ? ` · ${d.number}` : '' }}</span></span><button class="iconbtn" aria-label="Ver" @click="open('doc', d)"><Icon name="eye" :size="15" /></button></div>
@@ -325,7 +325,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
         <section v-if="Object.keys(v.specs || {}).length" class="card stack small" style="gap:6px">
           <h3>Datos técnicos</h3>
           <div v-for="(val, k) in v.specs" :key="k" class="spec"><span class="muted">{{ SPEC_LABELS[k] || k }}</span><span>{{ val }}</span></div>
-          <p class="tiny muted">Del manual del propietario Honda NAVI (pág. 94), salvo lo que tú cambies.</p>
+          <p class="tiny muted">Datos técnicos del manual Honda NAVI (pág. 94); los de identificación, de tu licencia de tránsito.</p>
         </section>
         <section class="card stack" style="gap:8px">
           <button class="btn ghost" @click="exportJson"><Icon name="download" :size="15" />Exportar hoja de vida (JSON)</button>

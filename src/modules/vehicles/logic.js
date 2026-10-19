@@ -118,6 +118,7 @@ export function documents(g, vid, { all = false } = {}) {
   return of(g.documents, vid).filter((d) => all || d.status !== 'reemplazado').sort((a, b) => (a.expiresAt || '9999') < (b.expiresAt || '9999') ? -1 : 1)
 }
 export function docStatus(d) {
+  if (!d.expiresAt && d.kind === 'tarjeta') return { status: 'vigente', label: 'No vence', badge: 'green' }
   if (!d.expiresAt) return { status: 'pendiente', label: 'Sin fecha de vencimiento', badge: 'yellow' }
   const n = daysTo(d.expiresAt), lead = Number(d.leadDays ?? DOC_KINDS.find((k) => k.id === d.kind)?.lead ?? 30)
   if (n < 0) return { status: 'vencido', label: `Venció hace ${-n} día${n === -1 ? '' : 's'}`, badge: 'red', n }
