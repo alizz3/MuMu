@@ -1,3 +1,4 @@
+import { emptyGarage } from '../modules/vehicles/model'
 // Datos iniciales. Todo lo marcado con `demo: true` es de ejemplo y se borra desde
 // Configuración → Privacidad → "Empezar en limpio". Los correos y actividades de Aula
 // de ejemplo NO vienen de ninguna integración real: aparecen con la etiqueta "ejemplo".
@@ -185,6 +186,7 @@ export function seed() {
     device: {}, // plan de alarmas, recordatorios y widget para la app de Android
     presence: null, // { home: true/false, at, via }: si estás en tu casa (ubicación o botón)
     usoCelular: null, // tiempo de pantalla que sube la app de Android
+    vehicles: emptyGarage(), // Garaje: vehículos, km, mantenimientos, documentos, gastos (src/modules/vehicles)
   }
 }
 

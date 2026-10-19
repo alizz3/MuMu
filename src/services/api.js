@@ -163,6 +163,11 @@ export async function syncAula() {
 }
 export async function disconnectAula() { await call('aula/connect', { method: 'DELETE' }); state.integrations.aula = { status: 'no-conectado', method: null, lastSync: null, site: state.integrations.aula.site } }
 
+// Archivos privados del Garaje (ver api/_routes/vfiles.js)
+export const vfilePut = (b) => call('vfiles', { method: 'POST', body: { op: 'put', ...b } })
+export const vfileGet = (id, part) => call(`vfiles?id=${encodeURIComponent(id)}&part=${part}`)
+export const vfileDelete = (id) => call('vfiles', { method: 'POST', body: { op: 'delete', id } })
+export const vfileFetchManual = (b) => call('vfiles', { method: 'POST', body: { op: 'fetchManual', ...b } })
 export async function listBackups() { return call('backup') }
 export async function getBackup(id) { return call(`backup?id=${encodeURIComponent(id)}`) }
 export async function askAssistant(message, context, history = []) { return call('assistant', { method: 'POST', body: { message, context, history } }) }

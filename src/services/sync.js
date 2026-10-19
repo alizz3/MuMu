@@ -8,6 +8,7 @@ import { syncGmail, syncAula, syncClassroom, syncGTasks, pushNewGTasks, gtAccoun
 import { watch } from 'vue'
 import { initModoU } from '../engine/modoU'
 import { toast } from '../engine/game'
+import { ensureVehiclesSeed, syncVehicleTasks } from '../modules/vehicles/actions'
 
 // known: colecciones de las que ya tenemos el valor real (del servidor, o guardado en el equipo).
 // NUNCA se sube una colección que no esté aquí: así una copia vacía o de ejemplo jamás pisa tus datos.
@@ -121,6 +122,7 @@ export async function initSync() {
       { const r = rebuildOrphanProjects(); if (r) toast(`Recuperé ${r} proyecto${r === 1 ? '' : 's'} desde sus tareas`) }
       { const n = dedupeTasks(); if (n) toast(`Quité ${n} tarea${n === 1 ? '' : 's'} repetida${n === 1 ? '' : 's'}`) }
       ensureAulaTasks()
+      startGarage()
       autoSync()
       push(fb, doc, setDoc)
     }
@@ -231,4 +233,16 @@ function startClickUp() {
     clearTimeout(timer)
     timer = setTimeout(() => pushClickUp().catch(() => {}), 4000)
   })
+}
+
+// Garaje: carga inicial (una sola vez) y tareas enlazadas a mantenimientos y documentos.
+// Se recalcula al cambiar el Garaje o las tareas, y cada hora (las fechas avanzan solas).
+let garageOn = false
+function startGarage() {
+  try { ensureVehiclesSeed(); syncVehicleTasks() } catch (e) { console.warn('garaje', e.message) }
+  if (garageOn) return
+  garageOn = true
+  let t = null
+  watch(() => JSON.stringify(state.vehicles), () => { clearTimeout(t); t = setTimeout(() => { try { syncVehicleTasks() } catch (e) { console.warn('garaje', e.message) } }, 800) })
+  setInterval(() => { try { syncVehicleTasks() } catch { /* luego */ } }, 3600e3)
 }

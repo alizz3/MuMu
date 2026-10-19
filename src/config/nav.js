@@ -24,6 +24,7 @@ export const NAV = [
     { id: 'vida', label: 'Vida', icon: 'leaf' },
     { id: 'dios', label: 'Espacio con Dios', icon: 'dove' },
     { id: 'finanzas', label: 'Finanzas', icon: 'wallet' },
+    { id: 'garaje', label: 'Garaje', icon: 'moto' },
     { id: 'analitica', label: 'Analítica', icon: 'chart' },
     { id: 'casa', label: 'Casa de la vaquita', icon: 'house' },
   ] },

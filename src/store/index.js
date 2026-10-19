@@ -38,6 +38,7 @@ export const ui = reactive({
   focusMsg: '', // mensajito del acompañante de enfoque
   modoU: false, // filtro universitario
   dataUid: null, // de quién son los datos (la cuenta dueña)
+  garageSheet: null, // formulario abierto del Garaje
   authError: null, // no se pudo confirmar de quién son los datos: se espera en vez de abrir una MuMu vacía
   aulaStatus: null, // { online, ms, checkedAt } de Tu Aula // entró una cuenta sin acceso // ya se cargaron los datos de Firestore
 })
@@ -78,6 +79,7 @@ export function startClean() {
     finance: { connected: false, summary: null },
     game: { ...s.game, coins: 50, xp: 0, history: [] },
     settings: { ...state.settings, demo: false },
+    vehicles: state.vehicles, // el Garaje es tuyo: no se borra al quitar ejemplos
     integrations: state.integrations,
   })
 }

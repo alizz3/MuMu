@@ -4,6 +4,7 @@ import { state, ui } from '../store'
 import * as A from '../store/actions'
 import { projectProgress } from '../store/actions'
 import { localAnswer, habitMarkIntent, shownTask, subtaskIntent } from '../engine/answers'
+import { vehicleReply, vehicleContext, mentionsVehicle } from '../modules/vehicles/assistant'
 import { recommend, freeBlocks, rankedTasks, isOpen, currentContext, itemsOn } from '../engine/planner'
 import { petState } from '../engine/game'
 import { insights } from '../engine/insights'
@@ -98,6 +99,7 @@ function summary(text) {
     agendaHoy: itemsOn(k).map((e) => `${e.start || ''} ${e.title}`),
     agendaManana: itemsOn(inDays(1)).map((e) => `${e.start || ''} ${e.title}`),
     libresHoy: freeBlocks(k, currentContext().m).map((b) => b.label),
+    garaje: mentionsVehicle(text || '') ? vehicleContext() : undefined,
     habitosPendientesHoy: state.habits.filter((h) => !state.habitLogs[h.id]?.[k]?.done).map((h) => h.name),
   }
 }
@@ -131,6 +133,14 @@ async function send() {
   input.value = ''
   say(text, 'me')
   if (/no quiero|procrastin|me da pereza|no puedo empezar/i.test(text)) { say('Te entiendo. Vamos al modo "No quiero hacer esto": solo 5 minuticos.'); setTimeout(() => { ui.assistantOpen = false; A.go('enfoque', { avoid: 1 }) }, 900); return }
+  // Garaje: datos guardados sin IA; lo que cambia datos, siempre con confirmación
+  const vr = vehicleReply(text)
+  if (vr) {
+    if (!vr.actions) { say(vr.text); return }
+    msgs.value.push({ from: 'pet', text: vr.text, actions: vr.actions.map((a) => ({ ...a, run: () => a.run(say) })) })
+    nextTick(() => box.value?.scrollTo?.({ top: 1e6, behavior: 'smooth' }))
+    return
+  }
   const sub = subtaskIntent(text)
   if (sub) {
     if (!sub.items.length) { say(sub.text); return }

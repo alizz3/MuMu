@@ -500,6 +500,7 @@ const shortName = (e) => { const sj = state.subjects.find((x) => x.id === e.subj
           <span class="small muted">%</span>
         </div>
         <a v-if="taskLink" class="btn sm lav" style="margin-top:10px" :href="taskLink.url" target="_blank" rel="noopener"><Icon name="link" :size="14" />{{ linkLabel }}</a>
+        <button v-if="task.vref" type="button" class="btn sm lav" style="margin-top:10px" @click="close(); A.go('garaje', { id: task.vref.vehicleId, tab: task.vref.kind === 'doc' ? 'docs' : task.vref.kind === 'service' ? 'mant' : 'plan' })"><Icon name="moto" :size="14" />Abrir en Garaje</button>
 
         <!-- Recursos: guía, video, Drive… -->
         <div class="card tight soft" style="margin-top:10px">

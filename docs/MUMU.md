@@ -102,6 +102,21 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
   - Sabe cuándo llegas o sales de tu casa.
 - Se enlaza una vez en **Más → Alarmas → En tu celular**.
 
+## Garaje (Más → Garaje)
+
+- La **hoja de vida de cada vehículo**: motos, carros, camionetas u otros. Cada uno guarda sus propios datos y se puede archivar sin borrar nada. La primera es **Mi chiquita** (Honda Navi 110, 2021). La placa, la matrícula y el kilometraje quedan pendientes hasta que los registres.
+- **Panel:** kilometraje actual o "pendiente", último mantenimiento, alertas reales y, aparte, "Falta información" (lo que falta no se muestra como alerta). También el estado del SOAT y de la tecnomecánica, los próximos mantenimientos, el historial reciente, los últimos gastos, el manual y botones rápidos para Km, Mantenimiento, Combustible, Gasto, Documento y Archivo.
+- **Kilometraje:** historial de lecturas con la distancia entre ellas. Si una lectura baja, te pide confirmarla como corrección justificada.
+- **Historial de mantenimiento:** varias tareas en una sola visita, con lo que se le hizo a cada pieza (inspeccionar, limpiar, lubricar, ajustar, reemplazar…). Guarda repuestos, taller, mecánico, costos, archivos y notas. Puedes buscar y filtrar. Los trabajos "por confirmar" tienen el botón **Confirmar entrega** para elegir lo que de verdad se hizo, la fecha, el km y el costo.
+- **Talleres:** nombre, mecánico, ubicación con enlace al mapa y teléfono, con botones para llamar y escribir por WhatsApp.
+- **Plan:** cada componente puede avisar por km, por tiempo o por ambos, y cada plan muestra de dónde sale. Las sugerencias de una fuente externa quedan **sin activar** hasta que las confirmes con el manual. Sin el km de un trabajo, no se calcula el siguiente por distancia.
+- **Documentos:** SOAT, tecnomecánica y otros, con fechas reales, archivo, aviso anticipado e historial de renovaciones. También muestra la guía de la RUNT para la primera tecnomecánica de una moto.
+- **Gastos y combustible:** gasto del mes, acumulado, por categoría y de los últimos 6 meses. El consumo (km por litro o por galón) se calcula solo entre tanqueadas con tanque lleno y kilometraje.
+- **Archivos privados:** manuales, facturas y fotos se guardan en privado en tu cuenta (hasta 25 MB). El manual oficial de Honda se puede guardar con **Guardar copia**.
+- **Tareas:** los mantenimientos próximos o vencidos, los documentos por vencer y los trabajos por confirmar crean una tarea sin duplicarse. Desde la tarea, **Abrir en Garaje** te lleva al registro.
+- **Vaquita:** responde sin IA preguntas como "¿cuándo fue el último cambio de aceite?", "¿cuántos km tiene?", "¿qué mantenimiento está pendiente?", "¿cuánto he gastado este mes?", "¿cuándo vence el SOAT?" o "¿qué le hicieron en el último servicio?". Para "registra que hoy le puse gasolina por 20 mil", "tiene 15.200 km" o "recuérdame revisar los frenos", te pregunta antes de guardar. Con síntomas no diagnostica: te recomienda que la revise un técnico.
+- **Exportar hoja de vida (JSON)** desde la ficha del vehículo. Los detalles técnicos están en `docs/VEHICULOS.md`.
+
 ## Celular y redes
 
 - Registro del tiempo de pantalla: automático desde la app de Android, leyendo capturas de Bienestar digital (en el propio celular, sin IA de pago), compartiendo capturas a MuMu o a mano.
@@ -143,4 +158,4 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - La app de Android se enlaza con un código que solo vive en tu celular.
 
 ---
-Última actualización: 15 de octubre de 2026 (noche).
+Última actualización: 19 de octubre de 2026.
