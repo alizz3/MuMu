@@ -33,11 +33,11 @@ watch(sh, (s) => {
   if (!s) return
   const d = JSON.parse(JSON.stringify(s.data || {}))
   const base = {
-    vehicle: { type: 'moto', name: '', make: '', model: '', year: '', plate: '', registeredAt: '', color: '', fuelType: '', notes: '' },
+    vehicle: { type: 'moto', name: '', make: '', model: '', year: '', plate: '', registeredAt: '', color: '', fuelType: '', notes: '', driveFolder: '' },
     reading: { date: today, km: '', note: '', reason: '', correction: false, correctionNote: '' },
     service: { status: 'realizado', date: today, km: '', items: [{ component: '', action: 'reemplazar', detail: '' }], description: '', parts: '', shopId: '', mechanic: '', costParts: '', costLabor: '', costTotal: '', notes: '', followUp: '', nextKm: '', nextDate: '', expectedDate: '', expectedNote: '', fileIds: [] },
     plan: { component: '', action: 'inspeccionar', intervalKm: '', intervalMonths: '', nextKm: '', nextDate: '', leadKm: 300, leadDays: 15, notes: '', source: 'usuario', verification: 'usuario', sourceRef: '', page: '', active: true, autoTask: true },
-    doc: { kind: 'soat', name: '', issuedAt: '', expiresAt: '', number: '', issuer: '', notes: '', leadDays: '', cost: '', fileIds: [] },
+    doc: { kind: 'soat', name: '', issuedAt: '', expiresAt: '', number: '', issuer: '', notes: '', leadDays: '', cost: '', fileIds: [], driveFileId: '' },
     renew: { issuedAt: today, expiresAt: '', number: '', issuer: '', notes: '', cost: '', fileIds: [] },
     expense: { date: today, amount: '', category: 'otros', description: '', km: '', currency: 'COP', fileIds: [] },
     fuel: { date: today, km: '', qty: '', unit: 'L', amount: '', fuelType: '', station: '', notes: '', full: true },
@@ -62,7 +62,7 @@ async function save() {
   busy.value = true; err.value = ''
   try {
     const t = sh.value.type
-    if (t === 'vehicle') { const v = G.saveVehicle(f); toast('Guardado'); close(); if (!sh.value?.keep && ui.route === 'garaje' && !ui.params.id) import('../../store/actions').then((A) => A.go('garaje', { id: v.id })) }
+    if (t === 'vehicle') { if (pickedFile.value) { if (!f.vehicleId && f.id) f.vehicleId = f.id; const ph = await uploadFile(pickedFile.value, { vehicleId: f.id || 'nuevo', kind: 'foto', note: 'Foto del vehículo' }, (p) => (progress.value = p)); f.photoFileId = ph.id } const v = G.saveVehicle(f); if (f.photoFileId) { const ph = g.value.files.find((x) => x.id === f.photoFileId); if (ph && ph.vehicleId !== v.id) ph.vehicleId = v.id } toast('Guardado'); close(); if (!sh.value?.keep && ui.route === 'garaje' && !ui.params.id) import('../../store/actions').then((A) => A.go('garaje', { id: v.id })) }
     else if (t === 'reading') {
       const r = G.addReading({ ...f, correction: f.correction || !!lowerKm.value && f.correction })
       if (r.needsConfirm) { lowerKm.value = r.prev; err.value = `Es menor que la lectura anterior (${L.fmtKm(r.prev.km)} el ${L.fmtDate(r.prev.date)}). Si es una corrección, márcala y explica el motivo.`; return }
@@ -113,8 +113,10 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           <div class="grid2"><label class="field"><span>Fecha de matrícula</span><input class="input" type="date" v-model="f.registeredAt" :max="today" /></label><label class="field"><span>Color</span><input class="input" v-model="f.color" /></label></div>
           <label class="field"><span>Combustible</span><input class="input" v-model="f.fuelType" placeholder="Ej. Gasolina corriente" /></label>
           <label v-if="f.type === 'moto'" class="field"><span>Transmisión</span><input class="input" :value="f.specs?.transmision || ''" @input="f.specs = { ...(f.specs || {}), transmision: $event.target.value }" placeholder="Ej. Automática (CVT con correa) o cadena" /></label>
+          <label class="field"><span>Foto</span><input class="input" type="file" accept="image/*" @change="pickedFile = $event.target.files[0]" /></label>
+          <label class="field"><span>Carpeta de Drive con sus documentos</span><input class="input" v-model="f.driveFolder" placeholder="Pega el enlace de la carpeta" /></label>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2"></textarea></label>
-          <p class="tiny muted">La placa, la matrícula y los documentos son privados: solo tus cuentas los ven.</p>
+          <p class="tiny muted">La placa, la matrícula, la foto y los documentos son privados: solo tus cuentas los ven.</p>
         </template>
 
         <!-- Kilometraje -->
@@ -190,6 +192,7 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           <div class="grid2"><label class="field"><span>Número o referencia</span><input class="input" v-model="f.number" /></label><label class="field"><span>Entidad</span><input class="input" v-model="f.issuer" placeholder="Aseguradora, CDA…" /></label></div>
           <div class="grid2"><label class="field"><span>Avisar (días antes)</span><input class="input" type="number" inputmode="numeric" v-model="f.leadDays" :placeholder="String(DOC_KINDS.find((k) => k.id === f.kind)?.lead ?? 30)" /></label><label class="field"><span>Valor pagado $</span><input class="input" type="number" inputmode="numeric" v-model="f.cost" /></label></div>
           <label class="field"><span>Foto o PDF (opcional)</span><input ref="fileInput" class="input" type="file" accept="application/pdf,image/*" @change="pickedFile = $event.target.files[0]" /></label>
+          <label class="field"><span>…o enlace del archivo en Drive</span><input class="input" v-model="f.driveFileId" placeholder="https://drive.google.com/file/d/…" /></label>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2"></textarea></label>
           <p class="tiny muted">Escribe la fecha de vencimiento que dice tu documento: MuMu no la adivina.</p>
         </template>

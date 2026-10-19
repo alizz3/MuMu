@@ -435,8 +435,14 @@ export function driveAccount() {
 // Carpeta del semestre y de cada materia: la que pegaste como enlace o la que MuMu encontró sola
 export const semesterFolder = () => state.settings.semesterDrive || (state.settings.semesterLinks || []).map((l) => folderIdFrom(l.url)).find(Boolean) || null
 export const subjectFolder = (s) => s && (s.driveFolder || (s.links || []).map((l) => folderIdFrom(l.url)).find(Boolean) || null)
-export async function listDrive(folder) {
-  const a = driveAccount(); if (!a) throw new Error('Dale a una cuenta el permiso "Google Drive" en Configuración → Cuentas.')
+// Cuentas con permiso de Drive, en orden: la de la U primero (Estudios) o la personal primero (Garaje)
+export function driveAccounts(prefer = 'ut') {
+  const accs = state.integrations.google.filter((a) => a.services.includes('drive'))
+  const ut = (a) => /ut\.edu\.co$/i.test(a.email || '')
+  return [...accs].sort((a, b) => (prefer === 'personal' ? ut(a) - ut(b) : ut(b) - ut(a)))
+}
+export async function listDrive(folder, accountId = null) {
+  const a = accountId ? { id: accountId } : driveAccount(); if (!a) throw new Error('Dale a una cuenta el permiso "Google Drive" en Configuración → Cuentas.')
   return call(`drive/list?account=${a.id}&folder=${encodeURIComponent(folder)}`)
 }
 // Dentro de la carpeta del semestre, cada subcarpeta ("2. Elementos de Programación…") se une con su materia

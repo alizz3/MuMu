@@ -10,11 +10,13 @@ import Seg from '../components/Seg.vue'
 import GroupCard from '../components/GroupCard.vue'
 import ListBar from '../components/ListBar.vue'
 import GarageSheet from '../modules/vehicles/GarageSheet.vue'
+import VehiclePhoto from '../modules/vehicles/VehiclePhoto.vue'
+import DriveBrowser from '../components/DriveBrowser.vue'
 import * as G from '../modules/vehicles/actions'
 import * as L from '../modules/vehicles/logic'
 import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS } from '../modules/vehicles/model'
 import { openFile, deleteFile, saveManualCopy } from '../modules/vehicles/files'
-import { canUseBackend } from '../services/api'
+import { canUseBackend, driveAccounts } from '../services/api'
 
 const g = computed(() => G.garage())
 onMounted(() => { G.ensureVehiclesSeed(); G.syncVehicleTasks() })
@@ -90,6 +92,11 @@ const waUrl = (p) => `https://wa.me/${String(p).replace(/\D/g, '').replace(/^(?!
 const mapsOf = (s) => s.mapsUrl || (s.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}` : '')
 function wantTask(x) { G.wantTask(x.p.id, true); toast(x.nextDate || x.nextKm != null ? 'Listo: tendrás una tarea cuando toque' : 'Cuando haya fecha o km de referencia, aparecerá la tarea') }
 async function delVehicleFile(fm) { return delFile(fm) }
+// Documentos que están en tu Drive: se ven aquí mismo
+const drivePv = ref(null)
+const au = () => { const a = driveAccounts('personal')[0]; return a?.email ? `?authuser=${encodeURIComponent(a.email)}` : '' }
+const drivePreviewUrl = (id) => `https://drive.google.com/file/d/${id}/preview${au()}`
+const driveOpenUrl = (id) => `https://drive.google.com/file/d/${id}/view${au()}`
 </script>
 
 <template>
@@ -99,7 +106,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
       <p v-if="vid" class="small muted">Ese vehículo ya no existe.</p>
       <ListBar :count="active.length" one="vehículo" many="vehículos"><template #end><button class="iconbtn add" aria-label="Nuevo vehículo" @click="open('vehicle')"><Icon name="plus" /></button></template></ListBar>
       <button v-for="x in active" :key="x.id" class="card row veh" @click="A.go('garaje', { id: x.id })">
-        <span class="gico big" :style="{ background: 'color-mix(in srgb, #C3B3D4 40%, var(--surface))' }"><Icon :name="typeOf(x.type).icon" :size="26" /></span>
+        <VehiclePhoto :vehicle="x" :size="56" :icon="typeOf(x.type).icon" />
         <div class="grow" style="min-width:0">
           <div class="b">{{ x.name }}</div>
           <div class="tiny muted">{{ [x.make, x.model, x.year].filter(Boolean).join(' · ') }}{{ x.plate ? ` · ${x.plate}` : '' }}</div>
@@ -129,7 +136,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
     <template v-else>
       <section class="card pink">
         <div class="row" style="gap:12px;align-items:flex-start">
-          <span class="gico big" style="background:var(--surface)"><Icon :name="typeOf(v.type).icon" :size="28" /></span>
+          <button class="phbtn" :aria-label="v.photoFileId ? 'Cambiar foto' : 'Poner foto'" @click="open('vehicle', v)"><VehiclePhoto :vehicle="v" :size="72" :icon="typeOf(v.type).icon" /><span v-if="!v.photoFileId" class="phadd"><Icon name="plus" :size="12" /></span></button>
           <div class="grow" style="min-width:0">
             <h2 style="margin:0;font-size:20px">{{ v.name }} <span v-if="v.archived" class="badge">Archivado</span></h2>
             <div class="small muted">{{ [typeOf(v.type).label, v.make, v.model, v.year].filter(Boolean).join(' · ') }}</div>
@@ -244,6 +251,7 @@ async function delVehicleFile(fm) { return delFile(fm) }
       <!-- Documentos -->
       <template v-else-if="tab === 'docs'">
         <div class="row between"><p class="tiny muted grow">Escribe las fechas reales de tus documentos. MuMu te avisa antes de que venzan.</p><button class="btn sm primary" @click="open('doc')"><Icon name="plus" :size="14" />Documento</button></div>
+        <button v-if="v.driveFolder" class="link small" style="align-self:flex-start" @click="tab = 'archivos'"><Icon name="folder" :size="13" class="inl" /> Ver la carpeta de Drive</button>
         <section v-for="k in ['soat', 'rtm']" :key="k" v-show="!docs.some((d) => d.kind === k)" class="card soft">
           <b class="small">{{ DOC_KINDS.find((x) => x.id === k).label }}</b>
           <p class="tiny muted" style="margin-top:4px">Sin registrar.</p>
@@ -255,11 +263,11 @@ async function delVehicleFile(fm) { return delFile(fm) }
           <div class="row between" style="gap:8px"><b class="small">{{ d.name }}</b><span class="badge" :class="L.docStatus(d).badge">{{ L.docStatus(d).label }}</span></div>
           <p class="tiny muted" style="margin-top:4px">{{ [d.issuedAt && `Expedido ${L.fmtDate(d.issuedAt)}`, d.expiresAt && `Vence ${L.fmtDate(d.expiresAt)}`, d.number && `N.º ${d.number}`, d.issuer].filter(Boolean).join(' · ') }}</p>
           <p v-if="d.notes" class="tiny muted">{{ d.notes }}</p>
-          <div class="row wrap" style="gap:6px;margin-top:8px"><button v-for="id in d.fileIds || []" :key="id" class="chip" @click="fileOf(id) && view(fileOf(id))"><Icon name="clip" :size="12" />{{ fileOf(id)?.name || 'Archivo' }}</button>
+          <div class="row wrap" style="gap:6px;margin-top:8px"><button v-if="d.driveFileId" class="chip" @click="drivePv = { id: d.driveFileId, name: d.name }"><Icon name="eye" :size="12" />Ver documento</button><button v-for="id in d.fileIds || []" :key="id" class="chip" @click="fileOf(id) && view(fileOf(id))"><Icon name="clip" :size="12" />{{ fileOf(id)?.name || 'Archivo' }}</button>
             <button v-if="d.kind !== 'tarjeta'" class="btn sm lav" @click="open('renew', { oldId: d.id })"><Icon name="refresh" :size="13" />Renovar</button><button class="btn sm ghost" @click="open('doc', d)"><Icon name="edit" :size="13" />Editar</button></div>
         </section>
         <GroupCard v-if="oldDocs.length" title="Historial de renovaciones" icon="clock" :count="oldDocs.length" :open="isOpen('olddocs')" @toggle="toggle('olddocs')">
-          <div v-for="d in oldDocs" :key="d.id" class="item"><span class="grow small">{{ d.name }} <span class="muted tiny">· {{ L.fmtDate(d.issuedAt) }} – {{ L.fmtDate(d.expiresAt) }}{{ d.number ? ` · ${d.number}` : '' }}</span></span><button class="iconbtn" aria-label="Ver" @click="open('doc', d)"><Icon name="eye" :size="15" /></button></div>
+          <div v-for="d in oldDocs" :key="d.id" class="item"><span class="grow small">{{ d.name }} <span class="muted tiny">· {{ L.fmtDate(d.issuedAt) }} – {{ L.fmtDate(d.expiresAt) }}{{ d.issuer ? ` · ${d.issuer}` : '' }}{{ d.cost ? ` · ${L.fmtMoney(d.cost)}` : '' }}</span></span><button v-if="d.driveFileId" class="iconbtn" aria-label="Ver documento" @click="drivePv = { id: d.driveFileId, name: `${d.name} (${L.fmtDate(d.issuedAt)})` }"><Icon name="eye" :size="15" /></button><button class="iconbtn" aria-label="Editar" @click="open('doc', d)"><Icon name="edit" :size="15" /></button></div>
         </GroupCard>
       </template>
 
@@ -300,7 +308,9 @@ async function delVehicleFile(fm) { return delFile(fm) }
 
       <!-- Archivos -->
       <template v-else-if="tab === 'archivos'">
-        <div class="row between"><p class="tiny muted grow">Se guardan en privado en tu cuenta (sin enlaces públicos).</p><button class="btn sm primary" @click="open('file')"><Icon name="plus" :size="14" />Archivo</button></div>
+        <section v-if="v.driveFolder" class="card"><DriveBrowser :root="v.driveFolder" prefer="personal" :height="380" title="Carpeta en Drive" icon="folder" /></section>
+        <button v-else class="card row" style="gap:10px;text-align:left;width:100%" @click="open('vehicle', v)"><span class="gico"><Icon name="folder" :size="18" /></span><span class="grow small"><b>Conectar carpeta de Drive</b><span class="tiny muted" style="display:block">Ve tus documentos por año sin volver a subirlos</span></span><Icon name="plus" :size="16" class="muted" /></button>
+        <div class="row between"><p class="tiny muted grow">Archivos guardados en MuMu, en privado (sin enlaces públicos).</p><button class="btn sm primary" @click="open('file')"><Icon name="plus" :size="14" />Archivo</button></div>
         <GroupCard v-for="k in FILE_KINDS.filter((x) => files.some((f) => f.kind === x.id))" :key="k.id" :title="k.label" icon="clip" :count="files.filter((f) => f.kind === k.id).length" :open="isOpen(`f_${k.id}`, true)" @toggle="toggle(`f_${k.id}`, true)">
           <div v-for="fm in files.filter((f) => f.kind === k.id)" :key="fm.id" class="item" style="align-items:flex-start">
             <div class="grow small" style="min-width:0">{{ fm.name }}<div class="tiny muted">{{ fm.storage === 'link' ? 'Enlace externo' : `Guardado en MuMu · ${(fm.size / 1048576).toFixed(1)} MB` }}{{ fm.note ? ` · ${fm.note}` : '' }}</div></div>
@@ -335,11 +345,24 @@ async function delVehicleFile(fm) { return delFile(fm) }
       </template>
       <button class="btn ghost" style="align-self:flex-start" @click="A.go('garaje')"><Icon name="back" :size="16" />Todos los vehículos</button>
     </template>
+    <div v-if="drivePv" class="pv" role="dialog" aria-modal="true" :aria-label="drivePv.name" @click.self="drivePv = null">
+      <div class="pv-box">
+        <div class="pv-top"><b class="pv-name">{{ drivePv.name }}</b><a class="btn sm lav" :href="driveOpenUrl(drivePv.id)" target="_blank" rel="noopener">Abrir en Drive ↗</a><button class="iconbtn" aria-label="Cerrar" @click="drivePv = null"><Icon name="x" :size="18" /></button></div>
+        <iframe class="pv-frame" :src="drivePreviewUrl(drivePv.id)" :title="drivePv.name" allow="fullscreen" allowfullscreen></iframe>
+      </div>
+    </div>
     <GarageSheet />
   </div>
 </template>
 
 <style scoped>
+.phbtn { position: relative; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 16px; flex: none; }
+.phadd { position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--pink-700, #A84268); color: #fff; }
+.pv { position: fixed; inset: 0; z-index: 80; background: rgba(20, 12, 24, .55); display: grid; place-items: center; padding: 12px; }
+.pv-box { width: min(1000px, 100%); height: min(92dvh, 900px); background: var(--surface); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+.pv-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.pv-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.pv-frame { flex: 1; width: 100%; border: 0; background: #fff; }
 .spec { display: grid; grid-template-columns: 38% 1fr; gap: 8px; }
 .veh .badge { white-space: normal; text-align: left; line-height: 1.3; }
 .veh { text-align: left; cursor: pointer; width: 100%; gap: 12px; align-items: flex-start; }

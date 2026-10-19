@@ -39,6 +39,12 @@ El navegador arma el archivo en tu equipo, sin enlaces públicos. El límite es 
 
 El botón "Guardar copia" del manual hace que el servidor descargue el PDF oficial. Solo acepta los dominios de Honda.
 
+## Drive y foto
+
+- `vehicle.driveFolder`: id de la carpeta de Drive (se acepta enlace; `driveId()` lo limpia). La pestaña Archivos usa `DriveBrowser` con `prefer="personal"`.
+- `document.driveFileId`: id del archivo en Drive. La vista previa usa `drive.google.com/file/d/{id}/preview?authuser=…` en un iframe; Drive aplica sus propios permisos, MuMu no hace público nada.
+- `vehicle.photoFileId`: archivo privado (`kind: 'foto'`) en `secrets/_vfiles`; lo muestra `VehiclePhoto.vue`.
+
 ## Recordatorios
 
 Cada aviso real tiene una sola tarea de MuMu, identificada por `task.vref.key`. Los avisos son tres: mantenimiento próximo o vencido, documento por vencer o vencido, y trabajo por confirmar.

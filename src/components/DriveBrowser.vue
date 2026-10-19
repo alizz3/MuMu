@@ -1,10 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { listDrive, driveAccount } from '../services/api'
+import { listDrive, driveAccounts } from '../services/api'
 import { Icon } from './ui'
 
 // Explorador de Drive dentro de MuMu: carpetas, archivos y vista previa sin salir de la app
-const props = defineProps({ root: { type: String, required: true }, height: { type: Number, default: 0 }, title: { type: String, default: '' }, icon: { type: String, default: '' } })
+const props = defineProps({ prefer: { type: String, default: 'ut' }, root: { type: String, required: true }, height: { type: Number, default: 0 }, title: { type: String, default: '' }, icon: { type: String, default: '' } })
 // Con título se ve plegado: solo el encabezado; al tocarlo se abre y al tocarlo otra vez se cierra
 const open = ref(!props.title)
 const rootName = ref('')
@@ -13,7 +13,10 @@ const items = ref([])
 const loading = ref(false)
 const error = ref('')
 const preview = ref(null)
-const acc = computed(() => driveAccount())
+// Prueba con cada cuenta que tenga Drive (la carpeta puede ser de tu Gmail o de la U)
+const accIdx = ref(0)
+const accs = computed(() => driveAccounts(props.prefer))
+const acc = computed(() => accs.value[accIdx.value] || accs.value[0] || null)
 const here = computed(() => path.value[path.value.length - 1]?.id || props.root)
 const au = computed(() => (acc.value?.email ? `authuser=${encodeURIComponent(acc.value.email)}` : ''))
 
@@ -21,12 +24,15 @@ async function load() {
   if (!acc.value) return
   loading.value = true; error.value = ''
   try {
-    const r = await listDrive(here.value)
+    let r
+    for (;;) {
+      try { r = await listDrive(here.value, acc.value.id); break } catch (e) { if (accIdx.value < accs.value.length - 1 && !path.value.length) { accIdx.value++; continue } throw e }
+    }
     items.value = r.items
     if (!path.value.length) { path.value = [{ id: r.folder.id, name: r.folder.name }]; rootName.value = r.folder.name }
   } catch (e) { error.value = e.message } finally { loading.value = false }
 }
-watch(() => [props.root, acc.value?.id], () => { path.value = []; load() }, { immediate: true })
+watch(() => [props.root, accs.value.map((a) => a.id).join()], () => { path.value = []; accIdx.value = 0; load() }, { immediate: true })
 function openItem(f) {
   if (f.folder) { path.value = [...path.value, { id: f.id, name: f.name }]; load() }
   else preview.value = f

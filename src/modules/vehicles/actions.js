@@ -11,6 +11,8 @@ const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Nu
 const isDay = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k || '')
 const clean = (s, max = 2000) => String(s ?? '').trim().slice(0, max)
 export class VError extends Error {}
+// Acepta el enlace de Drive o el id y guarda solo el id
+export const driveId = (s) => (String(s || '').match(/(?:folders|file\/d)\/([\w-]{10,100})/) || String(s || '').match(/[?&]id=([\w-]{10,100})/) || [])[1] || (/^[\w-]{20,100}$/.test(String(s || '').trim()) ? String(s).trim() : null)
 
 export function garage() {
   if (!state.vehicles || typeof state.vehicles !== 'object' || Array.isArray(state.vehicles)) state.vehicles = emptyGarage()
@@ -33,7 +35,7 @@ export function saveVehicle(d) {
   const year = num(d.year)
   if (year != null && (year < 1950 || year > new Date().getFullYear() + 1)) throw new VError('Revisa el año del modelo')
   if (d.registeredAt && !isDay(d.registeredAt)) throw new VError('Fecha de matrícula inválida')
-  return upsert('vehicles', { id: d.id, type: d.type || 'moto', name, make: clean(d.make, 60), model: clean(d.model, 60), year, plate: clean(d.plate, 12).toUpperCase(), registeredAt: d.registeredAt || null, color: clean(d.color, 30), fuelType: clean(d.fuelType, 40), distanceUnit: 'km', specs: d.specs || {}, notes: clean(d.notes), photoFileId: d.photoFileId || null, archived: !!d.archived, owner: d.owner || null }, 'veh')
+  return upsert('vehicles', { id: d.id, type: d.type || 'moto', name, make: clean(d.make, 60), model: clean(d.model, 60), year, plate: clean(d.plate, 12).toUpperCase(), registeredAt: d.registeredAt || null, color: clean(d.color, 30), fuelType: clean(d.fuelType, 40), distanceUnit: 'km', specs: d.specs || {}, notes: clean(d.notes), photoFileId: d.photoFileId || null, driveFolder: driveId(d.driveFolder), archived: !!d.archived, owner: d.owner || null }, 'veh')
 }
 export function archiveVehicle(id, archived = true) { const v = L.vehicleOf(garage(), id); if (v) { v.archived = archived; touch(v) } }
 
@@ -141,7 +143,7 @@ export function saveDocument(d) {
   if (d.issuedAt && !isDay(d.issuedAt)) throw new VError('Fecha de expedición inválida')
   if (d.issuedAt && d.expiresAt && d.expiresAt < d.issuedAt) throw new VError('El vencimiento no puede ser antes de la expedición')
   const kind = DOC_KINDS.find((k) => k.id === d.kind)
-  return upsert('documents', { id: d.id, vehicleId: d.vehicleId, kind: d.kind, name: clean(d.name, 80) || (kind?.short || kind?.label), issuedAt: d.issuedAt || null, expiresAt: d.expiresAt || null, number: clean(d.number, 60), issuer: clean(d.issuer, 80), notes: clean(d.notes), fileIds: d.fileIds || [], leadDays: num(d.leadDays) ?? kind?.lead ?? 30, status: d.status || 'vigente', renewedFrom: d.renewedFrom || null, cost: num(d.cost) }, 'doc')
+  return upsert('documents', { id: d.id, vehicleId: d.vehicleId, kind: d.kind, name: clean(d.name, 80) || (kind?.short || kind?.label), issuedAt: d.issuedAt || null, expiresAt: d.expiresAt || null, number: clean(d.number, 60), issuer: clean(d.issuer, 80), notes: clean(d.notes), fileIds: d.fileIds || [], driveFileId: driveId(d.driveFileId), leadDays: num(d.leadDays) ?? kind?.lead ?? 30, status: d.status || 'vigente', renewedFrom: d.renewedFrom || null, cost: num(d.cost) }, 'doc')
 }
 // Renovar: el anterior queda en el historial (reemplazado) y nace el nuevo periodo
 export function renewDocument(oldId, d) {
@@ -289,19 +291,22 @@ export function importGarage(data) {
   const vin = d.vehicle || {}
   let v = g.vehicles.find((x) => x.id === vin.match || x.name.toLowerCase() === String(vin.match || vin.name || '').toLowerCase())
   if (!v) v = saveVehicle({ type: vin.type || 'moto', name: vin.name || 'Vehículo', make: vin.make, model: vin.model, year: vin.year })
-  const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes']
-  for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : vin[k]
+  const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes', 'driveFolder']
+  for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : k === 'driveFolder' ? driveId(vin[k]) : vin[k]
   if (vin.specs) v.specs = { ...(v.specs || {}), ...vin.specs }
   touch(v)
   let added = 0
   for (const doc of d.documents || []) {
     const same = g.documents.find((x) => x.vehicleId === v.id && x.kind === doc.kind && ((doc.number && x.number === doc.number) || (doc.expiresAt && x.expiresAt === doc.expiresAt)))
     if (same) { Object.assign(same, { ...doc, id: same.id, vehicleId: v.id }); touch(same); continue }
-    const prev = g.documents.find((x) => x.vehicleId === v.id && x.kind === doc.kind && x.status !== 'reemplazado' && doc.kind !== 'otro' && doc.kind !== 'tarjeta')
     const n = saveDocument({ ...doc, vehicleId: v.id })
-    if (prev && (prev.expiresAt || '') < (n.expiresAt || '')) { prev.status = 'reemplazado'; prev.replacedBy = n.id; n.renewedFrom = prev.id }
     if (doc.cost && doc.kind !== 'tarjeta' && !g.expenses.some((e) => e.docId === n.id)) upsert('expenses', { vehicleId: v.id, date: doc.issuedAt || L.today(), amount: Number(doc.cost), currency: 'COP', category: 'documentos', description: n.name, docId: n.id, auto: true }, 'exp')
     added++
+  }
+  // Historial de renovaciones: por tipo, el que vence más tarde queda vigente y los demás encadenados
+  for (const kind of new Set(g.documents.filter((x) => x.vehicleId === v.id && x.kind !== 'otro' && x.kind !== 'tarjeta').map((x) => x.kind))) {
+    const list = g.documents.filter((x) => x.vehicleId === v.id && x.kind === kind && x.expiresAt).sort((a, b) => (a.expiresAt < b.expiresAt ? -1 : 1))
+    list.forEach((x, i) => { const nx = list[i + 1]; if (nx) { x.status = 'reemplazado'; x.replacedBy = nx.id; nx.renewedFrom = x.id } else { x.status = 'vigente'; x.replacedBy = null } })
   }
   for (const r of d.readings || []) if (!g.readings.some((x) => x.vehicleId === v.id && x.date === r.date && x.km === r.km)) { const res = addReading({ ...r, vehicleId: v.id }); if (res.ok) added++ }
   for (const sh of d.shops || []) if (!g.shops.some((x) => x.name.toLowerCase() === String(sh.name || '').toLowerCase())) { saveShop(sh); added++ }
