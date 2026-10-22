@@ -42,6 +42,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - Campos: título (se puede **dictar**), notas, enlace, prioridad, estado, fecha y **hora límite** (solo se muestra si la tiene), duración, objetivo, etiquetas, subtareas y **nota** (0–5 con su porcentaje) en las de la U.
 - **Tareas en grupo (CIPA):** marcas que es en grupo, eliges quién la sube, abres el chat del grupo (Google Chat con la cuenta de la U o WhatsApp) con un mensaje ya copiado, y **"Ya la subió…"** la da por hecha.
 - **Google Tasks en las dos vías:** lo personal en tu cuenta personal y lo de la U en la de la U; una lista por materia, por proyecto y por hábito. Si borras o editas en un lado, cambia en el otro.
+- Al marcar una tarea como hecha, el título se raya, la fila se recoge y la tarea reaparece suave al final (o en Completadas). Si tu celular tiene "reducir movimiento" activado, se hace sin animación.
 
 ## Estudios (antes Universidad)
 
