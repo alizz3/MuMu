@@ -487,6 +487,8 @@ export function mergeSubtasks(t, list) {
   }
   return n
 }
+// Para comparar títulos sin importar mayúsculas, tildes ni espacios de más
+const sinTildes = (x = '') => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
 export function importProject(data) {
   if (data?.garage) { importGarageHook(data); if (!data.project && !data.tasks?.length && !data.habits?.length && !data.subjects?.length && !data.subjectTasks?.length && !data.goals?.length) return null }
   const s = (v, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
@@ -550,9 +552,11 @@ export function importProject(data) {
   const CATS = ['universidad', 'trabajo', 'aprendizaje', 'personal', 'vida', 'familia', 'espiritualidad', 'finanzas']
   ;(Array.isArray(data.tasks) ? data.tasks : []).slice(0, 100).forEach((t) => {
     if (!s(t?.title)) return
-    const ya = state.tasks.find((o) => o.title.trim().toLowerCase() === s(t.title, 200).toLowerCase() && o.status !== 'cancelada' && (o.projectId === target.id || !o.projectId || !state.projects.some((x) => x.id === o.projectId)))
-    if (ya) { ya.projectId = target.id; mergeSubtasks(ya, t.subtasks); return }
-    addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), url: /^https?:\/\//.test(t.url || '') ? s(t.url, 500) : null, projectId: target.id, category: CATS.includes(t.category) ? t.category : 'trabajo', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true })
+    const ya = state.tasks.find((o) => sinTildes(o.title) === sinTildes(s(t.title, 200)) && o.status !== 'cancelada' && (o.projectId === target.id || !o.projectId || !state.projects.some((x) => x.id === o.projectId)))
+    // "done": true → la tarea queda como hecha (si ya existía, se completa; si no, se crea ya hecha)
+    if (ya) { ya.projectId = target.id; mergeSubtasks(ya, t.subtasks); if (t.done === true) completeTask(ya.id); return }
+    const nueva = addTask({ title: s(t.title, 200), notes: s(t.notes, 1500), url: /^https?:\/\//.test(t.url || '') ? s(t.url, 500) : null, projectId: target.id, category: CATS.includes(t.category) ? t.category : 'trabajo', priority: ['alta', 'media', 'baja'].includes(t.priority) ? t.priority : 'media', estimate: Math.min(600, Math.max(5, Number(t.estimate) || 60)), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null, subtasks: (Array.isArray(t.subtasks) ? t.subtasks : []).slice(0, 15).map((x) => ({ id: uid('st'), title: s(x, 120), done: false })).filter((x) => x.title) }, { quiet: true })
+    if (t.done === true) completeTask(nueva.id)
   })
   return target
 }

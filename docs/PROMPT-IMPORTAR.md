@@ -22,7 +22,7 @@ Formato (todas las partes son opcionales):
     "goal": 0
   },
   "tasks": [
-    { "title": "Tarea del proyecto", "notes": "detalle opcional", "priority": "alta | media | baja", "due": "2026-10-20", "estimate": 60, "category": "trabajo | universidad | aprendizaje | personal", "subtasks": ["paso 1", "paso 2"] }
+    { "title": "Tarea del proyecto", "notes": "detalle opcional", "priority": "alta | media | baja", "due": "2026-10-20", "estimate": 60, "category": "trabajo | universidad | aprendizaje | personal", "subtasks": ["paso 1", "paso 2"], "done": false }
   ],
   "goals": [
     { "name": "Objetivo", "description": "Cómo sé que lo logré", "category": "carrera | universidad | trabajo | dinero | aprendizaje | inglés | vida personal | familia | espiritualidad | proyectos | bienestar", "due": "2027-06-30" }
@@ -43,6 +43,7 @@ Formato (todas las partes son opcionales):
 ```
 
 Notas:
+- "done": true marca la tarea como hecha (si ya existe con el mismo título, la completa; si no, la crea ya hecha).
 - "goal": 0 en el proyecto lo une al primer objetivo de "goals".
 - "subject": 0 en "events" y "subjectTasks" los une a la primera materia de "subjects".
 - "tasks" van dentro del proyecto si hay "project"; si no, quedan sueltas (o en el primer hábito de "habits").
