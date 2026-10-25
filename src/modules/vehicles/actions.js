@@ -314,7 +314,13 @@ export function importGarage(data) {
     list.forEach((x, i) => { const nx = list[i + 1]; if (nx) { x.status = 'reemplazado'; x.replacedBy = nx.id; nx.renewedFrom = x.id } else { x.status = 'vigente'; x.replacedBy = null } })
   }
   for (const r of d.readings || []) if (!g.readings.some((x) => x.vehicleId === v.id && x.date === r.date && x.km === r.km)) { const res = addReading({ ...r, vehicleId: v.id }); if (res.ok) added++ }
-  for (const sh of d.shops || []) if (!g.shops.some((x) => x.name.toLowerCase() === String(sh.name || '').toLowerCase())) { saveShop(sh); added++ }
+  // Talleres: se actualizan si ya existen (por nombre, o por "match" con el nombre anterior); si no, se crean
+  for (const sh of d.shops || []) {
+    const names = [sh.name, sh.match].filter(Boolean).map((x) => String(x).toLowerCase())
+    const old = g.shops.find((x) => names.includes(x.name.toLowerCase()))
+    const { match, ...rest } = sh
+    saveShop({ ...(old || {}), ...rest, id: old?.id }); if (!old) added++
+  }
   // Trabajos: "match" actualiza uno que ya existe (por id); si no, se crea uno nuevo sin repetir (misma fecha y descripción)
   const shopId = (name) => (name ? g.shops.find((x) => x.name.toLowerCase() === String(name).toLowerCase())?.id || null : null)
   for (const sv of d.services || []) {
