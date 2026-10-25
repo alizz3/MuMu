@@ -161,14 +161,16 @@ export const NAVI_MANUAL_PLANS = [
 export const NAVI_SPECS = {
   aceite: 'Honda 4T SAE 10W-30, API SJ o superior, JASO MB · 0,70 L al drenar (0,80 L con filtro tamiz)',
   bujia: 'NGK MR7C-9N · separación 0,8–0,9 mm',
-  llantas: 'Del. 90/90-12 · Tras. 90/100-10 (sin cámara)',
-  presion: 'Del. 150 kPa · Tras. 200 kPa (250 kPa con pasajero), en frío',
+  llantas: 'Del. 90/90-12 54J · Tras. 90/100-10 53J · sin cámara (tubeless)',
+  presion: 'En frío · Sola: del. 150 kPa (22 psi), tras. 200 kPa (29 psi) · Con pasajero: del. 150 kPa (22 psi), tras. 250 kPa (36 psi)',
+  marcasLlantas: 'Originales: MRF Zapper-FG / Zapper · TVS Conta 350 / Conta 350M · CEAT Zoom-Hi / Zoom-D (del. / tras.)',
+  etiquetaLlantas: 'Debajo del asiento (etiqueta "Información sobre neumáticos")',
   combustible: 'Gasolina sin plomo RON 91 o más (hasta 10 % etanol) · tanque 3,5 L',
   ralenti: '1.700 ± 100 rpm',
   aceiteTransmision: '0,10 L al drenar (0,12 L tras desmontar)',
   bateria: 'Exenta de mantenimiento (12 V-3 Ah; la referencia cambia según el país)',
 }
-export const SPEC_LABELS = { linea: 'Línea', cilindraje: 'Cilindraje', potencia: 'Potencia', servicio: 'Servicio', motor: 'N.º de motor', vin: 'VIN / chasis', organismo: 'Organismo de tránsito', transmision: 'Transmisión', aceite: 'Aceite del motor', bujia: 'Bujía', llantas: 'Llantas', presion: 'Presión de llantas', combustible: 'Combustible', ralenti: 'Ralentí', aceiteTransmision: 'Aceite de transmisión', bateria: 'Batería' }
+export const SPEC_LABELS = { linea: 'Línea', cilindraje: 'Cilindraje', potencia: 'Potencia', servicio: 'Servicio', motor: 'N.º de motor', vin: 'VIN / chasis', organismo: 'Organismo de tránsito', transmision: 'Transmisión', aceite: 'Aceite del motor', bujia: 'Bujía', llantas: 'Llantas', presion: 'Presión de llantas', marcasLlantas: 'Marcas de llantas', etiquetaLlantas: 'Dónde está la etiqueta', combustible: 'Combustible', ralenti: 'Ralentí', aceiteTransmision: 'Aceite de transmisión', bateria: 'Batería' }
 
 export function minaviSeed() {
   return {

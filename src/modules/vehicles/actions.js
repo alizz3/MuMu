@@ -227,6 +227,11 @@ export function ensureVehiclesSeed() {
     if (v) { v.specs = { ...NAVI_SPECS, ...(v.specs || {}) }; if (!v.fuelType || v.fuelType === 'Gasolina corriente') v.fuelType = 'Gasolina corriente (RON 91 o más)'; touch(v) }
     mark('minavi-specs-v1')
   }
+  if (!done.has('minavi-specs-v2')) { // etiqueta de llantas de la moto (foto de Aliz): psi, índices y marcas originales
+    const v = g.vehicles.find((x) => x.id === MINAVI_ID)
+    if (v) { const s = v.specs || {}; v.specs = { ...s, llantas: NAVI_SPECS.llantas, presion: NAVI_SPECS.presion, marcasLlantas: s.marcasLlantas || NAVI_SPECS.marcasLlantas, etiquetaLlantas: s.etiquetaLlantas || NAVI_SPECS.etiquetaLlantas }; touch(v) }
+    mark('minavi-specs-v2')
+  }
   if (!done.has('minavi-manual')) {
     if (!g.files.some((f) => f.vehicleId === MINAVI_ID && f.kind === 'manual')) g.files.push({ id: 'file_minavi_manual_link', vehicleId: MINAVI_ID, name: 'Manual del propietario Honda Navi (enlace oficial)', mime: 'application/pdf', kind: 'manual', storage: 'link', url: HONDA_NAVI_MANUAL, source: 'Honda Colombia', note: 'Enlace al PDF oficial. Toca "Guardar copia" para tenerlo guardado en privado en MuMu.', createdAt: now(), updatedAt: now() })
     mark('minavi-manual')

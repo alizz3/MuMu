@@ -40,6 +40,11 @@ export function vehicleReply(text) {
   if (pv.none) return { text: 'Todavía no tienes vehículos en el Garaje.', actions: [{ label: 'Abrir Garaje', primary: true, run: () => { go('garaje'); ui.assistantOpen = false } }] }
   if (pv.ask) return { text: pv.ask }
   const v = pv.v, id = v.id
+  // Llantas: presión y medida, tal como dice la ficha (sin inventar)
+  if (/llantas?|neumatic|presion/.test(s) && /\b(que|cual|cuanto|cuanta|como|presion|medida|psi|aire)\b/.test(s) && !/\b(registra|anota|cambie|cambio|recuerdame|avisame)\b/.test(s)) {
+    const sp = v.specs || {}
+    if (sp.presion || sp.llantas) return { text: [`**${v.name}**`, sp.presion && `Presión: ${sp.presion}.`, sp.llantas && `Medida: ${sp.llantas}.`, 'Mídela en frío, antes de rodar.'].filter(Boolean).join('\n') }
+  }
 
   // ----- Acciones (siempre con confirmación) -----
   if (/\b(registra|anota|apunta|guarda)\b.*\b(gasolina|tanque|combustible|tanquee)|\b(le puse|eche|heche|tanquee)\b.*\b(gasolina|combustible)?/.test(s) && /gasolina|tanque|combustible|tanquee/.test(s)) {
