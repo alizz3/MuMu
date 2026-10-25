@@ -94,8 +94,18 @@ function wantTask(x) { G.wantTask(x.p.id, true); toast(x.nextDate || x.nextKm !=
 async function delVehicleFile(fm) { return delFile(fm) }
 // Documentos que están en tu Drive: se ven aquí mismo
 const drivePv = ref(null)
+// Talleres: lista solo con el nombre; al tocar, su ficha con datos y visitas
+const shopView = ref(null)
+const shopsOk = computed(() => g.value.shops.filter((s) => !s.blocked))
+const shopsNo = computed(() => g.value.shops.filter((s) => s.blocked))
+const shopSel = computed(() => g.value.shops.find((s) => s.id === shopView.value) || null)
+const shopVisits = computed(() => (shopSel.value ? g.value.services.filter((s) => s.shopId === shopSel.value.id).sort((a, b) => ((b.date || b.intakeDate || '') > (a.date || a.intakeDate || '') ? 1 : -1)) : []))
+const shopSpent = computed(() => shopVisits.value.reduce((a, s) => a + (s.status === 'realizado' ? L.serviceTotal(s) || 0 : 0), 0))
+const vehName = (id) => g.value.vehicles.find((x) => x.id === id)?.name || ''
+function editShop(extra = {}) { const s = shopSel.value; shopView.value = null; open('shop', { ...s, ...extra }) }
+async function unblock() { if (await ask(`¿Quitar "No volver" de ${shopSel.value.name}?`)) { G.unblockShop(shopSel.value.id); toast('Listo') } }
 const pvClose = ref(null)
-const onKey = (e) => { if (e.key === 'Escape' && drivePv.value) drivePv.value = null }
+const onKey = (e) => { if (e.key !== 'Escape') return; if (drivePv.value) drivePv.value = null; else if (shopView.value) shopView.value = null }
 watch(drivePv, (v) => { if (v) nextTick(() => pvClose.value?.focus()) })
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -123,13 +133,11 @@ const driveOpenUrl = (id) => `https://drive.google.com/file/d/${id}/view${au()}`
       <p v-if="!active.length" class="small muted" style="text-align:center">Todavía no tienes vehículos. Toca + para agregar uno.</p>
 
       <GroupCard title="Talleres" icon="tool" color="#BFD7F0" :count="g.shops.length || null" sub="Quién revisó tu vehículo, dónde queda y cómo llamarlo" :open="isOpen('shops')" @toggle="toggle('shops')">
-        <div v-for="s in g.shops" :key="s.id" class="item">
-          <div class="grow" style="min-width:0"><div class="small b">{{ s.name }}</div><div class="tiny muted">{{ [s.mechanic, s.address].filter(Boolean).join(' · ') || 'Sin detalles' }}</div></div>
-          <a v-if="s.phone" class="iconbtn" :href="telUrl(s.phone)" aria-label="Llamar"><Icon name="phone" :size="16" /></a>
-          <a v-if="s.phone" class="iconbtn" :href="waUrl(s.phone)" target="_blank" rel="noopener" aria-label="WhatsApp"><Icon name="chat" :size="16" /></a>
-          <a v-if="mapsOf(s)" class="iconbtn" :href="mapsOf(s)" target="_blank" rel="noopener" aria-label="Ver en el mapa"><Icon name="pin" :size="16" /></a>
-          <button class="iconbtn" aria-label="Editar taller" @click="open('shop', s)"><Icon name="edit" :size="16" /></button>
-        </div>
+        <button v-for="s in shopsOk" :key="s.id" class="item shop-row" @click="shopView = s.id"><span class="grow small b">{{ s.name }}</span><Icon name="chev" :size="14" class="muted" /></button>
+        <template v-if="shopsNo.length">
+          <p class="tiny muted" style="margin:10px 0 2px">No volver</p>
+          <button v-for="s in shopsNo" :key="s.id" class="item shop-row no" @click="shopView = s.id"><span class="grow small">{{ s.name }}</span><span class="badge red">No volver</span><Icon name="chev" :size="14" class="muted" /></button>
+        </template>
         <button class="link" @click="open('shop')">+ Taller</button>
       </GroupCard>
       <GroupCard v-if="archived.length" title="Archivados" icon="folder" :count="archived.length" :open="isOpen('arch')" @toggle="toggle('arch')">
@@ -356,11 +364,47 @@ const driveOpenUrl = (id) => `https://drive.google.com/file/d/${id}/view${au()}`
         <iframe class="pv-frame" :src="drivePreviewUrl(drivePv.id)" :title="drivePv.name" allow="fullscreen" allowfullscreen></iframe>
       </div>
     </div>
+    <div v-if="shopSel" class="pv" role="dialog" aria-modal="true" :aria-label="shopSel.name" @click.self="shopView = null">
+      <div class="shop-box">
+        <div class="pv-top"><b class="pv-name">{{ shopSel.name }}</b><button class="iconbtn" aria-label="Editar taller" @click="editShop()"><Icon name="edit" :size="16" /></button><button class="iconbtn" aria-label="Cerrar" @click="shopView = null"><Icon name="x" :size="18" /></button></div>
+        <div class="shop-body stack">
+          <div v-if="shopSel.blocked" class="warn small"><b>No volver.</b> {{ shopSel.blockedReason }}<span v-if="shopSel.blockedAt" class="tiny muted" style="display:block;margin-top:2px">Marcado el {{ L.fmtDate(shopSel.blockedAt) }}</span></div>
+          <dl class="kv small">
+            <template v-if="shopSel.mechanic"><dt>Mecánico</dt><dd>{{ shopSel.mechanic }}</dd></template>
+            <template v-if="shopSel.phone"><dt>Teléfono</dt><dd>{{ shopSel.phone }}</dd></template>
+            <template v-if="shopSel.address"><dt>Dirección</dt><dd>{{ shopSel.address }}</dd></template>
+            <template v-if="shopSel.notes"><dt>Notas</dt><dd>{{ shopSel.notes }}</dd></template>
+          </dl>
+          <div v-if="shopSel.phone || mapsOf(shopSel)" class="row wrap" style="gap:6px">
+            <a v-if="shopSel.phone" class="btn sm lav" :href="telUrl(shopSel.phone)"><Icon name="phone" :size="14" />Llamar</a>
+            <a v-if="shopSel.phone" class="btn sm lav" :href="waUrl(shopSel.phone)" target="_blank" rel="noopener"><Icon name="chat" :size="14" />WhatsApp</a>
+            <a v-if="mapsOf(shopSel)" class="btn sm lav" :href="mapsOf(shopSel)" target="_blank" rel="noopener"><Icon name="pin" :size="14" />Cómo llegar</a>
+          </div>
+          <h3 class="small" style="margin-top:4px">Veces que lo llevaste <span class="muted">· {{ shopVisits.length }}</span><span v-if="shopSpent" class="muted"> · {{ L.fmtMoney(shopSpent) }} en total</span></h3>
+          <p v-if="!shopVisits.length" class="tiny muted">Todavía no hay trabajos registrados con este taller.</p>
+          <button v-for="s in shopVisits" :key="s.id" class="visit" @click="shopView = null; s.status === 'por_confirmar' ? open('confirm', { id: s.id, vehicleId: s.vehicleId }) : open('service', s)">
+            <span class="small b">{{ svcTitle(s) }}</span>
+            <span class="tiny muted">{{ g.vehicles.length > 1 ? vehName(s.vehicleId) + ' · ' : '' }}<template v-if="s.intakeDate">Lo llevaste el {{ L.fmtDate(s.intakeDate) }} · </template>{{ s.status === 'realizado' ? 'Te lo entregaron el ' + L.fmtDate(s.date) : SERVICE_STATUS[s.status].label }}{{ s.km != null ? ` · ${L.fmtKm(s.km)}` : '' }}</span>
+            <span v-if="L.serviceTotal(s) != null" class="tiny"><b>{{ L.fmtMoney(L.serviceTotal(s)) }}</b></span>
+          </button>
+          <button v-if="!shopSel.blocked" class="btn ghost" style="margin-top:6px" @click="editShop({ blocked: true })"><Icon name="lock" :size="15" />No volver a este taller</button>
+          <button v-else class="btn ghost" style="margin-top:6px" @click="unblock">Quitar "No volver"</button>
+        </div>
+      </div>
+    </div>
     <GarageSheet />
   </div>
 </template>
 
 <style scoped>
+.shop-row { width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.shop-row.no { opacity: .8; }
+.shop-box { width: min(560px, 100%); max-height: min(88dvh, 820px); background: var(--surface); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+.shop-body { padding: 14px 16px 18px; overflow-y: auto; gap: 10px; }
+.warn { background: color-mix(in srgb, var(--danger, #C0392B) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger, #C0392B) 35%, transparent); border-radius: 12px; padding: 10px 12px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+.visit { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: none; color: inherit; font: inherit; cursor: pointer; }
 .phbtn { position: relative; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 16px; flex: none; }
 .phadd { position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--pink-700, #A84268); color: #fff; }
 .pv { position: fixed; inset: 0; z-index: 80; background: rgba(20, 12, 24, .55); display: grid; place-items: center; padding: 12px; }

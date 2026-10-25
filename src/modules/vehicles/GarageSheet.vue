@@ -41,7 +41,7 @@ watch(sh, (s) => {
     renew: { issuedAt: today, expiresAt: '', number: '', issuer: '', notes: '', cost: '', fileIds: [] },
     expense: { date: today, amount: '', category: 'otros', description: '', km: '', currency: 'COP', fileIds: [] },
     fuel: { date: today, km: '', qty: '', unit: 'L', amount: '', fuelType: '', station: '', notes: '', full: true },
-    shop: { name: '', mechanic: '', address: '', mapsUrl: '', phone: '', notes: '' },
+    shop: { name: '', mechanic: '', address: '', mapsUrl: '', phone: '', notes: '', blocked: false, blockedReason: '' },
     file: { kind: 'factura', note: '' },
     confirm: {},
   }[s.type] || {}
@@ -146,7 +146,8 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           </div>
           <label class="field"><span>Descripción del trabajo</span><textarea class="input" v-model="f.description" rows="2"></textarea></label>
           <label class="field"><span>Repuestos, marcas y referencias</span><textarea class="input" v-model="f.parts" rows="2" placeholder="Ej. Aceite Honda 10W-30 0,8 L"></textarea></label>
-          <div class="field"><span>Taller</span><div class="row" style="gap:6px"><select class="input grow" v-model="f.shopId"><option value="">Sin taller</option><option v-for="s in g.shops" :key="s.id" :value="s.id">{{ s.name }}{{ s.mechanic ? ` · ${s.mechanic}` : '' }}</option></select><button type="button" class="btn sm ghost" @click="addShop">+ Taller</button></div></div>
+          <div class="field"><span>Taller</span><div class="row" style="gap:6px"><select class="input grow" v-model="f.shopId"><option value="">Sin taller</option><option v-for="s in g.shops" :key="s.id" :value="s.id">{{ s.name }}{{ s.mechanic ? ` · ${s.mechanic}` : '' }}{{ s.blocked ? ' (no volver)' : '' }}</option></select><button type="button" class="btn sm ghost" @click="addShop">+ Taller</button></div></div>
+          <p v-if="shopOf(f.shopId)?.blocked" class="tiny" style="color:var(--danger);margin-top:-4px">Marcaste este taller como "No volver": {{ shopOf(f.shopId).blockedReason }}</p>
           <label class="field"><span>Mecánico que la revisó (si es otro)</span><input class="input" v-model="f.mechanic" :placeholder="shopOf(f.shopId)?.mechanic || 'Opcional'" /></label>
           <div class="grid3"><label class="field"><span>Repuestos $</span><input class="input" type="number" inputmode="numeric" v-model="f.costParts" /></label><label class="field"><span>Mano de obra $</span><input class="input" type="number" inputmode="numeric" v-model="f.costLabor" /></label><label class="field"><span>Total $</span><input class="input" type="number" inputmode="numeric" v-model="f.costTotal" :placeholder="total != null ? String(total) : ''" /></label></div>
           <p v-if="total != null && f.costTotal === ''" class="tiny muted">Total calculado: {{ L.fmtMoney(total) }}</p>
@@ -166,7 +167,7 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
             <label v-for="it in f.svc?.items || []" :key="it.id" class="row small" style="gap:8px;padding:4px 0"><input type="checkbox" :value="it.id" v-model="f.doneIds" style="width:20px;height:20px" />{{ L.catName(g, it.component) }} · {{ L.actionLabel(it.action).toLowerCase() }}</label>
           </div>
           <div class="grid2"><label class="field"><span>Kilometraje</span><input class="input" type="number" inputmode="numeric" v-model="f.km" placeholder="Si lo sabes" /></label><label class="field"><span>Total pagado $</span><input class="input" type="number" inputmode="numeric" v-model="f.costTotal" /></label></div>
-          <div class="field"><span>Taller</span><div class="row" style="gap:6px"><select class="input grow" v-model="f.shopId"><option value="">Sin taller</option><option v-for="s in g.shops" :key="s.id" :value="s.id">{{ s.name }}</option></select></div></div>
+          <div class="field"><span>Taller</span><div class="row" style="gap:6px"><select class="input grow" v-model="f.shopId"><option value="">Sin taller</option><option v-for="s in g.shops" :key="s.id" :value="s.id">{{ s.name }}{{ s.blocked ? ' (no volver)' : '' }}</option></select></div></div>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2"></textarea></label>
         </template>
 
@@ -235,6 +236,8 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           <label class="field"><span>Enlace de Google Maps (opcional)</span><input class="input" type="url" v-model="f.mapsUrl" placeholder="https://maps.app.goo.gl/…" /></label>
           <label class="field"><span>Teléfono / WhatsApp</span><input class="input" type="tel" v-model="f.phone" /></label>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2" placeholder="Horario, qué tan bien trabaja, precios…"></textarea></label>
+          <label class="row small" style="gap:8px"><input type="checkbox" v-model="f.blocked" style="width:20px;height:20px" />No volver a este taller</label>
+          <label v-if="f.blocked" class="field"><span>¿Por qué?</span><textarea class="input" v-model="f.blockedReason" rows="2" required placeholder="Ej. cobró cosas que no hizo, dejó la moto mal arreglada…"></textarea></label>
         </template>
 
         <!-- Archivo -->

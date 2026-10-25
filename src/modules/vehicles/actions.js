@@ -61,8 +61,12 @@ export function saveShop(d) {
   const name = clean(d.name, 80); if (!name) throw new VError('Ponle nombre al taller')
   const phone = clean(d.phone, 30)
   if (phone && !/^[+\d\s()-]{7,}$/.test(phone)) throw new VError('Revisa el teléfono')
-  return upsert('shops', { id: d.id, name, mechanic: clean(d.mechanic, 80), address: clean(d.address, 200), mapsUrl: /^https?:\/\//.test(d.mapsUrl || '') ? clean(d.mapsUrl, 500) : '', phone, notes: clean(d.notes, 500) }, 'shop')
+  const blocked = !!d.blocked
+  if (blocked && !clean(d.blockedReason, 300)) throw new VError('Escribe por qué no volverías (te lo recordará después)')
+  return upsert('shops', { id: d.id, name, mechanic: clean(d.mechanic, 80), address: clean(d.address, 200), mapsUrl: /^https?:\/\//.test(d.mapsUrl || '') ? clean(d.mapsUrl, 500) : '', phone, notes: clean(d.notes, 500),
+    blocked, blockedReason: blocked ? clean(d.blockedReason, 300) : '', blockedAt: blocked ? (d.blockedAt || L.today()) : null }, 'shop')
 }
+export function unblockShop(id) { const s = garage().shops.find((x) => x.id === id); if (s) { s.blocked = false; s.blockedReason = ''; s.blockedAt = null; touch(s) } }
 export function deleteShop(id) { const g = garage(); g.shops = g.shops.filter((s) => s.id !== id); g.services.forEach((s) => { if (s.shopId === id) s.shopId = null }) }
 
 // ---------- Mantenimientos ----------
