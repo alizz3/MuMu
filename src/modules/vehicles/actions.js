@@ -74,7 +74,7 @@ export function saveShop(d) {
   if (phone && !/^[+\d\s()-]{7,}$/.test(phone)) throw new VError('Revisa el teléfono')
   const blocked = !!d.blocked
   if (blocked && !clean(d.blockedReason, 300)) throw new VError('Escribe por qué no volverías (te lo recordará después)')
-  return upsert('shops', { id: d.id, name, role: clean(d.role, 40) || 'Taller', mechanic: clean(d.mechanic, 80), address: clean(d.address, 200), mapsUrl: /^https?:\/\//.test(d.mapsUrl || '') ? clean(d.mapsUrl, 500) : '', phone, notes: clean(d.notes, 500),
+  return upsert('shops', { id: d.id, name, role: clean(d.role, 40) || 'Otro', mechanic: clean(d.mechanic, 80), address: clean(d.address, 200), mapsUrl: /^https?:\/\//.test(d.mapsUrl || '') ? clean(d.mapsUrl, 500) : '', phone, notes: clean(d.notes, 500),
     blocked, blockedReason: blocked ? clean(d.blockedReason, 300) : '', blockedAt: blocked ? (d.blockedAt || L.today()) : null }, 'shop')
 }
 export function unblockShop(id) { const s = garage().shops.find((x) => x.id === id); if (s) { s.blocked = false; s.blockedReason = ''; s.blockedAt = null; touch(s) } }

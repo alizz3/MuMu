@@ -128,6 +128,7 @@ function vStatus(id) {
   if (a.length) return { label: 'Próximo a revisión', cls: 'yellow', icon: 'clock' }
   return { label: 'Al día', cls: 'green', icon: 'check' }
 }
+const isShop = (s) => /taller|montallantas|^mec[aá]nic/i.test(s.role || 'Taller')
 const roleIco = (s) => { const r = (s.role || 'taller').toLowerCase(); return /tr[aá]mite|soat|tecno|seguro/.test(r) ? { icon: 'note', cls: 'sky' } : /gr[uú]a/.test(r) ? { icon: 'moto', cls: 'cream' } : /repuesto/.test(r) ? { icon: 'bag', cls: 'cream' } : /lava/.test(r) ? { icon: 'drop', cls: 'sky' } : { icon: 'tool', cls: 'lav' } }
 const lastVisit = (shopId) => { const s = g.value.services.filter((x) => x.shopId === shopId && x.date).sort((a, b) => (a.date < b.date ? 1 : -1))[0]; return s ? s.date : null }
 // "en 687 km (o 2 meses)"
@@ -249,12 +250,21 @@ const future = (d) => d > L.today()
       <div v-if="!active.length" class="card empty"><Icon name="moto" :size="30" /><b>Sin vehículos</b><span class="tiny muted">Agrega tu moto o tu carro para llevar su hoja de vida.</span><button class="btn primary sm" @click="open('vehicle')">Agregar vehículo</button></div>
 
       <section class="card">
-        <button class="row between foldhead" :aria-expanded="isOpen('shops', true)" @click="toggle('shops', true)"><h3>Talleres y contactos</h3><Icon name="chev" :size="16" class="muted" :style="{ transform: isOpen('shops', true) ? 'rotate(90deg)' : '' }" /></button>
+        <button class="row between foldhead" :aria-expanded="isOpen('shops', true)" @click="toggle('shops', true)"><h3>Talleres</h3><Icon name="chev" :size="16" class="muted" :style="{ transform: isOpen('shops', true) ? 'rotate(90deg)' : '' }" /></button>
         <template v-if="isOpen('shops', true)">
-          <button v-for="s in shopsOk" :key="s.id" class="lrow" @click="shopView = s.id"><span class="ico" :class="roleIco(s).cls"><Icon :name="roleIco(s).icon" :size="16" /></span><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ s.name }}</span><span class="tiny muted">{{ s.role || 'Taller' }}{{ lastVisit(s.id) ? ` · última visita ${L.fmtDate(lastVisit(s.id))}` : '' }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
-          <button v-for="s in shopsNo" :key="s.id" class="lrow no" @click="shopView = s.id"><span class="ico red"><Icon name="lock" :size="15" /></span><span class="grow small">{{ s.name }}</span><span class="badge red">No volver</span><Icon name="chev" :size="14" class="muted" /></button>
-          <p v-if="!g.shops.length" class="tiny muted" style="margin:6px 0">Talleres, grúa, quien te hace los trámites… todo lo de tu vehículo.</p>
-          <button class="link" style="margin-top:4px" @click="open('shop')">+ Agregar contacto</button>
+          <button v-for="s in shopsOk.filter(isShop)" :key="s.id" class="lrow" @click="shopView = s.id"><span class="ico lav"><Icon name="tool" :size="16" /></span><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ s.name }}</span><span class="tiny muted">{{ lastVisit(s.id) ? `Última visita: ${L.fmtDate(lastVisit(s.id))}` : 'Sin visitas registradas' }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
+          <button v-for="s in shopsNo.filter(isShop)" :key="s.id" class="lrow no" @click="shopView = s.id"><span class="ico red"><Icon name="lock" :size="15" /></span><span class="grow small">{{ s.name }}</span><span class="badge red">No volver</span><Icon name="chev" :size="14" class="muted" /></button>
+          <p v-if="!g.shops.some(isShop)" class="tiny muted" style="margin:6px 0">Aún no tienes talleres guardados.</p>
+          <button class="link" style="margin-top:4px" @click="open('shop', { role: 'Taller' })">+ Agregar taller</button>
+        </template>
+      </section>
+      <section class="card">
+        <button class="row between foldhead" :aria-expanded="isOpen('contacts', true)" @click="toggle('contacts', true)"><h3>Contactos</h3><Icon name="chev" :size="16" class="muted" :style="{ transform: isOpen('contacts', true) ? 'rotate(90deg)' : '' }" /></button>
+        <template v-if="isOpen('contacts', true)">
+          <button v-for="s in shopsOk.filter((x) => !isShop(x))" :key="s.id" class="lrow" @click="shopView = s.id"><span class="ico" :class="roleIco(s).cls"><Icon :name="roleIco(s).icon" :size="16" /></span><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ s.name }}</span><span class="tiny muted">{{ s.role }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
+          <button v-for="s in shopsNo.filter((x) => !isShop(x))" :key="s.id" class="lrow no" @click="shopView = s.id"><span class="ico red"><Icon name="lock" :size="15" /></span><span class="grow small">{{ s.name }}</span><span class="badge red">No volver</span><Icon name="chev" :size="14" class="muted" /></button>
+          <p v-if="!g.shops.some((x) => !isShop(x))" class="tiny muted" style="margin:6px 0">Grúa, quien te hace los trámites, repuestos, lavadero…</p>
+          <button class="link" style="margin-top:4px" @click="open('shop', { role: '' })">+ Agregar contacto</button>
         </template>
       </section>
       <section v-if="archived.length" class="card">
