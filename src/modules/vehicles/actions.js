@@ -35,7 +35,7 @@ export function saveVehicle(d) {
   const year = num(d.year)
   if (year != null && (year < 1950 || year > new Date().getFullYear() + 1)) throw new VError('Revisa el año del modelo')
   if (d.registeredAt && !isDay(d.registeredAt)) throw new VError('Fecha de matrícula inválida')
-  return upsert('vehicles', { id: d.id, type: d.type || 'moto', name, make: clean(d.make, 60), model: clean(d.model, 60), year, plate: clean(d.plate, 12).toUpperCase(), registeredAt: d.registeredAt || null, color: clean(d.color, 30), fuelType: clean(d.fuelType, 40), distanceUnit: 'km', specs: d.specs || {}, notes: clean(d.notes), photoFileId: d.photoFileId || null, driveFolder: driveId(d.driveFolder), archived: !!d.archived, owner: d.owner || null }, 'veh')
+  return upsert('vehicles', { id: d.id, type: d.type || 'moto', name, make: clean(d.make, 60), model: clean(d.model, 60), year, plate: clean(d.plate, 12).toUpperCase(), registeredAt: d.registeredAt || null, color: clean(d.color, 30), fuelType: clean(d.fuelType, 40), distanceUnit: 'km', specs: d.specs || {}, notes: clean(d.notes), ...(() => { const ids = [...new Set((d.photoIds?.length ? d.photoIds : d.photoFileId ? [d.photoFileId] : []).filter(Boolean))].slice(0, 12); return { photoIds: ids, photoFileId: ids[0] || null } })(), driveFolder: driveId(d.driveFolder), archived: !!d.archived, owner: d.owner || null }, 'veh')
 }
 export function archiveVehicle(id, archived = true) { const v = L.vehicleOf(garage(), id); if (v) { v.archived = archived; touch(v) } }
 
@@ -147,17 +147,26 @@ export function saveDocument(d) {
   if (d.issuedAt && !isDay(d.issuedAt)) throw new VError('Fecha de expedición inválida')
   if (d.issuedAt && d.expiresAt && d.expiresAt < d.issuedAt) throw new VError('El vencimiento no puede ser antes de la expedición')
   const kind = DOC_KINDS.find((k) => k.id === d.kind)
-  return upsert('documents', { id: d.id, vehicleId: d.vehicleId, kind: d.kind, name: clean(d.name, 80) || (kind?.short || kind?.label), issuedAt: d.issuedAt || null, expiresAt: d.expiresAt || null, number: clean(d.number, 60), issuer: clean(d.issuer, 80), notes: clean(d.notes), fileIds: d.fileIds || [], driveFileId: driveId(d.driveFileId), leadDays: num(d.leadDays) ?? kind?.lead ?? 30, status: d.status || 'vigente', renewedFrom: d.renewedFrom || null, cost: num(d.cost) }, 'doc')
+  const n = upsert('documents', { id: d.id, vehicleId: d.vehicleId, kind: d.kind, name: clean(d.name, 80) || (kind?.short || kind?.label), issuedAt: d.issuedAt || null, expiresAt: d.expiresAt || null, number: clean(d.number, 60), issuer: clean(d.issuer, 80), notes: clean(d.notes), fileIds: d.fileIds || [], driveFileId: driveId(d.driveFileId), leadDays: num(d.leadDays) ?? kind?.lead ?? 30, status: d.status || 'vigente', renewedFrom: d.renewedFrom || null, cost: num(d.cost) }, 'doc')
+  syncDocExpense(n)
+  return n
+}
+// El valor pagado de un documento queda como gasto (uno solo por documento). La fecha nunca queda en el futuro.
+function syncDocExpense(doc) {
+  const g = garage(); const e = g.expenses.find((x) => x.docId === doc.id && x.auto)
+  if (doc.cost == null || doc.cost <= 0) { if (e) g.expenses = g.expenses.filter((x) => x !== e); return }
+  const t = L.today(), date = doc.issuedAt && doc.issuedAt <= t ? doc.issuedAt : t
+  const data = { vehicleId: doc.vehicleId, date, amount: doc.cost, currency: 'COP', category: 'documentos', description: doc.renewedFrom ? `${doc.name} (renovación)` : doc.name, docId: doc.id, auto: true }
+  if (e) Object.assign(e, data, { updatedAt: now() }); else upsert('expenses', data, 'exp')
 }
 // Renovar: el anterior queda en el historial (reemplazado) y nace el nuevo periodo
 export function renewDocument(oldId, d) {
   const g = garage(); const old = g.documents.find((x) => x.id === oldId); if (!old) throw new VError('Ese documento ya no existe')
   const n = saveDocument({ ...d, id: null, kind: old.kind, vehicleId: old.vehicleId, renewedFrom: old.id, status: 'vigente' })
   old.status = 'reemplazado'; old.replacedBy = n.id; touch(old)
-  if (n.cost != null) upsert('expenses', { vehicleId: n.vehicleId, date: n.issuedAt || L.today(), amount: n.cost, currency: 'COP', category: 'documentos', description: `${n.name} (renovación)`, docId: n.id, auto: true }, 'exp')
   return n
 }
-export function deleteDocument(id) { const g = garage(); g.documents = g.documents.filter((d) => d.id !== id); g.documents.forEach((d) => { if (d.replacedBy === id) { d.replacedBy = null; d.status = 'vigente' } }) }
+export function deleteDocument(id) { const g = garage(); g.documents = g.documents.filter((d) => d.id !== id); g.expenses = g.expenses.filter((e) => !(e.auto && e.docId === id)); g.documents.forEach((d) => { if (d.replacedBy === id) { d.replacedBy = null; d.status = 'vigente' } }) }
 
 // ---------- Gastos y combustible ----------
 export function saveExpense(d) {
@@ -195,7 +204,7 @@ export function addFileMeta(d) { return upsert('files', { id: d.id, vehicleId: d
 export function removeFileMeta(id) {
   const g = garage(); g.files = g.files.filter((f) => f.id !== id)
   for (const k of ['services', 'documents', 'expenses']) g[k].forEach((x) => { if (x.fileIds?.includes(id)) x.fileIds = x.fileIds.filter((f) => f !== id) })
-  g.vehicles.forEach((v) => { if (v.photoFileId === id) v.photoFileId = null })
+  g.vehicles.forEach((v) => { if (v.photoIds?.includes(id)) v.photoIds = v.photoIds.filter((x) => x !== id); if (v.photoFileId === id) v.photoFileId = v.photoIds?.[0] || null })
 }
 
 // ---------- Carga inicial de Minavi (idempotente: no duplica ni pisa lo que cambiaste) ----------

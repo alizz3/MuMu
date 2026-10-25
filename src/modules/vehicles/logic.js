@@ -206,3 +206,6 @@ export function exportVehicle(g, vid) {
   const shopIds = new Set(of(g.services, vid).map((s) => s.shopId).filter(Boolean))
   return { format: 'mumu.vehicles', schema: g.schema || 1, exportedAt: new Date().toISOString(), vehicle: v, ...Object.fromEntries(LISTS.map((k) => [k, of(g[k], vid)])), shops: (g.shops || []).filter((s) => shopIds.has(s.id)), categories: g.categories || [] }
 }
+
+// Fotos del vehículo (la primera es la portada)
+export const photosOf = (v) => (v?.photoIds?.length ? v.photoIds : v?.photoFileId ? [v.photoFileId] : [])

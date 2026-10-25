@@ -8,7 +8,7 @@ import { Icon } from '../../components/ui'
 import * as G from './actions'
 import * as L from './logic'
 import { VEHICLE_TYPES, ACTIONS, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, VERIFICATION } from './model'
-import { uploadFile } from './files'
+import { uploadFile, thumbUrl, deleteFile } from './files'
 
 const g = computed(() => G.garage())
 const sh = computed(() => ui.garageSheet)
@@ -18,6 +18,13 @@ const err = ref('')
 const progress = ref(0)
 const fileInput = ref(null)
 const pickedFile = ref(null)
+const pickedPhotos = ref([]) // fotos nuevas por subir
+const photoThumbs = ref({}) // id -> url para mostrar las que ya están
+async function loadThumbs() { for (const id of f.photoIds || []) if (!photoThumbs.value[id]) { const m = g.value.files.find((x) => x.id === id); if (m) thumbUrl(m).then((u) => (photoThumbs.value = { ...photoThumbs.value, [id]: u })).catch(() => {}) } }
+const removedPhotos = ref([])
+function dropPhoto(id) { f.photoIds = f.photoIds.filter((x) => x !== id); removedPhotos.value.push(id) }
+function movePhotoFirst(id) { f.photoIds = [id, ...f.photoIds.filter((x) => x !== id)] }
+const newThumbs = computed(() => pickedPhotos.value.map((file) => URL.createObjectURL(file)))
 const newCat = ref('')
 const lowerKm = ref(null) // { prev } cuando la lectura es menor
 
@@ -46,6 +53,7 @@ watch(sh, (s) => {
     confirm: {},
   }[s.type] || {}
   Object.assign(f, base, d)
+  if (s.type === 'vehicle') { f.photoIds = d.photoIds?.length ? [...d.photoIds] : d.photoFileId ? [d.photoFileId] : []; pickedPhotos.value = []; removedPhotos.value = []; loadThumbs() }
   if (s.type === 'confirm') { const sv = g.value.services.find((x) => x.id === d.id); Object.assign(f, { date: today, doneIds: (sv?.items || []).map((i) => i.id), km: '', costTotal: '', shopId: sv?.shopId || '', notes: '', svc: sv }) }
   if (s.type === 'renew') { const old = g.value.documents.find((x) => x.id === d.oldId); f.old = old; if (old?.expiresAt && old.kind !== 'otro') { f.issuedAt = old.expiresAt > today ? old.expiresAt : today; f.expiresAt = L.addMonths(f.issuedAt, 12) } }
   if (s.type === 'service' && !f.items?.length) f.items = [{ component: '', action: 'reemplazar', detail: '' }]
@@ -62,7 +70,15 @@ async function save() {
   busy.value = true; err.value = ''
   try {
     const t = sh.value.type
-    if (t === 'vehicle') { if (pickedFile.value) { if (!f.vehicleId && f.id) f.vehicleId = f.id; const ph = await uploadFile(pickedFile.value, { vehicleId: f.id || 'nuevo', kind: 'foto', note: 'Foto del vehículo' }, (p) => (progress.value = p)); f.photoFileId = ph.id } const v = G.saveVehicle(f); if (f.photoFileId) { const ph = g.value.files.find((x) => x.id === f.photoFileId); if (ph && ph.vehicleId !== v.id) ph.vehicleId = v.id } toast('Guardado'); close(); if (!sh.value?.keep && ui.route === 'garaje' && !ui.params.id) import('../../store/actions').then((A) => A.go('garaje', { id: v.id })) }
+    if (t === 'vehicle') {
+      const ids = [...(f.photoIds || [])]
+      for (const [n, file] of pickedPhotos.value.entries()) { const ph = await uploadFile(file, { vehicleId: f.id || 'nuevo', kind: 'foto', note: 'Foto del vehículo' }, (p) => (progress.value = Math.round((n + p / 100) / pickedPhotos.value.length * 100))); ids.push(ph.id) }
+      f.photoIds = ids
+      const v = G.saveVehicle(f)
+      for (const id of ids) { const ph = g.value.files.find((x) => x.id === id); if (ph && ph.vehicleId !== v.id) ph.vehicleId = v.id }
+      for (const id of removedPhotos.value) { const m = g.value.files.find((x) => x.id === id); if (m) deleteFile(m).catch(() => {}) }
+      pickedPhotos.value = []; removedPhotos.value = []
+      toast('Guardado'); close(); if (!sh.value?.keep && ui.route === 'garaje' && !ui.params.id) import('../../store/actions').then((A) => A.go('garaje', { id: v.id })) }
     else if (t === 'reading') {
       const r = G.addReading({ ...f, correction: f.correction || !!lowerKm.value && f.correction })
       if (r.needsConfirm) { lowerKm.value = r.prev; err.value = `Es menor que la lectura anterior (${L.fmtKm(r.prev.km)} el ${L.fmtDate(r.prev.date)}). Si es una corrección, márcala y explica el motivo.`; return }
@@ -113,7 +129,13 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           <div class="grid2"><label class="field"><span>Fecha de matrícula</span><input class="input" type="date" v-model="f.registeredAt" :max="today" /></label><label class="field"><span>Color</span><input class="input" v-model="f.color" /></label></div>
           <label class="field"><span>Combustible</span><input class="input" v-model="f.fuelType" placeholder="Ej. Gasolina corriente" /></label>
           <label v-if="f.type === 'moto'" class="field"><span>Transmisión</span><input class="input" :value="f.specs?.transmision || ''" @input="f.specs = { ...(f.specs || {}), transmision: $event.target.value }" placeholder="Ej. Automática (CVT con correa) o cadena" /></label>
-          <label class="field"><span>Foto</span><input class="input" type="file" accept="image/*" @change="pickedFile = $event.target.files[0]" /></label>
+          <div class="field"><span>Fotos (la primera es la portada; si hay varias, se van turnando)</span>
+            <div class="phgrid">
+              <div v-for="(id, i) in f.photoIds || []" :key="id" class="phcell"><img v-if="photoThumbs[id]" :src="photoThumbs[id]" alt="" /><span v-if="i === 0" class="phtag">Portada</span><button v-else type="button" class="phstar" aria-label="Usar como portada" @click="movePhotoFirst(id)"><Icon name="star" :size="12" /></button><button type="button" class="phx" aria-label="Quitar foto" @click="dropPhoto(id)"><Icon name="x" :size="12" /></button></div>
+              <div v-for="(u, i) in newThumbs" :key="u" class="phcell new"><img :src="u" alt="" /><button type="button" class="phx" aria-label="Quitar foto" @click="pickedPhotos.splice(i, 1)"><Icon name="x" :size="12" /></button></div>
+              <label class="phcell add"><Icon name="plus" :size="18" /><span class="tiny">Agregar</span><input type="file" accept="image/*" multiple style="display:none" @change="pickedPhotos.push(...$event.target.files); $event.target.value = ''" /></label>
+            </div>
+          </div>
           <label class="field"><span>Carpeta de Drive con sus documentos</span><input class="input" v-model="f.driveFolder" placeholder="Pega el enlace de la carpeta" /></label>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2"></textarea></label>
           <p class="tiny muted">La placa, la matrícula, la foto y los documentos son privados: solo tus cuentas los ven.</p>
@@ -254,3 +276,13 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
     </div>
   </div>
 </template>
+
+<style scoped>
+.phgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.phcell { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-3); display: grid; place-items: center; }
+.phcell img { width: 100%; height: 100%; object-fit: cover; }
+.phcell.add { border: 1.5px dashed var(--lav-300); background: none; cursor: pointer; color: var(--lav-700); gap: 2px; align-content: center; }
+.phx, .phstar { position: absolute; top: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(30, 20, 30, .6); color: #fff; cursor: pointer; padding: 0; }
+.phx { right: 4px; } .phstar { left: 4px; }
+.phtag { position: absolute; left: 4px; bottom: 4px; font-size: 10px; background: var(--pink-700); color: #fff; padding: 1px 6px; border-radius: 999px; }
+</style>

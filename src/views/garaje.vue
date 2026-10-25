@@ -72,7 +72,7 @@ const econ = computed(() => (v.value ? L.fuelEconomy(g.value, v.value.id) : null
 const fCat = ref('')
 const expFiltered = computed(() => exps.value.filter((e) => !fCat.value || e.category === fCat.value))
 const catLabel = (c) => EXPENSE_CATS.find((x) => x.id === c)?.label || c
-const editExpense = (e) => { if (e.fuelId) open('fuel', g.value.fuel.find((x) => x.id === e.fuelId)); else if (e.serviceId && e.auto) open('service', g.value.services.find((x) => x.id === e.serviceId)); else open('expense', e) }
+const editExpense = (e) => { if (e.fuelId) open('fuel', g.value.fuel.find((x) => x.id === e.fuelId)); else if (e.serviceId && e.auto) open('service', g.value.services.find((x) => x.id === e.serviceId)); else if (e.docId && e.auto && g.value.documents.some((x) => x.id === e.docId)) open('doc', g.value.documents.find((x) => x.id === e.docId)); else open('expense', e) }
 
 // Kilometraje
 const kmRows = computed(() => (v.value ? L.readingsWithDistance(g.value, v.value.id) : []))
@@ -170,6 +170,17 @@ const DOC_ICON = { soat: 'shield', rtm: 'calendar', tarjeta: 'note', impuesto: '
 const yearSpend = computed(() => { const y = L.today().slice(0, 4); return v.value ? L.spend(g.value, v.value.id, { from: `${y}-01-01`, to: `${y}-12-31` }) : { total: 0, n: 0 } })
 const BAR = ['#C3B3D4', '#F7B6C2', '#FAECCD', '#BFD7F0', '#F9C6A8', '#9A84BD']
 const showMiss = ref(false)
+// Movimientos de gastos: filtro por tipo y periodo, agrupados por mes (más reciente arriba)
+const gCat = ref(''), gPer = ref('todo')
+const expCats = computed(() => [...new Set(exps.value.map((e) => e.category))])
+const expView = computed(() => {
+  const t = L.today(), y = t.slice(0, 4), m = t.slice(0, 7)
+  const list = exps.value.filter((e) => (!gCat.value || e.category === gCat.value) && (gPer.value === 'todo' || (gPer.value === 'anio' ? e.date.startsWith(y) : gPer.value === 'mes' ? e.date.startsWith(m) : e.date >= new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10))))
+  const groups = []
+  for (const e of list) { const k = e.date.slice(0, 7); let gr = groups.find((x) => x.k === k); if (!gr) { gr = { k, label: (() => { const t = new Date(k + '-15T12:00').toLocaleDateString('es-CO', { month: 'long' }); return `${t.charAt(0).toUpperCase()}${t.slice(1)} ${k.slice(0, 4)}` })(), items: [], total: 0 }; groups.push(gr) } gr.items.push(e); gr.total += Number(e.amount) || 0 }
+  return { groups, total: list.reduce((a, e) => a + (Number(e.amount) || 0), 0), n: list.length }
+})
+const future = (d) => d > L.today()
 </script>
 
 <template>
@@ -263,7 +274,7 @@ const showMiss = ref(false)
       <template v-if="tab === 'resumen'">
         <div class="hero">
           <section class="card herocard">
-            <button class="ph" :aria-label="v.photoFileId ? 'Cambiar foto' : 'Poner foto'" @click="open('vehicle', v)"><VehiclePhoto :vehicle="v" size="100%" :height="180" :radius="16" :icon="typeOf(v.type).icon" /><span v-if="!v.photoFileId" class="phhint"><Icon name="image" :size="14" />Poner foto</span></button>
+            <button class="ph" :aria-label="v.photoFileId ? 'Cambiar foto' : 'Poner foto'" @click="open('vehicle', v)"><VehiclePhoto :vehicle="v" size="100%" :height="200" :radius="16" :icon="typeOf(v.type).icon" dots /><span v-if="!L.photosOf(v).length" class="phhint"><Icon name="image" :size="14" />Poner foto</span></button>
             <div class="hinfo"><b>{{ [v.make, v.model].filter(Boolean).join(' ') }}{{ v.year ? ` · ${v.year}` : '' }} <span v-if="v.archived" class="badge">Archivado</span></b><span class="tiny muted">{{ [v.plate && `Placa: ${v.plate}`, v.color && `Color: ${v.color}`].filter(Boolean).join(' · ') || 'Placa sin registrar' }}</span></div>
           </section>
           <div class="stats">
@@ -416,9 +427,15 @@ const showMiss = ref(false)
           <p v-else class="small muted" style="margin-top:6px">Registra dos tanqueadas con tanque lleno y km para calcularlo.</p>
         </section>
         <section class="card">
-          <h3>Movimientos</h3>
-          <button v-for="e in exps" :key="e.id" class="lrow" @click="editExpense(e)"><span class="ico cream"><Icon :name="catIcon(e.category)" :size="15" /></span><span class="grow" style="min-width:0"><span class="small" style="display:block">{{ e.description || catLabel(e.category) }}</span><span class="tiny muted">{{ L.fmtDate(e.date) }} · {{ catLabel(e.category) }}</span></span><b class="small">{{ L.fmtMoney(e.amount, e.currency) }}</b></button>
-          <p v-if="!exps.length" class="small muted" style="margin-top:6px">Sin gastos todavía.</p>
+          <div class="row between" style="gap:8px"><h3>Movimientos</h3>
+            <select v-model="gPer" class="persel" aria-label="Periodo"><option value="todo">Todo</option><option value="mes">Este mes</option><option value="90">Últimos 3 meses</option><option value="anio">Este año</option></select></div>
+          <div v-if="expCats.length > 1" class="chips" style="margin-top:10px" role="tablist" aria-label="Tipo de gasto"><button role="tab" :aria-selected="!gCat" :class="{ on: !gCat }" @click="gCat = ''">Todos</button><button v-for="c in expCats" :key="c" role="tab" :aria-selected="gCat === c" :class="{ on: gCat === c }" @click="gCat = c">{{ catLabel(c) }}</button></div>
+          <p v-if="expView.n" class="tiny muted" style="margin-top:8px">{{ expView.n }} movimiento{{ expView.n === 1 ? '' : 's' }} · {{ L.fmtMoney(expView.total) }}</p>
+          <div v-for="gr in expView.groups" :key="gr.k" class="mgroup">
+            <div class="mhead"><span>{{ gr.label }}</span><span>{{ L.fmtMoney(gr.total) }}</span></div>
+            <button v-for="e in gr.items" :key="e.id" class="lrow" @click="editExpense(e)"><span class="ico cream"><Icon :name="catIcon(e.category)" :size="15" /></span><span class="grow" style="min-width:0"><span class="small" style="display:block">{{ e.description || catLabel(e.category) }}</span><span class="tiny muted">{{ L.fmtDate(e.date) }} · {{ catLabel(e.category) }}</span><span v-if="future(e.date)" class="tiny tred" style="display:block">Fecha en el futuro: revísala</span></span><b class="small">{{ L.fmtMoney(e.amount, e.currency) }}</b></button>
+          </div>
+          <p v-if="!expView.n" class="small muted" style="margin-top:6px">{{ exps.length ? 'Nada en ese filtro.' : 'Sin gastos todavía.' }}</p>
         </section>
       </template>
 
@@ -516,6 +533,7 @@ const showMiss = ref(false)
 .empty b { color: var(--ink); }
 .empty .btn { margin-top: 6px; }
 /* Ficha */
+.hero { display: flex; flex-direction: column; gap: 12px; }
 .herocard { padding: 10px; }
 .ph { display: block; width: 100%; border: 0; padding: 0; background: none; cursor: pointer; position: relative; border-radius: 16px; }
 .phhint { position: absolute; right: 10px; bottom: 10px; display: inline-flex; gap: 6px; align-items: center; background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--ink); font-size: 12px; padding: 5px 10px; border-radius: 999px; }
@@ -561,6 +579,9 @@ div.stat { cursor: default; }
 .btrack2 { flex: 1; width: 100%; max-width: 30px; display: flex; align-items: flex-end; }
 .btrack2 i { display: block; width: 100%; border-radius: 9px; }
 .bval { position: absolute; top: -4px; right: 0; font-size: 11px; font-weight: 600; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
+.persel { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; }
+.mgroup { margin-top: 12px; }
+.mhead { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 0; border-bottom: 1px solid var(--line); }
 /* Taller */
 .warn { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: 14px; padding: 10px 12px; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
