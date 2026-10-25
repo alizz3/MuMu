@@ -83,7 +83,7 @@ async function save() {
       const r = G.addReading({ ...f, correction: f.correction || !!lowerKm.value && f.correction })
       if (r.needsConfirm) { lowerKm.value = r.prev; err.value = `Es menor que la lectura anterior (${L.fmtKm(r.prev.km)} el ${L.fmtDate(r.prev.date)}). Si es una corrección, márcala y explica el motivo.`; return }
       toast('Kilometraje guardado'); close()
-    } else if (t === 'service') { if (f.costTotal === '' && total.value != null) f.costTotal = ''; G.saveService(f); toast('Mantenimiento guardado'); close() }
+    } else if (t === 'service') { if (f.costTotal === '' && total.value != null) f.costTotal = ''; const kc = f.status === 'realizado' ? L.kmConflict(g.value, f.vehicleId, f.date, f.km === '' ? null : Number(f.km), f.id) : null; if (kc && !(await ask(`Revisa el kilometraje: ${kc} ¿Lo guardo así de todas formas?`))) { busy.value = false; return } G.saveService(f); toast('Mantenimiento guardado'); close() }
     else if (t === 'confirm') { G.confirmService(f.id, { date: f.date, doneIds: f.doneIds, km: f.km === '' ? null : Number(f.km), costTotal: f.costTotal === '' ? null : Number(f.costTotal), shopId: f.shopId || null, notes: f.notes }); toast('Entrega confirmada'); close() }
     else if (t === 'plan') { G.savePlan(f); toast('Plan guardado'); close() }
     else if (t === 'doc') { if (pickedFile.value) f.fileIds = [...(f.fileIds || []), (await uploadFile(pickedFile.value, { vehicleId: f.vehicleId, kind: 'documento' }, (p) => (progress.value = p))).id]; G.saveDocument(f); toast('Documento guardado'); close() }

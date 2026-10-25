@@ -170,6 +170,7 @@ const DOC_ICON = { soat: 'shield', rtm: 'calendar', tarjeta: 'note', impuesto: '
 const yearSpend = computed(() => { const y = L.today().slice(0, 4); return v.value ? L.spend(g.value, v.value.id, { from: `${y}-01-01`, to: `${y}-12-31` }) : { total: 0, n: 0 } })
 const BAR = ['#C3B3D4', '#F7B6C2', '#FAECCD', '#BFD7F0', '#F9C6A8', '#9A84BD']
 const showMiss = ref(false)
+watch(() => al.value.missing.some((m) => m.text.startsWith('Revisa el km')), (x) => { if (x) showMiss.value = true }, { immediate: true })
 // Movimientos de gastos: filtro por tipo y periodo, agrupados por mes (más reciente arriba)
 const gCat = ref(''), gPer = ref('todo')
 const expCats = computed(() => [...new Set(exps.value.map((e) => e.category))])

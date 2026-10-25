@@ -194,6 +194,7 @@ export function alerts(g, vid) {
   const v = vehicleOf(g, vid)
   if (currentKm(g, vid) == null) missing.unshift({ kind: 'km', text: 'Kilometraje pendiente de registrar' })
   for (const k of ['soat', 'rtm']) if (!docOfKind(g, vid, k) && !(k === 'rtm' && v?.type === 'otro')) missing.push({ kind: 'doc', docKind: k, text: `${k === 'soat' ? 'SOAT' : 'Tecnomecánica'}: sin registrar` })
+  for (const s of services(g, vid)) if (s.status === 'realizado' && s.km != null && kmConflict(g, vid, s.date, s.km, s.id)) missing.unshift({ kind: 'service', id: s.id, text: `Revisa el km de "${s.description || catName(g, s.items?.[0]?.component)}" (${fmtKm(s.km)}): no cuadra con los demás registros` })
   for (const s of services(g, vid)) if (s.status === 'realizado' && s.km == null) { missing.push({ kind: 'service', id: s.id, text: `Sin km: ${s.description || catName(g, s.items?.[0]?.component)} (${fmtDate(s.date)})` }) }
   const rank = { red: 0, yellow: 1, pink: 2 }
   return { alerts: out.sort((a, b) => rank[a.level] - rank[b.level]), missing }
@@ -209,3 +210,14 @@ export function exportVehicle(g, vid) {
 
 // Fotos del vehículo (la primera es la portada)
 export const photosOf = (v) => (v?.photoIds?.length ? v.photoIds : v?.photoFileId ? [v.photoFileId] : [])
+
+// ¿El km de un trabajo choca con otros registros? (el odómetro no baja)
+export function kmConflict(g, vid, date, km, ignoreId = null) {
+  if (km == null || km === '' || !date) return null
+  const pts = kmPoints(g, vid).filter((p) => p.id !== ignoreId && !p.correction)
+  const before = pts.filter((p) => p.date <= date && p.km > Number(km)).sort((a, b) => b.km - a.km)[0]
+  if (before) return `El ${fmtDate(before.date)} ya tenía ${fmtKm(before.km)}, y ${fmtKm(Number(km))} es menos.`
+  const after = pts.filter((p) => p.date >= date && p.km < Number(km)).sort((a, b) => a.km - b.km)[0]
+  if (after) return `El ${fmtDate(after.date)} tenía ${fmtKm(after.km)}, y ${fmtKm(Number(km))} es más (sería antes de esa fecha).`
+  return null
+}
