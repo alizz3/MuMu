@@ -4,9 +4,11 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { Icon } from '../../components/ui'
 import { thumbUrl } from './files'
 import { garage } from './actions'
-const props = defineProps({ vehicle: { type: Object, required: true }, size: { type: Number, default: 52 }, icon: { type: String, default: 'moto' } })
+const props = defineProps({ vehicle: { type: Object, required: true }, size: { type: [Number, String], default: 52 }, height: { type: [Number, String], default: null }, radius: { type: Number, default: 16 }, icon: { type: String, default: 'moto' } })
 const url = ref(null)
 let made = null
+const px = (x) => (typeof x === 'number' ? x + 'px' : x)
+const iconSize = Math.min(64, Math.round((typeof props.height === 'number' ? props.height : typeof props.size === 'number' ? props.size : 120) / 2.4))
 watch(() => props.vehicle.photoFileId, async (id) => {
   url.value = null
   const meta = id && garage().files.find((f) => f.id === id)
@@ -16,9 +18,9 @@ watch(() => props.vehicle.photoFileId, async (id) => {
 onBeforeUnmount(() => { if (made) URL.revokeObjectURL(made) })
 </script>
 <template>
-  <span class="vph" :style="{ width: size + 'px', height: size + 'px' }">
+  <span class="vph" :style="{ width: px(size), height: px(height ?? size), borderRadius: radius + 'px' }">
     <img v-if="url" :src="url" :alt="`Foto de ${vehicle.name}`" />
-    <Icon v-else :name="icon" :size="Math.round(size / 2)" />
+    <Icon v-else :name="icon" :size="iconSize" />
   </span>
 </template>
 <style scoped>
