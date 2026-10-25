@@ -137,9 +137,9 @@ function soon(x) {
   return k && d ? `${k} (o ${d.replace(/^en /, '')})` : k || d || 'sin fecha'
 }
 // Lo necesario para estar pendiente: a qué km, cuánto falta y la fecha límite
-function when(x) {
+function when(x, short = false) {
   const kmLine = x.nextKm != null ? `A los ${L.fmtKm(x.nextKm)}${x.kmLeft != null ? (x.kmLeft >= 0 ? ` · faltan ${L.fmtKm(x.kmLeft)}` : ` · pasado por ${L.fmtKm(-x.kmLeft)}`) : ''}` : ''
-  const dateLine = x.nextDate ? `${kmLine ? 'o el' : 'El'} ${L.fmtDate(x.nextDate)}${kmLine ? ', lo que llegue primero' : x.dLeft != null ? (x.dLeft >= 0 ? ` · faltan ${x.dLeft} días` : ' · ya pasó') : ''}` : ''
+  const dateLine = x.nextDate ? `${kmLine ? 'o el' : 'El'} ${L.fmtDate(x.nextDate)}${kmLine ? (short ? '' : ', lo que llegue primero') : x.dLeft != null ? (x.dLeft >= 0 ? ` · faltan ${x.dLeft} días` : ' · ya pasó') : ''}` : ''
   return { main: kmLine || dateLine || 'Sin fecha todavía', sub: kmLine ? dateLine : '' }
 }
 // Barra de avance: cuánto del intervalo ya se usó (por km o por tiempo, el que vaya más adelantado)
@@ -304,7 +304,7 @@ const future = (d) => d > L.today()
         <div class="rgrid">
           <section class="card">
             <div class="row between"><h3 class="wi"><Icon name="clock" :size="16" />Lo próximo</h3><button class="link" @click="goTab('plan')">Ver plan</button></div>
-            <button v-if="nextPlan" class="nrow" @click="goTab('plan')"><span class="ico pink"><Icon name="tool" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ planName(nextPlan) }} · {{ L.actionLabel(nextPlan.p.action).toLowerCase() }}</span><span class="small" :class="nextPlan.status === 'vencido' ? 'tred' : nextPlan.status === 'proximo' ? 'tpink' : 'tok'" style="display:block">{{ when(nextPlan).main }}</span><span v-if="when(nextPlan).sub" class="tiny muted" style="display:block">{{ when(nextPlan).sub }}</span><span v-if="progress(nextPlan) != null" class="pbar" :class="nextPlan.status"><i :style="{ width: progress(nextPlan) * 100 + '%' }"></i></span></span><Icon name="chev" :size="14" class="muted" /></button>
+            <button v-if="nextPlan" class="nrow" @click="goTab('plan')"><span class="ico pink"><Icon name="tool" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ planName(nextPlan) }} · {{ L.actionLabel(nextPlan.p.action).toLowerCase() }}</span><span class="small" :class="nextPlan.status === 'vencido' ? 'tred' : nextPlan.status === 'proximo' ? 'tpink' : 'tok'" style="display:block">{{ when(nextPlan, true).main }}</span><span v-if="when(nextPlan, true).sub" class="tiny muted" style="display:block">{{ when(nextPlan, true).sub }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
             <button v-if="nextDoc" class="nrow" @click="goTab('docs')"><span class="ico lav"><Icon :name="DOC_ICON[nextDoc.kind] || 'note'" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ nextDoc.name }}</span><span class="tiny" :class="docDays(nextDoc) < 0 ? 'tred' : 'muted'">{{ docSoon(nextDoc) }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
             <p v-if="!nextPlan && !nextDoc" class="small muted" style="margin-top:6px">Nada pendiente por ahora.</p>
           </section>
