@@ -37,6 +37,17 @@ export function saveVehicle(d) {
   if (d.registeredAt && !isDay(d.registeredAt)) throw new VError('Fecha de matrícula inválida')
   return upsert('vehicles', { id: d.id, type: d.type || 'moto', name, make: clean(d.make, 60), model: clean(d.model, 60), year, plate: clean(d.plate, 12).toUpperCase(), registeredAt: d.registeredAt || null, color: clean(d.color, 30), fuelType: clean(d.fuelType, 40), distanceUnit: 'km', specs: d.specs || {}, notes: clean(d.notes), ...(() => { const ids = [...new Set((d.photoIds?.length ? d.photoIds : d.photoFileId ? [d.photoFileId] : []).filter(Boolean))].slice(0, 12); return { photoIds: ids, photoFileId: ids[0] || null } })(), driveFolder: driveId(d.driveFolder), archived: !!d.archived, owner: d.owner || null }, 'veh')
 }
+// Lo que usa el vehículo (aceite, bujía, llantas…): con referencia, cantidad y foto, para pedirlo igual
+export function saveConsumable(d) {
+  const v = L.vehicleOf(garage(), d.vehicleId); if (!v) throw new VError('Elige el vehículo')
+  const label = clean(d.label, 60); if (!label) throw new VError('¿Qué es? (ej. Aceite del motor)')
+  const list = v.consumables || (v.consumables = [])
+  const data = { label, brand: clean(d.brand, 160), ref: clean(d.ref, 80), qty: clean(d.qty, 60), notes: clean(d.notes, 300), photoId: d.photoId || null, updatedAt: now() }
+  const cur = d.id && list.find((x) => x.id === d.id)
+  if (cur) Object.assign(cur, data); else list.push({ id: rid('cs'), ...data })
+  touch(v); return cur || list[list.length - 1]
+}
+export function deleteConsumable(id) { for (const v of garage().vehicles) if (v.consumables?.some((x) => x.id === id)) { v.consumables = v.consumables.filter((x) => x.id !== id); touch(v) } }
 export function archiveVehicle(id, archived = true) { const v = L.vehicleOf(garage(), id); if (v) { v.archived = archived; touch(v) } }
 
 // ---------- Odómetro ----------
@@ -312,6 +323,7 @@ export function importGarage(data) {
   const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes', 'driveFolder']
   for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : k === 'driveFolder' ? driveId(vin[k]) : vin[k]
   if (vin.specs) v.specs = { ...(v.specs || {}), ...vin.specs }
+  for (const c of vin.consumables || []) { const cur = (v.consumables || []).find((x) => x.label.toLowerCase() === String(c.label || '').toLowerCase()); saveConsumable({ ...c, id: cur?.id, photoId: cur?.photoId || c.photoId || null, vehicleId: v.id }) }
   touch(v)
   let added = 0
   for (const doc of d.documents || []) {

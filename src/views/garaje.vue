@@ -11,6 +11,7 @@ import GroupCard from '../components/GroupCard.vue'
 import ListBar from '../components/ListBar.vue'
 import GarageSheet from '../modules/vehicles/GarageSheet.vue'
 import VehiclePhoto from '../modules/vehicles/VehiclePhoto.vue'
+import FileThumb from '../modules/vehicles/FileThumb.vue'
 import DriveBrowser from '../components/DriveBrowser.vue'
 import * as G from '../modules/vehicles/actions'
 import * as L from '../modules/vehicles/logic'
@@ -133,6 +134,18 @@ function soon(x) {
   const k = x.kmLeft != null ? (x.kmLeft >= 0 ? `en ${L.fmtKm(x.kmLeft)}` : `pasado por ${L.fmtKm(-x.kmLeft)}`) : ''
   const d = x.dLeft != null ? (x.dLeft < 0 ? `venció el ${L.fmtDate(x.nextDate)}` : x.dLeft < 45 ? `en ${x.dLeft} día${x.dLeft === 1 ? '' : 's'}` : `en ${Math.round(x.dLeft / 30)} meses`) : ''
   return k && d ? `${k} (o ${d.replace(/^en /, '')})` : k || d || 'sin fecha'
+}
+// Lo necesario para estar pendiente: a qué km, cuánto falta y la fecha límite
+function when(x) {
+  const kmLine = x.nextKm != null ? `A los ${L.fmtKm(x.nextKm)}${x.kmLeft != null ? (x.kmLeft >= 0 ? ` · faltan ${L.fmtKm(x.kmLeft)}` : ` · pasado por ${L.fmtKm(-x.kmLeft)}`) : ''}` : ''
+  const dateLine = x.nextDate ? `${kmLine ? 'o el' : 'El'} ${L.fmtDate(x.nextDate)}${kmLine ? ', lo que llegue primero' : x.dLeft != null ? (x.dLeft >= 0 ? ` · faltan ${x.dLeft} días` : ' · ya pasó') : ''}` : ''
+  return { main: kmLine || dateLine || 'Sin fecha todavía', sub: kmLine ? dateLine : '' }
+}
+// Barra de avance: cuánto del intervalo ya se usó (por km o por tiempo, el que vaya más adelantado)
+function progress(x) {
+  const a = x.p.intervalKm && x.last?.km != null && x.km != null ? (x.km - x.last.km) / Number(x.p.intervalKm) : null
+  const b = x.p.intervalMonths && x.last?.date ? (Date.now() - new Date(x.last.date)) / (Number(x.p.intervalMonths) * 30.44 * 864e5) : null
+  const v = Math.max(a ?? 0, b ?? 0); return a == null && b == null ? null : Math.min(1, Math.max(0, v))
 }
 const planName = (x) => L.catName(g.value, x.p.component)
 const ready = computed(() => activePlans.value.filter((x) => x.status !== 'pendiente').sort((a, b) => PLAN_STATUS[a.status].rank - PLAN_STATUS[b.status].rank || (a.kmLeft ?? 1e9) - (b.kmLeft ?? 1e9) || (a.dLeft ?? 1e9) - (b.dLeft ?? 1e9)))
@@ -263,7 +276,7 @@ const future = (d) => d > L.today()
         <div class="menuw"><button class="iconbtn" aria-label="Más opciones" :aria-expanded="menu" @click="menu = !menu"><Icon name="more" :size="20" /></button>
           <div v-if="menu" class="menu" @click="menu = false">
             <button @click="open('vehicle', v)"><Icon name="edit" :size="15" />Editar vehículo</button>
-            <button @click="goTab('ajustes')"><Icon name="settings" :size="15" />Ficha técnica</button>
+            <button @click="goTab('ajustes')"><Icon name="settings" :size="15" />Ficha técnica y lo que usa</button>
             <button @click="exportJson"><Icon name="download" :size="15" />Exportar hoja de vida</button>
             <button @click="archive(!v.archived)"><Icon name="folder" :size="15" />{{ v.archived ? 'Volver a activar' : 'Archivar vehículo' }}</button>
           </div>
@@ -290,7 +303,7 @@ const future = (d) => d > L.today()
         <div class="rgrid">
           <section class="card">
             <div class="row between"><h3 class="wi"><Icon name="clock" :size="16" />Lo próximo</h3><button class="link" @click="goTab('plan')">Ver plan</button></div>
-            <button v-if="nextPlan" class="nrow" @click="goTab('plan')"><span class="ico pink"><Icon name="tool" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ planName(nextPlan) }} · {{ L.actionLabel(nextPlan.p.action).toLowerCase() }}</span><span class="tiny" :class="nextPlan.status === 'vencido' ? 'tred' : 'tpink'">{{ soon(nextPlan) }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
+            <button v-if="nextPlan" class="nrow" @click="goTab('plan')"><span class="ico pink"><Icon name="tool" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ planName(nextPlan) }} · {{ L.actionLabel(nextPlan.p.action).toLowerCase() }}</span><span class="small" :class="nextPlan.status === 'vencido' ? 'tred' : nextPlan.status === 'proximo' ? 'tpink' : 'tok'" style="display:block">{{ when(nextPlan).main }}</span><span v-if="when(nextPlan).sub" class="tiny muted" style="display:block">{{ when(nextPlan).sub }}</span><span v-if="progress(nextPlan) != null" class="pbar" :class="nextPlan.status"><i :style="{ width: progress(nextPlan) * 100 + '%' }"></i></span></span><Icon name="chev" :size="14" class="muted" /></button>
             <button v-if="nextDoc" class="nrow" @click="goTab('docs')"><span class="ico lav"><Icon :name="DOC_ICON[nextDoc.kind] || 'note'" :size="16" /></span><span class="grow"><span class="small b" style="display:block">{{ nextDoc.name }}</span><span class="tiny" :class="docDays(nextDoc) < 0 ? 'tred' : 'muted'">{{ docSoon(nextDoc) }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
             <p v-if="!nextPlan && !nextDoc" class="small muted" style="margin-top:6px">Nada pendiente por ahora.</p>
           </section>
@@ -354,7 +367,9 @@ const future = (d) => d > L.today()
               <span class="ico pink big"><Icon name="tool" :size="20" /></span>
               <div class="grow" style="min-width:0">
                 <div class="row between" style="gap:6px"><b>{{ planName(x) }}</b><span class="chip-st" :class="PLAN_STATUS[x.status].badge">{{ PLAN_STATUS[x.status].label }}</span></div>
-                <div class="small" :class="x.status === 'vencido' ? 'tred' : 'tpink'">{{ L.actionLabel(x.p.action) }} {{ soon(x) }}</div>
+                <div class="small" :class="x.status === 'vencido' ? 'tred' : x.status === 'proximo' ? 'tpink' : 'tok'">{{ L.actionLabel(x.p.action) }} · {{ when(x).main }}</div>
+                <div v-if="when(x).sub" class="tiny muted">{{ when(x).sub }}</div>
+                <span v-if="progress(x) != null" class="pbar" :class="x.status"><i :style="{ width: progress(x) * 100 + '%' }"></i></span>
                 <div class="tiny muted">{{ every(x.p) }}</div>
               </div>
             </div>
@@ -368,11 +383,11 @@ const future = (d) => d > L.today()
         </template>
         <template v-else>
           <section v-for="gr in planGroups" :key="gr.k" class="card acc">
-            <button class="acchead" :aria-expanded="openPlan === gr.k" @click="openPlan = openPlan === gr.k ? null : gr.k"><span class="ico lav"><Icon name="tool" :size="16" /></span><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ gr.name }}</span><span class="tiny" :class="gr.first.status === 'vencido' ? 'tred' : 'muted'">Próximo {{ soon(gr.first) }}</span></span><Icon name="chev" :size="14" class="muted" :style="{ transform: openPlan === gr.k ? 'rotate(90deg)' : '' }" /></button>
+            <button class="acchead" :aria-expanded="openPlan === gr.k" @click="openPlan = openPlan === gr.k ? null : gr.k"><span class="ico lav"><Icon name="tool" :size="16" /></span><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ gr.name }}</span><span class="tiny" :class="gr.first.status === 'vencido' ? 'tred' : 'muted'">{{ when(gr.first).main }}</span></span><Icon name="chev" :size="14" class="muted" :style="{ transform: openPlan === gr.k ? 'rotate(90deg)' : '' }" /></button>
             <div v-if="openPlan === gr.k" class="pdet">
               <div v-for="x in gr.list" :key="x.p.id" class="pline">
                 <div class="row between" style="gap:6px"><span class="small b">{{ L.actionLabel(x.p.action) }}</span><span class="chip-st" :class="PLAN_STATUS[x.status].badge">{{ PLAN_STATUS[x.status].label }}</span></div>
-                <div class="tiny muted">{{ every(x.p) }} · próximo {{ soon(x) }}</div>
+                <div class="tiny muted">{{ when(x).main }}{{ when(x).sub ? ` · ${when(x).sub}` : '' }}</div><div class="tiny muted">{{ every(x.p) }}</div>
                 <div class="row wrap" style="gap:6px;margin-top:6px"><button class="btn sm ghost" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
               </div>
             </div>
@@ -467,6 +482,11 @@ const future = (d) => d > L.today()
 
       <!-- Ficha técnica -->
       <template v-else-if="tab === 'ajustes'">
+        <section class="card">
+          <div class="row between"><h3>Lo que usa</h3><button class="link" @click="open('part')">+ Agregar</button></div>
+          <p class="tiny muted" style="margin-top:2px">Aceite, bujía, llantas… con su referencia y una foto, para pedirlo igual.</p>
+          <button v-for="c in v.consumables || []" :key="c.id" class="lrow" @click="open('part', c)"><FileThumb :id="c.photoId" :size="52" icon="drop" :alt="c.label" /><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ c.label }}</span><span class="tiny" style="display:block">{{ c.brand }}</span><span class="tiny muted">{{ [c.ref && `Ref. ${c.ref}`, c.qty].filter(Boolean).join(' · ') }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
+        </section>
         <section class="card stack small" style="gap:6px">
           <div class="row between"><h3>Datos del vehículo</h3><button class="link" @click="open('vehicle', v)">Editar</button></div>
           <div v-for="r in [['Tipo', typeOf(v.type).label], ['Marca', v.make], ['Modelo', v.model], ['Año', v.year], ['Placa', v.plate], ['Matrícula', v.registeredAt && L.fmtDate(v.registeredAt)], ['Color', v.color], ['Combustible', v.fuelType]]" :key="r[0]" class="spec"><span class="muted">{{ r[0] }}</span><span>{{ r[1] || '—' }}</span></div>
@@ -522,6 +542,10 @@ const future = (d) => d > L.today()
 .chip-st.red { background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); }
 .chip-st.lav { background: var(--lav-100); color: var(--lav-700); }
 :root[data-theme="dark"] .chip-st.yellow { color: #FFE29A; }
+.pbar { display: block; height: 5px; border-radius: 99px; background: var(--track); margin: 6px 0 2px; overflow: hidden; }
+.pbar i { display: block; height: 100%; border-radius: 99px; background: var(--ok); transition: width .6s ease; }
+.pbar.proximo i, .pbar.por_confirmar i { background: var(--pink-500); } .pbar.vencido i { background: var(--danger); }
+.tok { color: var(--mint-700); }
 .tred { color: var(--danger); } .tpink { color: var(--pink-700); } .twarn { color: var(--warn); }
 .big { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
 /* Lista */

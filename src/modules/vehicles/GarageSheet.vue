@@ -28,7 +28,7 @@ const newThumbs = computed(() => pickedPhotos.value.map((file) => URL.createObje
 const newCat = ref('')
 const lowerKm = ref(null) // { prev } cuando la lectura es menor
 
-const TITLES = { vehicle: 'vehículo', reading: 'kilometraje', service: 'mantenimiento', confirm: 'Confirmar entrega del taller', plan: 'plan de mantenimiento', doc: 'documento', renew: 'Renovar documento', expense: 'gasto', fuel: 'combustible', shop: 'taller', file: 'Subir archivo' }
+const TITLES = { vehicle: 'vehículo', reading: 'kilometraje', service: 'mantenimiento', confirm: 'Confirmar entrega del taller', plan: 'plan de mantenimiento', doc: 'documento', renew: 'Renovar documento', expense: 'gasto', fuel: 'combustible', shop: 'taller', file: 'Subir archivo', part: 'repuesto o insumo' }
 const title = computed(() => { const t = sh.value?.type; if (['confirm', 'renew', 'file'].includes(t)) return TITLES[t]; return `${f.id ? 'Editar' : 'Nuevo'} ${TITLES[t] || ''}`.replace('Nuevo kilometraje', 'Actualizar kilometraje') })
 const veh = computed(() => L.vehicleOf(g.value, f.vehicleId))
 const cats = computed(() => L.categories(g.value, veh.value?.type))
@@ -48,6 +48,7 @@ watch(sh, (s) => {
     renew: { issuedAt: today, expiresAt: '', number: '', issuer: '', notes: '', cost: '', fileIds: [] },
     expense: { date: today, amount: '', category: 'otros', description: '', km: '', currency: 'COP', fileIds: [] },
     fuel: { date: today, km: '', qty: '', unit: 'L', amount: '', fuelType: '', station: '', notes: '', full: true },
+    part: { label: '', brand: '', ref: '', qty: '', notes: '', photoId: null },
     shop: { name: '', mechanic: '', address: '', mapsUrl: '', phone: '', notes: '', blocked: false, blockedReason: '' },
     file: { kind: 'factura', note: '' },
     confirm: {},
@@ -93,15 +94,18 @@ async function save() {
       const r = G.saveFuel({ ...f, forceKm: !!lowerKm.value })
       if (r.needsConfirm) { lowerKm.value = r.prev; err.value = `Ese kilometraje es menor que el último (${L.fmtKm(r.prev.km)}). Revísalo; si está bien, toca Guardar otra vez.`; return }
       toast('Combustible guardado'); close()
+    } else if (t === 'part') {
+      if (pickedFile.value) { const ph = await uploadFile(pickedFile.value, { vehicleId: f.vehicleId, kind: 'foto', note: f.label || 'Repuesto' }, (p) => (progress.value = p)); f.photoId = ph.id }
+      G.saveConsumable(f); toast('Guardado'); close()
     } else if (t === 'shop') { const s = G.saveShop(f); toast('Taller guardado'); if (sh.value.back) { ui.garageSheet = { ...sh.value.back, data: { ...sh.value.back.data, shopId: s.id } } } else close() }
     else if (t === 'file') { if (!pickedFile.value) throw new Error('Elige un archivo'); await uploadFile(pickedFile.value, { vehicleId: f.vehicleId, kind: f.kind, note: f.note }, (p) => (progress.value = p)); toast('Archivo guardado en privado'); close() }
   } catch (e) { err.value = e.message || 'No se pudo guardar' } finally { busy.value = false }
 }
 async function remove() {
   const t = sh.value.type
-  const what = { reading: 'esta lectura', service: 'este registro de mantenimiento', plan: 'este plan', doc: 'este documento', expense: 'este gasto', fuel: 'esta tanqueada', shop: 'este taller' }[t]
+  const what = { reading: 'esta lectura', service: 'este registro de mantenimiento', plan: 'este plan', doc: 'este documento', expense: 'este gasto', fuel: 'esta tanqueada', shop: 'este taller', part: 'este repuesto' }[t]
   if (!(await ask(`¿Borrar ${what}? No se puede deshacer.`))) return
-  ;({ reading: G.deleteReading, service: G.deleteService, plan: G.deletePlan, doc: G.deleteDocument, expense: G.deleteExpense, fuel: G.deleteFuel, shop: G.deleteShop })[t](f.id)
+  ;({ reading: G.deleteReading, service: G.deleteService, plan: G.deletePlan, doc: G.deleteDocument, expense: G.deleteExpense, fuel: G.deleteFuel, shop: G.deleteShop, part: G.deleteConsumable })[t](f.id)
   toast('Borrado'); close()
 }
 const shopOf = (id) => g.value.shops.find((s) => s.id === id)
@@ -248,6 +252,15 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
           <label class="row small" style="gap:8px"><input type="checkbox" v-model="f.full" style="width:20px;height:20px" />Llené el tanque (sirve para calcular el consumo)</label>
           <div class="grid2"><label class="field"><span>Tipo</span><input class="input" v-model="f.fuelType" :placeholder="veh?.fuelType || 'Corriente'" /></label><label class="field"><span>Estación</span><input class="input" v-model="f.station" /></label></div>
           <label class="field"><span>Notas</span><input class="input" v-model="f.notes" /></label>
+        </template>
+
+        <!-- Repuesto / insumo que usa -->
+        <template v-else-if="sh.type === 'part'">
+          <label class="field"><span>¿Qué es?</span><input class="input" v-model="f.label" list="part-labels" placeholder="Ej. Aceite del motor" required /><datalist id="part-labels"><option>Aceite del motor</option><option>Bujía</option><option>Filtro de aire</option><option>Llanta delantera</option><option>Llanta trasera</option><option>Batería</option><option>Correa</option><option>Pastillas o bandas de freno</option><option>Bombillo</option></datalist></label>
+          <label class="field"><span>Marca y tipo</span><input class="input" v-model="f.brand" placeholder="Ej. Honda Pro Honda Synthetic Blend 10W-30" /></label>
+          <div class="grid2"><label class="field"><span>Referencia</span><input class="input" v-model="f.ref" placeholder="Ej. 08233-M99-K1LQD" /></label><label class="field"><span>Cantidad</span><input class="input" v-model="f.qty" placeholder="Ej. 0,8 L" /></label></div>
+          <label class="field"><span>Foto (de la etiqueta o el empaque)</span><input class="input" type="file" accept="image/*" @change="pickedFile = $event.target.files[0]" /></label>
+          <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2" placeholder="Dónde comprarlo, precio, recomendaciones…"></textarea></label>
         </template>
 
         <!-- Taller -->
