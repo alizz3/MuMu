@@ -219,5 +219,8 @@ export function kmConflict(g, vid, date, km, ignoreId = null) {
   if (before) return `El ${fmtDate(before.date)} ya tenía ${fmtKm(before.km)}, y ${fmtKm(Number(km))} es menos.`
   const after = pts.filter((p) => p.date >= date && p.km < Number(km)).sort((a, b) => a.km - b.km)[0]
   if (after) return `El ${fmtDate(after.date)} tenía ${fmtKm(after.km)}, y ${fmtKm(Number(km))} es más (sería antes de esa fecha).`
+  // Saltos imposibles: más de 1.500 km por día entre este registro y el más cercano
+  const days = (a, b) => Math.abs(Math.round((new Date(a) - new Date(b)) / 864e5)) + 1
+  for (const p of pts) { const d = days(p.date, date), diff = Math.abs(p.km - Number(km)); if (diff / d > 1500) return `${fmtKm(Number(km))} el ${fmtDate(date)} y ${fmtKm(p.km)} el ${fmtDate(p.date)} serían ${fmtKm(diff)} en ${d} día${d === 1 ? '' : 's'}. ¿Le falta un número?` }
   return null
 }
