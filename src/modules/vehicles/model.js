@@ -46,6 +46,8 @@ export const BASE_CATEGORIES = [
   { id: 'acelerador', name: 'Acelerador y estrangulador' },
   { id: 'aire_aux', name: 'Sistema auxiliar de aire (AI)', types: ['moto'] },
   { id: 'embrague', name: 'Zapatas del embrague', types: ['moto'] },
+  { id: 'variador', name: 'Variador (rodillos y rampa)', types: ['moto'] },
+  { id: 'arranque', name: 'Pedal o pata de arranque', types: ['moto'] },
   { id: 'suspension', name: 'Suspensión' },
   { id: 'direccion', name: 'Dirección (cojinetes)' },
   { id: 'tornilleria', name: 'Tuercas, pernos y sujeciones' },

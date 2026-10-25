@@ -115,6 +115,7 @@ Todo lo que hace MuMu, sección por sección. Se actualiza cada vez que MuMu cam
 - **Gastos y combustible:** gasto del mes, acumulado, por categoría y de los últimos 6 meses. El consumo (km por litro o por galón) se calcula solo entre tanqueadas con tanque lleno y kilometraje.
 - **Archivos privados:** manuales, facturas y fotos se guardan en privado en tu cuenta (hasta 25 MB). El manual oficial de Honda se puede guardar con **Guardar copia**.
 - **Llantas de Mi chiquita:** en Ficha → Datos técnicos están la presión en frío (sola y con pasajero, en kPa y psi), la medida, las marcas originales y dónde está la etiqueta. Pregúntale a la vaquita "¿qué presión le pongo a las llantas?".
+- **Importar trabajos:** el archivo privado de importación también puede traer trabajos del taller (nuevos o para corregir uno existente), talleres y gastos sueltos, sin repetirlos si lo cargas dos veces. Nuevos componentes: Variador (rodillos y rampa) y Pedal o pata de arranque.
 - **Foto:** toca la foto del vehículo (o Editar vehículo) para ponerle o cambiarle la foto. Se guarda en privado y se ve en la lista y en la ficha.
 - **Carpeta de Drive:** en Editar vehículo pega el enlace de la carpeta donde guardas sus documentos. En la pestaña Archivos aparece el explorador de Drive (el mismo de otras partes de MuMu), con tu cuenta personal.
 - **Privacidad y términos** se leen en Configuración → Privacidad → Documentos legales, sin salir de MuMu. Actualizados (Drive, ClickUp, Garaje, respaldos diarios y la IA de Groq).

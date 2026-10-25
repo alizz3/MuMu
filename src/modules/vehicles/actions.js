@@ -315,5 +315,14 @@ export function importGarage(data) {
   }
   for (const r of d.readings || []) if (!g.readings.some((x) => x.vehicleId === v.id && x.date === r.date && x.km === r.km)) { const res = addReading({ ...r, vehicleId: v.id }); if (res.ok) added++ }
   for (const sh of d.shops || []) if (!g.shops.some((x) => x.name.toLowerCase() === String(sh.name || '').toLowerCase())) { saveShop(sh); added++ }
+  // Trabajos: "match" actualiza uno que ya existe (por id); si no, se crea uno nuevo sin repetir (misma fecha y descripción)
+  const shopId = (name) => (name ? g.shops.find((x) => x.name.toLowerCase() === String(name).toLowerCase())?.id || null : null)
+  for (const sv of d.services || []) {
+    const old = g.services.find((x) => x.vehicleId === v.id && ((sv.match && x.id === sv.match) || (!sv.match && (x.date || null) === (sv.date || null) && x.description === sv.description)))
+    const { match, shop, ...rest } = sv
+    saveService({ ...(old || {}), ...rest, id: old?.id, vehicleId: v.id, shopId: shop ? shopId(shop) : old?.shopId || null, expectedNote: rest.expectedNote ?? '', expectedDate: rest.expectedDate ?? null })
+    if (!old) added++
+  }
+  for (const e of d.expenses || []) if (!g.expenses.some((x) => x.vehicleId === v.id && x.date === e.date && Number(x.amount) === Number(e.amount) && x.category === e.category)) { saveExpense({ currency: 'COP', ...e, vehicleId: v.id }); added++ }
   return { vehicle: v, added }
 }
