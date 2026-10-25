@@ -28,7 +28,7 @@ const newThumbs = computed(() => pickedPhotos.value.map((file) => URL.createObje
 const newCat = ref('')
 const lowerKm = ref(null) // { prev } cuando la lectura es menor
 
-const TITLES = { vehicle: 'vehículo', reading: 'kilometraje', service: 'mantenimiento', confirm: 'Confirmar entrega del taller', plan: 'plan de mantenimiento', doc: 'documento', renew: 'Renovar documento', expense: 'gasto', fuel: 'combustible', shop: 'taller', file: 'Subir archivo', part: 'repuesto o insumo' }
+const TITLES = { vehicle: 'vehículo', reading: 'kilometraje', service: 'mantenimiento', confirm: 'Confirmar entrega del taller', plan: 'plan de mantenimiento', doc: 'documento', renew: 'Renovar documento', expense: 'gasto', fuel: 'combustible', shop: 'contacto', file: 'Subir archivo', part: 'repuesto o insumo' }
 const title = computed(() => { const t = sh.value?.type; if (['confirm', 'renew', 'file'].includes(t)) return TITLES[t]; return `${f.id ? 'Editar' : 'Nuevo'} ${TITLES[t] || ''}`.replace('Nuevo kilometraje', 'Actualizar kilometraje') })
 const veh = computed(() => L.vehicleOf(g.value, f.vehicleId))
 const cats = computed(() => L.categories(g.value, veh.value?.type))
@@ -49,7 +49,7 @@ watch(sh, (s) => {
     expense: { date: today, amount: '', category: 'otros', description: '', km: '', currency: 'COP', fileIds: [] },
     fuel: { date: today, km: '', qty: '', unit: 'L', amount: '', fuelType: '', station: '', notes: '', full: true },
     part: { label: '', brand: '', ref: '', qty: '', notes: '', photoId: null },
-    shop: { name: '', mechanic: '', address: '', mapsUrl: '', phone: '', notes: '', blocked: false, blockedReason: '' },
+    shop: { name: '', role: 'Taller', mechanic: '', address: '', mapsUrl: '', phone: '', notes: '', blocked: false, blockedReason: '' },
     file: { kind: 'factura', note: '' },
     confirm: {},
   }[s.type] || {}
@@ -97,13 +97,13 @@ async function save() {
     } else if (t === 'part') {
       if (pickedFile.value) { const ph = await uploadFile(pickedFile.value, { vehicleId: f.vehicleId, kind: 'foto', note: f.label || 'Repuesto' }, (p) => (progress.value = p)); f.photoId = ph.id }
       G.saveConsumable(f); toast('Guardado'); close()
-    } else if (t === 'shop') { const s = G.saveShop(f); toast('Taller guardado'); if (sh.value.back) { ui.garageSheet = { ...sh.value.back, data: { ...sh.value.back.data, shopId: s.id } } } else close() }
+    } else if (t === 'shop') { const s = G.saveShop(f); toast('Contacto guardado'); if (sh.value.back) { ui.garageSheet = { ...sh.value.back, data: { ...sh.value.back.data, shopId: s.id } } } else close() }
     else if (t === 'file') { if (!pickedFile.value) throw new Error('Elige un archivo'); await uploadFile(pickedFile.value, { vehicleId: f.vehicleId, kind: f.kind, note: f.note }, (p) => (progress.value = p)); toast('Archivo guardado en privado'); close() }
   } catch (e) { err.value = e.message || 'No se pudo guardar' } finally { busy.value = false }
 }
 async function remove() {
   const t = sh.value.type
-  const what = { reading: 'esta lectura', service: 'este registro de mantenimiento', plan: 'este plan', doc: 'este documento', expense: 'este gasto', fuel: 'esta tanqueada', shop: 'este taller', part: 'este repuesto' }[t]
+  const what = { reading: 'esta lectura', service: 'este registro de mantenimiento', plan: 'este plan', doc: 'este documento', expense: 'este gasto', fuel: 'esta tanqueada', shop: 'este contacto', part: 'este repuesto' }[t]
   if (!(await ask(`¿Borrar ${what}? No se puede deshacer.`))) return
   ;({ reading: G.deleteReading, service: G.deleteService, plan: G.deletePlan, doc: G.deleteDocument, expense: G.deleteExpense, fuel: G.deleteFuel, shop: G.deleteShop, part: G.deleteConsumable })[t](f.id)
   toast('Borrado'); close()
@@ -265,13 +265,14 @@ const addShop = () => { ui.garageSheet = { type: 'shop', data: {}, back: { type:
 
         <!-- Taller -->
         <template v-else-if="sh.type === 'shop'">
-          <label class="field"><span>Nombre del taller</span><input class="input" v-model="f.name" required /></label>
-          <label class="field"><span>Mecánico</span><input class="input" v-model="f.mechanic" /></label>
+          <label class="field"><span>Nombre</span><input class="input" v-model="f.name" placeholder="Taller, persona o negocio" required /></label>
+          <label class="field"><span>¿Qué hace?</span><input class="input" v-model="f.role" list="shop-roles" placeholder="Ej. Taller" /><datalist id="shop-roles"><option>Taller</option><option>Trámites (SOAT, tecnomecánica)</option><option>Grúa</option><option>Repuestos</option><option>Lavadero</option><option>Montallantas</option><option>Seguro</option></datalist></label>
+          <label class="field"><span>{{ /taller|montallantas/i.test(f.role || '') ? 'Mecánico' : 'Persona de contacto' }}</span><input class="input" v-model="f.mechanic" /></label>
           <label class="field"><span>Ubicación</span><input class="input" v-model="f.address" placeholder="Dirección o barrio" /></label>
           <label class="field"><span>Enlace de Google Maps (opcional)</span><input class="input" type="url" v-model="f.mapsUrl" placeholder="https://maps.app.goo.gl/…" /></label>
           <label class="field"><span>Teléfono / WhatsApp</span><input class="input" type="tel" v-model="f.phone" /></label>
           <label class="field"><span>Notas</span><textarea class="input" v-model="f.notes" rows="2" placeholder="Horario, qué tan bien trabaja, precios…"></textarea></label>
-          <label class="row small" style="gap:8px"><input type="checkbox" v-model="f.blocked" style="width:20px;height:20px" />No volver a este taller</label>
+          <label class="row small" style="gap:8px"><input type="checkbox" v-model="f.blocked" style="width:20px;height:20px" />No volver con este contacto</label>
           <label v-if="f.blocked" class="field"><span>¿Por qué?</span><textarea class="input" v-model="f.blockedReason" rows="2" required placeholder="Ej. cobró cosas que no hizo, dejó la moto mal arreglada…"></textarea></label>
         </template>
 
