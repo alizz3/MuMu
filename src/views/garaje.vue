@@ -188,6 +188,7 @@ const showMiss = ref(false)
 // Guía de revisión: qué mirar, paso a paso, y guardarlo como revisión (no como cambio de repuesto)
 const guide = ref(null) // { x, done: {}, note }
 const openGuide = (x) => { guide.value = { x, done: {}, note: '' } }
+const compHist = (c) => svcs.value.filter((s) => s.items.some((i) => i.component === c))
 const guideOf = (x) => GUIDES[x?.p.component] || null
 function saveGuide() {
   const { x, done, note } = guide.value, list = guideOf(x)?.check || []
@@ -533,6 +534,10 @@ const future = (d) => d > L.today()
         <p class="small muted" style="margin:4px 0 10px">{{ guideOf(guide.x).why }}</p>
         <b class="small">Qué revisar</b>
         <div v-for="(c, i) in guideOf(guide.x).check" :key="i" class="gck"><span class="grow small">{{ c }}</span><button :class="{ on: guide.done[i] === true }" aria-label="Bien" @click="guide.done[i] = guide.done[i] === true ? undefined : true"><Icon name="check" :size="14" /></button><button class="bad" :class="{ on: guide.done[i] === false }" aria-label="Con problema" @click="guide.done[i] = guide.done[i] === false ? undefined : false"><Icon name="x" :size="14" /></button></div>
+        <template v-if="compHist(guide.x.p.component).length">
+          <b class="small" style="display:block;margin-top:14px">Historial</b>
+          <button v-for="s in compHist(guide.x.p.component)" :key="s.id" class="lrow" @click="guide = null; open('service', s)"><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ svcTitle(s) }}</span><span class="tiny muted">{{ [L.fmtDate(s.date || s.intakeDate), s.km != null && L.fmtKm(s.km), shopOf(s.shopId)?.name, s.mechanic || shopOf(s.shopId)?.mechanic, L.serviceTotal(s) != null && L.fmtMoney(L.serviceTotal(s))].filter(Boolean).join(' · ') }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
+        </template>
         <textarea v-model="guide.note" class="input" rows="2" placeholder="Notas (opcional)" style="margin-top:10px;width:100%"></textarea>
         <div class="row wrap" style="gap:6px;margin-top:10px"><button class="btn primary" @click="saveGuide">Guardar revisión</button><button class="btn ghost" @click="drivePv = { id: MANUAL_DRIVE_ID, name: `Manual Honda Navi${guide.x.p.page ? ' · ' + guide.x.p.page : ''}` }"><Icon name="book" :size="15" />Manual{{ guide.x.p.page ? ` (${guide.x.p.page.replace(/^Págs?\.\s*/, 'pág. ')})` : '' }}</button></div>
         <p class="tiny muted" style="margin-top:8px">Se guarda como revisión, no como cambio de repuesto. Si algo sale con problema, llévala al taller.</p>
