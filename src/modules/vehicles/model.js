@@ -184,3 +184,19 @@ export function minaviSeed() {
     ],
   }
 }
+
+// Guías sencillas: para qué sirve cada revisión y qué mirar (sin saber de mecánica)
+export const MANUAL_DRIVE_ID = '1NIyfG9Alm3Qnc2Yyc0XksC6ZJbVCYruj'
+export const GUIDES = {
+  llantas: { why: 'Una llanta con poca presión, gastada o cortada hace que la moto pierda agarre y estabilidad.', check: ['Presión en frío (antes de rodar): del. 22 psi, tras. 29 psi (36 con pasajero)', 'Labrado: que no llegue a los testigos de desgaste (las marquitas dentro de las ranuras)', 'Sin grietas, cortes, chichones ni clavos', 'Desgaste parejo (no más gastada de un lado)', 'Válvula sin fugas (que no pierda aire en unos días)'] },
+  aceite: { why: 'El aceite lubrica y enfría el motor. Poco o viejo, el motor se desgasta rápido.', check: ['Moto derecha, motor frío: el nivel entre las marcas de la varilla', 'Color: ámbar está bien; muy negro o espeso, toca cambiarlo', 'Sin manchas de aceite debajo de la moto'] },
+  frenos: { why: 'Que la moto frene derecho y a tiempo.', check: ['Las manijas no llegan hasta el manubrio al frenar', 'Indicador de desgaste de las zapatas dentro del límite', 'Sin ruidos raros ni vibración al frenar', 'Luz de freno prende con cada manija'] },
+  bujia: { why: 'Da la chispa para encender. Gastada: arranca mal y gasta más gasolina.', check: ['Pídele al mecánico que la revise: color y separación (0,8–0,9 mm)', 'Referencia correcta: NGK MR7C-9N'] },
+  filtro_aire: { why: 'Evita que entre polvo al motor. Sucio: pierde fuerza y gasta más.', check: ['Pídele al mecánico que lo saque y lo mire a contraluz', 'Si está muy sucio o roto, se cambia (no se lava)'] },
+  correa: { why: 'Transmite la fuerza del motor a la rueda. Si se rompe, la moto no anda.', check: ['Pídele al mecánico revisar grietas y ancho de la correa', 'Ruidos o tirones al acelerar'] },
+  bateria: { why: 'Da la energía para arrancar y para las luces.', check: ['Arranca con el botón sin quedarse sin fuerza', 'Bornes limpios y apretados (sin polvo blanco o verde)', 'Si se descarga seguido, que revisen la carga (regulador)'] },
+  luces: { why: 'Que te vean y veas, y no te pongan un comparendo.', check: ['Farola (alta y baja)', 'Direccionales de los dos lados', 'Luz de freno con cada manija', 'Pito'] },
+  suspension: { why: 'Absorbe los huecos y mantiene la llanta pegada al piso.', check: ['Al empujar la moto hacia abajo, sube suave (no rebota)', 'Sin aceite en las barras de adelante'] },
+  tornilleria: { why: 'Que nada se afloje con la vibración.', check: ['Tornillos de ruedas, manubrio y escape firmes', 'Nada suena suelto al pasar huecos'] },
+  direccion: { why: 'Que el manubrio gire suave y la moto vaya derecha.', check: ['El manubrio gira suave de lado a lado, sin trabarse', 'Sin juego al frenar adelante'] },
+}

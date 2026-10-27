@@ -15,7 +15,7 @@ import FileThumb from '../modules/vehicles/FileThumb.vue'
 import DriveBrowser from '../components/DriveBrowser.vue'
 import * as G from '../modules/vehicles/actions'
 import * as L from '../modules/vehicles/logic'
-import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS } from '../modules/vehicles/model'
+import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS, GUIDES, MANUAL_DRIVE_ID } from '../modules/vehicles/model'
 import { openFile, deleteFile, saveManualCopy } from '../modules/vehicles/files'
 import { canUseBackend, driveAccounts } from '../services/api'
 
@@ -185,6 +185,16 @@ const DOC_ICON = { soat: 'shield', rtm: 'calendar', tarjeta: 'note', impuesto: '
 const yearSpend = computed(() => { const y = L.today().slice(0, 4); return v.value ? L.spend(g.value, v.value.id, { from: `${y}-01-01`, to: `${y}-12-31` }) : { total: 0, n: 0 } })
 const BAR = ['#C3B3D4', '#F7B6C2', '#FAECCD', '#BFD7F0', '#F9C6A8', '#9A84BD']
 const showMiss = ref(false)
+// Guía de revisión: qué mirar, paso a paso, y guardarlo como revisión (no como cambio de repuesto)
+const guide = ref(null) // { x, done: {}, note }
+const openGuide = (x) => { guide.value = { x, done: {}, note: '' } }
+const guideOf = (x) => GUIDES[x?.p.component] || null
+function saveGuide() {
+  const { x, done, note } = guide.value, list = guideOf(x)?.check || []
+  const ok = list.filter((_, i) => done[i]), bad = list.filter((_, i) => done[i] === false)
+  G.saveService({ vehicleId: v.value.id, status: 'realizado', date: L.today(), km: km.value, items: [{ component: x.p.component, action: 'inspeccionar', detail: 'Revisión' }], description: `Revisión: ${planName(x)}`, notes: [ok.length && `Bien: ${ok.join('; ')}`, bad.length && `Con problema: ${bad.join('; ')}`, note].filter(Boolean).join('\n') })
+  toast(bad.length ? 'Revisión guardada. Ojo con lo que marcaste con problema.' : 'Revisión guardada'); guide.value = null
+}
 watch(() => al.value.missing.some((m) => m.text.startsWith('Revisa el km')), (x) => { if (x) showMiss.value = true }, { immediate: true })
 // Movimientos de gastos: filtro por tipo y periodo, agrupados por mes (más reciente arriba)
 const gCat = ref(''), gPer = ref('todo')
@@ -386,7 +396,7 @@ const future = (d) => d > L.today()
             </div>
             <div v-if="openPlan === x.p.id" class="pdet">
               <p class="tiny muted">Último: {{ x.last ? `${L.fmtDate(x.last.date)}${x.last.km != null ? ` · ${L.fmtKm(x.last.km)}` : ''}` : 'sin registro' }} · {{ VERIFICATION[x.p.verification]?.label }}{{ x.p.page ? ` (${x.p.page})` : '' }}</p>
-              <div class="row wrap" style="gap:6px"><button class="btn sm primary" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
+              <div class="row wrap" style="gap:6px"><button v-if="guideOf(x)" class="btn sm lav" @click="openGuide(x)">Cómo revisarlo</button><button class="btn sm primary" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
             </div>
             <button class="btn sm soft" style="margin-top:10px;width:100%" @click="openPlan = openPlan === x.p.id ? null : x.p.id">{{ openPlan === x.p.id ? 'Ocultar' : 'Ver detalles' }}</button>
           </section>
@@ -399,7 +409,7 @@ const future = (d) => d > L.today()
               <div v-for="x in gr.list" :key="x.p.id" class="pline">
                 <div class="row between" style="gap:6px"><span class="small b">{{ L.actionLabel(x.p.action) }}</span><span class="chip-st" :class="PLAN_STATUS[x.status].badge">{{ PLAN_STATUS[x.status].label }}</span></div>
                 <div class="tiny muted">{{ when(x).main }}{{ when(x).sub ? ` · ${when(x).sub}` : '' }}</div><div class="tiny muted">{{ every(x.p) }}</div>
-                <div class="row wrap" style="gap:6px;margin-top:6px"><button class="btn sm ghost" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
+                <div class="row wrap" style="gap:6px;margin-top:6px"><button v-if="guideOf(x)" class="btn sm lav" @click="openGuide(x)">Cómo revisarlo</button><button class="btn sm ghost" @click="open('service', { items: [{ component: x.p.component, action: x.p.action, detail: '' }] })">Ya se hizo</button><button class="btn sm ghost" @click="wantTask(x)">Recordármelo</button><button class="btn sm ghost" @click="open('plan', x.p)">Editar</button></div>
               </div>
             </div>
           </section>
@@ -517,6 +527,17 @@ const future = (d) => d > L.today()
         <button v-for="o in PICK" :key="o[0]" class="optrow" @click="pick(o[0])"><span class="ico big" :style="{ background: o[4] }"><Icon :name="o[3]" :size="20" /></span><span class="grow"><b class="small" style="display:block">{{ o[1] }}</b><span class="tiny muted">{{ o[2] }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
       </div>
     </div>
+    <div v-if="guide" class="pv sheetb" role="dialog" aria-modal="true" :aria-label="planName(guide.x)" @click.self="guide = null">
+      <div class="pick">
+        <div class="row between"><h2 style="margin:0">{{ planName(guide.x) }}</h2><button class="iconbtn" aria-label="Cerrar" @click="guide = null"><Icon name="x" :size="18" /></button></div>
+        <p class="small muted" style="margin:4px 0 10px">{{ guideOf(guide.x).why }}</p>
+        <b class="small">Qué revisar</b>
+        <div v-for="(c, i) in guideOf(guide.x).check" :key="i" class="gck"><span class="grow small">{{ c }}</span><button :class="{ on: guide.done[i] === true }" aria-label="Bien" @click="guide.done[i] = guide.done[i] === true ? undefined : true"><Icon name="check" :size="14" /></button><button class="bad" :class="{ on: guide.done[i] === false }" aria-label="Con problema" @click="guide.done[i] = guide.done[i] === false ? undefined : false"><Icon name="x" :size="14" /></button></div>
+        <textarea v-model="guide.note" class="input" rows="2" placeholder="Notas (opcional)" style="margin-top:10px;width:100%"></textarea>
+        <div class="row wrap" style="gap:6px;margin-top:10px"><button class="btn primary" @click="saveGuide">Guardar revisión</button><button class="btn ghost" @click="drivePv = { id: MANUAL_DRIVE_ID, name: `Manual Honda Navi${guide.x.p.page ? ' · ' + guide.x.p.page : ''}` }"><Icon name="book" :size="15" />Manual{{ guide.x.p.page ? ` (${guide.x.p.page.replace(/^Págs?\.\s*/, 'pág. ')})` : '' }}</button></div>
+        <p class="tiny muted" style="margin-top:8px">Se guarda como revisión, no como cambio de repuesto. Si algo sale con problema, llévala al taller.</p>
+      </div>
+    </div>
     <div v-if="drivePv" class="pv" role="dialog" aria-modal="true" :aria-label="drivePv.name" @click.self="drivePv = null">
       <div class="pv-box">
         <div class="pv-top"><b class="pv-name">{{ drivePv.name }}</b><a class="btn sm lav" :href="driveOpenUrl(drivePv.id)" target="_blank" rel="noopener">Abrir en Drive ↗</a><button ref="pvClose" class="iconbtn" aria-label="Cerrar" @click="drivePv = null"><Icon name="x" :size="18" /></button></div>
@@ -618,6 +639,10 @@ div.stat { cursor: default; }
 .persel { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; }
 .mgroup { margin-top: 12px; }
 .mhead { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 0; border-bottom: 1px solid var(--line); }
+.gck { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.gck button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: pointer; flex: none; }
+.gck button.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.gck button.bad.on { background: var(--danger); border-color: var(--danger); }
 /* Taller */
 .warn { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: 14px; padding: 10px 12px; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
