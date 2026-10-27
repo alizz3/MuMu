@@ -186,7 +186,6 @@ export function minaviSeed() {
 }
 
 // Guías sencillas: para qué sirve cada revisión y qué mirar (sin saber de mecánica)
-export const MANUAL_DRIVE_ID = '1NIyfG9Alm3Qnc2Yyc0XksC6ZJbVCYruj'
 export const GUIDES = {
   llantas: { why: 'Una llanta con poca presión, gastada o cortada hace que la moto pierda agarre y estabilidad.', check: ['Presión en frío (antes de rodar): del. 22 psi, tras. 29 psi (36 con pasajero)', 'Labrado: que no llegue a los testigos de desgaste (las marquitas dentro de las ranuras)', 'Sin grietas, cortes, chichones ni clavos', 'Desgaste parejo (no más gastada de un lado)', 'Válvula sin fugas (que no pierda aire en unos días)'] },
   aceite: { why: 'El aceite lubrica y enfría el motor. Poco o viejo, el motor se desgasta rápido.', check: ['Moto derecha, motor frío: el nivel entre las marcas de la varilla', 'Color: ámbar está bien; muy negro o espeso, toca cambiarlo', 'Sin manchas de aceite debajo de la moto'] },

@@ -15,7 +15,7 @@ import FileThumb from '../modules/vehicles/FileThumb.vue'
 import DriveBrowser from '../components/DriveBrowser.vue'
 import * as G from '../modules/vehicles/actions'
 import * as L from '../modules/vehicles/logic'
-import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS, GUIDES, MANUAL_DRIVE_ID } from '../modules/vehicles/model'
+import { VEHICLE_TYPES, SERVICE_STATUS, PLAN_STATUS, VERIFICATION, DOC_KINDS, EXPENSE_CATS, FILE_KINDS, SPEC_LABELS, GUIDES } from '../modules/vehicles/model'
 import { openFile, deleteFile, saveManualCopy } from '../modules/vehicles/files'
 import { canUseBackend, driveAccounts } from '../services/api'
 
@@ -488,6 +488,7 @@ const future = (d) => d > L.today()
 
       <!-- Archivos -->
       <template v-else-if="tab === 'archivos'">
+        <button v-if="v.manualDriveId" class="card lrow" style="width:100%" @click="drivePv = { id: v.manualDriveId, name: 'Manual del propietario' }"><span class="ico pink"><Icon name="book" :size="16" /></span><span class="grow small"><b>Manual del propietario</b><span class="tiny muted" style="display:block">PDF en tu Drive · toca para verlo</span></span><Icon name="eye" :size="16" class="muted" /></button>
         <section v-if="v.driveFolder" class="card"><DriveBrowser :root="v.driveFolder" prefer="personal" :height="380" title="Carpeta en Drive" icon="folder" /></section>
         <button v-else class="card lrow" style="width:100%" @click="open('vehicle', v)"><span class="ico sky"><Icon name="folder" :size="16" /></span><span class="grow small"><b>Conectar carpeta de Drive</b><span class="tiny muted" style="display:block">Ve tus documentos sin volver a subirlos</span></span><Icon name="plus" :size="16" class="muted" /></button>
         <section v-for="k in FILE_KINDS.filter((x) => files.some((f) => f.kind === x.id))" :key="k.id" class="card">
@@ -539,7 +540,7 @@ const future = (d) => d > L.today()
           <button v-for="s in compHist(guide.x.p.component)" :key="s.id" class="lrow" @click="guide = null; open('service', s)"><span class="grow" style="min-width:0"><span class="small b" style="display:block">{{ svcTitle(s) }}</span><span class="tiny muted">{{ [L.fmtDate(s.date || s.intakeDate), s.km != null && L.fmtKm(s.km), shopOf(s.shopId)?.name, s.mechanic || shopOf(s.shopId)?.mechanic, L.serviceTotal(s) != null && L.fmtMoney(L.serviceTotal(s))].filter(Boolean).join(' · ') }}</span></span><Icon name="chev" :size="14" class="muted" /></button>
         </template>
         <textarea v-model="guide.note" class="input" rows="2" placeholder="Notas (opcional)" style="margin-top:10px;width:100%"></textarea>
-        <div class="row wrap" style="gap:6px;margin-top:10px"><button class="btn primary" @click="saveGuide">Guardar revisión</button><button class="btn ghost" @click="drivePv = { id: MANUAL_DRIVE_ID, name: `Manual Honda Navi${guide.x.p.page ? ' · ' + guide.x.p.page : ''}` }"><Icon name="book" :size="15" />Manual{{ guide.x.p.page ? ` (${guide.x.p.page.replace(/^Págs?\.\s*/, 'pág. ')})` : '' }}</button></div>
+        <div class="row wrap" style="gap:6px;margin-top:10px"><button class="btn primary" @click="saveGuide">Guardar revisión</button><button v-if="v.manualDriveId" class="btn ghost" @click="drivePv = { id: v.manualDriveId, name: `Manual Honda Navi${guide.x.p.page ? ' · ' + guide.x.p.page : ''}` }"><Icon name="book" :size="15" />Manual{{ guide.x.p.page ? ` (${guide.x.p.page.replace(/^Págs?\.\s*/, 'pág. ')})` : '' }}</button></div>
         <p class="tiny muted" style="margin-top:8px">Se guarda como revisión, no como cambio de repuesto. Si algo sale con problema, llévala al taller.</p>
       </div>
     </div>

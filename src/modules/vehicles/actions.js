@@ -320,8 +320,8 @@ export function importGarage(data) {
   const vin = d.vehicle || {}
   let v = g.vehicles.find((x) => x.id === vin.match || x.name.toLowerCase() === String(vin.match || vin.name || '').toLowerCase())
   if (!v) v = saveVehicle({ type: vin.type || 'moto', name: vin.name || 'Vehículo', make: vin.make, model: vin.model, year: vin.year })
-  const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes', 'driveFolder']
-  for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : k === 'driveFolder' ? driveId(vin[k]) : vin[k]
+  const keep = ['make', 'model', 'year', 'plate', 'registeredAt', 'color', 'fuelType', 'type', 'notes', 'driveFolder', 'manualDriveId']
+  for (const k of keep) if (vin[k] != null && vin[k] !== '') v[k] = k === 'plate' ? String(vin[k]).toUpperCase() : k === 'driveFolder' || k === 'manualDriveId' ? driveId(vin[k]) : vin[k]
   if (vin.specs) v.specs = { ...(v.specs || {}), ...vin.specs }
   for (const c of vin.consumables || []) { const cur = (v.consumables || []).find((x) => x.label.toLowerCase() === String(c.label || '').toLowerCase()); saveConsumable({ ...c, id: cur?.id, photoId: cur?.photoId || c.photoId || null, vehicleId: v.id }) }
   touch(v)
