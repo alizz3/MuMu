@@ -19,6 +19,7 @@ export const NAV = [
     { id: 'cerebro', label: 'Mi cerebro', icon: 'brain' },
     { id: 'experimentos', label: 'Experimentos', icon: 'flask' },
     { id: 'trabajo', label: 'Trabajo y carrera', icon: 'briefcase' },
+    { id: 'empleo', label: 'Búsqueda de empleo', icon: 'target' },
   ] },
   { group: 'Vida', items: [
     { id: 'vida', label: 'Vida', icon: 'leaf' },

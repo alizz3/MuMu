@@ -79,6 +79,7 @@ export function startClean() {
     finance: { connected: false, summary: null },
     game: { ...s.game, coins: 50, xp: 0, history: [] },
     settings: { ...state.settings, demo: false },
+    jobs: state.jobs, // tus postulaciones tampoco se borran
     vehicles: state.vehicles, // el Garaje es tuyo: no se borra al quitar ejemplos
     integrations: state.integrations,
   })

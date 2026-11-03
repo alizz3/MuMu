@@ -4,6 +4,7 @@ Disallow: /api/
 Disallow: /agenda
 Disallow: /alarmas
 Disallow: /garaje
+Disallow: /empleo
 Disallow: /guia
 Disallow: /habito
 Disallow: /importar
